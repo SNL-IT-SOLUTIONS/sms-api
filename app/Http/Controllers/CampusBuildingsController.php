@@ -11,16 +11,25 @@ use Throwable;
 
 class CampusBuildingsController extends Controller
 {
-   public function getbuildings()
+public function getBuildings(Request $request)
 {
     try {
+        // Force per page to 5 (or use query param if you want it dynamic)
+        $perPage = 5;
+
         $buildings = campus_buildings::with(['campus:id,campus_name']) // load only id + name from campus
             ->where('is_archived', 0) // only non-archived
-            ->get();
+            ->paginate($perPage);
 
         return response()->json([
             'isSuccess' => true,
-            'buildings' => $buildings,
+            'buildings' => $buildings->items(),
+            'pagination' => [
+                'current_page' => $buildings->currentPage(),
+                'per_page' => $buildings->perPage(),
+                'total' => $buildings->total(),
+                'last_page' => $buildings->lastPage(),
+            ],
         ], 200);
 
     } catch (Throwable $e) {
