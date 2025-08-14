@@ -38,7 +38,7 @@ class AccountsController extends Controller
             }
 
             // Apply pagination and hide field
-            $users = $query->paginate(10)->through(function ($user) {
+            $users = $query->paginate(5)->through(function ($user) {
                 return $user->makeHidden(['is_verified']);
             });
 

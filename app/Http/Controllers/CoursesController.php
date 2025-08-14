@@ -57,34 +57,39 @@ class CoursesController extends Controller
         }
     }
 
-    public function getCourses()
-    {
-        try {
-            
-            $user = Auth::user();
-            if (!$user) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Unauthorized.',
-                ], 401);
-            }
-             
-    
-            // Retrieve only non-archived courses
-            $courses = courses::where('is_archived', 0)->get();
-
-            return response()->json([
-                'isSuccess' => true,
-                'courses' => $courses,
-            ], 200);
-        } catch (Throwable $e) {
+  public function getCourses(Request $request)
+{
+    try {
+        $user = Auth::user();
+        if (!$user) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve courses.',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => 'Unauthorized.',
+            ], 401);
         }
+
+        // Paginate courses - only non-archived, 5 per page
+        $courses = courses::where('is_archived', 0)
+            ->paginate(5);
+
+        return response()->json([
+            'isSuccess' => true,
+            'courses' => $courses->items(),
+            'pagination' => [
+                'current_page' => $courses->currentPage(),
+                'per_page' => $courses->perPage(),
+                'total' => $courses->total(),
+                'last_page' => $courses->lastPage(),
+            ],
+        ], 200);
+    } catch (Throwable $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve courses.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
 
 
 
