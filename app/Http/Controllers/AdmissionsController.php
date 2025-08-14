@@ -1124,25 +1124,31 @@ private function saveFileToPublic(Request $request, $field, $prefix)
     }
 
     
-    public function getAcademicYearsDropdown()
-    {
-        try {
-            $data = school_years::select('id', 'school_year', 'semester')->get();
+   public function getAcademicYearsDropdown()
+{
+    try {
+        $data = school_years::select('id', 'school_year', 'semester')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'school_year' => $item->school_year . ' ' . $item->semester,
+                ];
+            });
 
-            return response()->json([
-                'isSuccess' => true,
-                'message' => 'Academic years fetched successfully.',
-                'academic_years' => $data
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Failed to fetch academic years.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Academic years fetched successfully.',
+            'academic_years' => $data
+        ]);
+    } catch (Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to fetch academic years.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
-
+}
 
 // Get campuses for first dropdown
         public function getCampusDropdown()
