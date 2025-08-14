@@ -1124,31 +1124,50 @@ private function saveFileToPublic(Request $request, $field, $prefix)
     }
 
     
-   public function getAcademicYearsDropdown()
+    public function getAcademicYearsDropdown()
+    {
+        try {
+            $data = school_years::select('id', 'school_year', 'semester')->get();
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Academic years fetched successfully.',
+                'academic_years' => $data
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to fetch academic years.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+   public function getUniqueSchoolYearsDropdown()
 {
     try {
-        $data = school_years::select('id', 'school_year', 'semester')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'school_year' => $item->school_year . ' ' . $item->semester,
-                ];
-            });
+        $data = school_years::selectRaw('MAX(id) as id, school_year')
+            ->groupBy('school_year')
+            ->orderBy('school_year', 'desc')
+            ->get();
 
         return response()->json([
             'isSuccess' => true,
-            'message' => 'Academic years fetched successfully.',
+            'message' => 'Unique school years fetched successfully.',
             'academic_years' => $data
         ]);
     } catch (Exception $e) {
         return response()->json([
             'isSuccess' => false,
-            'message' => 'Failed to fetch academic years.',
+            'message' => 'Failed to fetch unique school years.',
             'error' => $e->getMessage(),
         ], 500);
     }
 }
+
+
+
+
 
 // Get campuses for first dropdown
         public function getCampusDropdown()
