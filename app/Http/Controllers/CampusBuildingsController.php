@@ -14,6 +14,8 @@ class CampusBuildingsController extends Controller
 public function getBuildings(Request $request)
 {
     try {
+        $user=auth()->user();
+
         // Force per page to 5 (or use query param if you want it dynamic)
         $perPage = 5;
 
