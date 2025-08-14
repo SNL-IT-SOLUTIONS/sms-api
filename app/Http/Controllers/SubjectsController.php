@@ -13,28 +13,37 @@ use App\Models\subjects;
 
 class SubjectsController extends Controller
 {
-   public function getSubjects()
+  public function getSubjects(Request $request)
 {
     try {
-        // Retrieve all non-archived subjects along with their course
+        // Paginate subjects - only non-archived, 5 per page
         $subjects = subjects::with('course')
             ->where('is_archived', 0)
-            ->get()
-            ->map(function ($subject) {
-                return [
-                    'id' => $subject->id,
-                    'subject_code' => $subject->subject_code,
-                    'subject_name' => $subject->subject_name,
-                    'units' => $subject->units,
-                    'course_id' => $subject->course_id,
-                    'course_name' => $subject->course ? $subject->course->course_name : null,
-                ];
-            });
+            ->paginate(5);
+
+        // Map the paginated data
+        $formattedSubjects = $subjects->getCollection()->map(function ($subject) {
+            return [
+                'id' => $subject->id,
+                'subject_code' => $subject->subject_code,
+                'subject_name' => $subject->subject_name,
+                'units' => $subject->units,
+                'course_id' => $subject->course_id,
+                'course_name' => $subject->course ? $subject->course->course_name : null,
+            ];
+        });
 
         return response()->json([
             'isSuccess' => true,
-            'subjects' => $subjects,
+            'subjects' => $formattedSubjects,
+            'pagination' => [
+                'current_page' => $subjects->currentPage(),
+                'per_page' => $subjects->perPage(),
+                'total' => $subjects->total(),
+                'last_page' => $subjects->lastPage(),
+            ],
         ], 200);
+
     } catch (\Throwable $e) {
         return response()->json([
             'isSuccess' => false,

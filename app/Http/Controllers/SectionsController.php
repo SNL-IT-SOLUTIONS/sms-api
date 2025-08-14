@@ -14,7 +14,7 @@ use Throwable;
 
 class SectionsController extends Controller
 {
-    public function getSections()
+    public function getSections(Request $request)
 {
     try {
         $user = Auth::user();
@@ -25,32 +25,39 @@ class SectionsController extends Controller
             ], 401);
         }
 
-        // Retrieve only non-archived sections
+        // Paginate sections - only non-archived
         $sections = sections::with(['course', 'campus'])
             ->where('is_archived', 0)
-            ->get()
-            ->map(function ($section) {
-                return [
-                    'id' => $section->id,
-                    'section_name' => $section->section_name,
-                    'students_size'=> $section->students_size,
-                    'course' => $section->course ? [
-                        'id' => $section->course->id,
-                        'name' => $section->course->course_name,
-                    ] : null,
-                     'campus' => $section->campus ? [
-                        'id' => $section->campus->id,
-                        'campus_name' => $section->campus->campus_name,
-                    ] : null,
+            ->paginate(5);
 
-                    'created_at' => $section->created_at,
-                    'updated_at' => $section->updated_at,
-                ];
-            });
+        // Map after pagination
+        $formattedSections = $sections->getCollection()->map(function ($section) {
+            return [
+                'id' => $section->id,
+                'section_name' => $section->section_name,
+                'students_size' => $section->students_size,
+                'course' => $section->course ? [
+                    'id' => $section->course->id,
+                    'name' => $section->course->course_name,
+                ] : null,
+                'campus' => $section->campus ? [
+                    'id' => $section->campus->id,
+                    'campus_name' => $section->campus->campus_name,
+                ] : null,
+                'created_at' => $section->created_at,
+                'updated_at' => $section->updated_at,
+            ];
+        });
 
         return response()->json([
             'isSuccess' => true,
-            'sections' => $sections,
+            'sections' => $formattedSections,
+            'pagination' => [
+                'current_page' => $sections->currentPage(),
+                'per_page' => $sections->perPage(),
+                'total' => $sections->total(),
+                'last_page' => $sections->lastPage(),
+            ],
         ], 200);
 
     } catch (Throwable $e) {

@@ -11,24 +11,33 @@ use Throwable;
 
 class SchoolYearsController extends Controller
 {
-    public function getSchoolYears()
-    {
-        try {
-            // Retrieve all school years
-            $schoolYears = school_years::where('is_archived', 0)->get();
+public function getSchoolYears(Request $request)
+{
+    try {
+        // Paginate school years - only non-archived
+        $schoolYears = school_years::where('is_archived', 0)
+            ->paginate(5);
 
-            return response()->json([
-                'isSuccess' => true,
-                'schoolYears' => $schoolYears,
-            ], 200);
-        } catch (Throwable $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Failed to retrieve school years.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'isSuccess' => true,
+            'schoolYears' => $schoolYears->items(),
+            'pagination' => [
+                'current_page' => $schoolYears->currentPage(),
+                'per_page' => $schoolYears->perPage(),
+                'total' => $schoolYears->total(),
+                'last_page' => $schoolYears->lastPage(),
+            ],
+        ], 200);
+
+    } catch (Throwable $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve school years.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
+
 
     public function createSchoolYear(Request $request)
     {

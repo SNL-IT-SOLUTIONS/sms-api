@@ -13,7 +13,6 @@ class courses extends Model
         'course_name',
         'course_code',
         'course_type',
-        'strand',
         'course_description',
         'course_units',
         'is_archive',

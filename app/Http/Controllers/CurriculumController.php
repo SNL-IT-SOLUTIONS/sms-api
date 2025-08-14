@@ -12,7 +12,7 @@ class CurriculumController extends Controller
 public function getCurriculums(Request $request)
 {
     try {
-        
+        // Always return 5 per page
         $curriculums = curriculums::with(['subjects', 'course'])
             ->paginate(5);
 
