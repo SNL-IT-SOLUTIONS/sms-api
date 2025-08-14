@@ -13,26 +13,33 @@ use Throwable;
 class BuildingRoomsController extends Controller
 {
     
-    public function getRooms()
-    {
-        try {
-            $rooms = building_rooms::with(['building:id,building_name']) // load only id + name from building
-                ->where('is_archived', 0) // only non-archived
-                ->get();
+  public function getRooms(Request $request)
+{
+    try {
+        // Paginate with 5 per page
+        $rooms = building_rooms::with(['building:id,building_name']) // load only id + name from building
+            ->where('is_archived', 0) // only non-archived
+            ->paginate(5);
 
-            return response()->json([
-                'isSuccess' => true,
-                'rooms' => $rooms,
-            ], 200);
+        return response()->json([
+            'isSuccess' => true,
+            'rooms' => $rooms->items(),
+            'pagination' => [
+                'current_page' => $rooms->currentPage(),
+                'per_page' => $rooms->perPage(),
+                'total' => $rooms->total(),
+                'last_page' => $rooms->lastPage(),
+            ],
+        ], 200);
 
-        } catch (Throwable $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Failed to retrieve rooms.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+    } catch (Throwable $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve rooms.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
 
    public function createRoom(Request $request)
 {
