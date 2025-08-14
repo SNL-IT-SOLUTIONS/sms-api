@@ -9,15 +9,32 @@ use Illuminate\Support\Facades\Log;
 class CurriculumController extends Controller
 {
 
-    public function getCurriculums()
+public function getCurriculums(Request $request)
 {
-    $curriculums = curriculums::with(['subjects', 'course'])->get();
+    try {
+        
+        $curriculums = curriculums::with(['subjects', 'course'])
+            ->paginate(5);
 
-    return response()->json([
-        'isSuccess' => true,
-        'message' => 'Curriculums retrieved successfully.',
-        'curriculum' => $curriculums,
-    ]);
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Curriculums retrieved successfully.',
+            'curriculums' => $curriculums->items(),
+            'pagination' => [
+                'current_page' => $curriculums->currentPage(),
+                'per_page' => $curriculums->perPage(),
+                'total' => $curriculums->total(),
+                'last_page' => $curriculums->lastPage(),
+            ],
+        ], 200);
+
+    } catch (Throwable $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve curriculums.',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 }
 
     // Store a new curriculum
