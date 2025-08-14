@@ -20,7 +20,7 @@ public function getSchoolYears(Request $request)
 
         return response()->json([
             'isSuccess' => true,
-            'schoolYears' => $schoolYears->items(),
+            'schoolYears' => $schoolYears->items('school_year', 'semester','created_at'),
             'pagination' => [
                 'current_page' => $schoolYears->currentPage(),
                 'per_page' => $schoolYears->perPage(),
