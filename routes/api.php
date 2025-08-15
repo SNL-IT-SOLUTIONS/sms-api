@@ -108,7 +108,7 @@ Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStuden
 Route::get('getenrollments', [EnrollmentsController::class, 'getExamineesResult']);
 Route::middleware('auth:sanctum')->group(function () {
     
-    Route::post('enrollstudent/{id}', [EnrollmentsController::class, 'enrollStudent']);
+    Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
      Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
      Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
 

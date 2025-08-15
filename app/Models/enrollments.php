@@ -19,6 +19,7 @@ class enrollments extends Model
     'enrollment_status',
     'is_irregular',
     'date_enrolled',
+    'tuition_fee',
     'remarks',
     'student_number',
     'is_archived',
