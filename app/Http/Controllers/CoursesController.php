@@ -30,7 +30,6 @@ class CoursesController extends Controller
             'course_code'       => 'required|string|max:10|unique:courses,course_code',
             'strand'            => 'nullable|string|max:50',
             'course_description'=> 'nullable|string|max:255',
-            'course_units'      => 'required|integer|min:3',
             ]);
 
 
@@ -41,7 +40,6 @@ class CoursesController extends Controller
                 'curriculum_id' => $validated['curriculum_id'],
                 'strand' => $validated['strand'] ?? null,
                 'course_description' => $validated['course_description'] ?? null,
-                'course_units' => $validated['course_units'],
             ]);
 
             return response()->json([
@@ -104,12 +102,11 @@ class CoursesController extends Controller
             // Validate the request data
             $validated = $request->validate([
                 'course_name' => 'sometimes|required|string|max:100',
-                'curriculum_id' => 'sometimes|required|integer|exists:curriculums,id',
+                'curriculum_id'      => 'sometimes|required|integer|exists:curriculums,id|unique:courses,curriculum_id,' . $id,
                 'course_code' => 'sometimes|required|string|max:10|unique:courses,course_code,' . $id,
                 'strand' => 'sometimes|nullable|string|max:50',
                 'course_description' => 'sometimes|nullable|string|max:255',
-                'course_units' => 'sometimes|required|integer|min:3',
-            ]);
+            ]); 
             // Find the course by ID
             $course = courses::findOrFail($id);
             // Update the course details
@@ -119,7 +116,6 @@ class CoursesController extends Controller
                 'curriculum_id' => $validated['curriculum_id'] ?? $course->curriculum_id,
                 'strand' => $validated['strand'] ?? $course->strand,
                 'course_description' => $validated['course_description'] ?? $course->course_description,
-                'course_units' => $validated['course_units'] ?? $course->course_units,
             ]);
             return response()->json([
                 'isSuccess' => true,

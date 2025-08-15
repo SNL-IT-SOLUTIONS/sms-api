@@ -40,11 +40,12 @@ class EnrollmentsController extends Controller
 
         // Fetch schedules with applicant/admission details
         $query = exam_schedules::with([
-            'applicant', // eager load full admission
+            'applicant.academic_program:id,course_name',
             'room:id,room_name',
             'building:id,building_name',
             'campus:id,campus_name'
-        ]);
+        ])
+        ->whereNotNull('exam_score'); 
 
         // Optional filters
         if ($request->has('search')) {
@@ -186,27 +187,6 @@ class EnrollmentsController extends Controller
         ]);
     }
 }
-
-
-
-
-    public function getApprovedAdmissions()
-    {
-        try {
-            $admissions = admissions::where('status', 'approved')->get();
-            return response()->json([
-                'isSuccess' => true,
-                'data' => $admissions
-            ]);
-        } catch (Throwable $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Failed to fetch approved admissions.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
 
 
 //TO FIX #1

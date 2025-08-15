@@ -36,90 +36,80 @@ class AdmissionsController extends Controller
 
 public function getExamSchedules(Request $request)
 {
-    try {
-        $perPage = $request->input('per_page', 5); // default 10 per page
-        $page = $request->input('page', 1);
+    $perPage = (int) $request->input('per_page', 5);
+    $page = (int) $request->input('page', 1);
 
-        // Fetch paginated schedules with relationships
-        $schedulesQuery = exam_schedules::with([
-            'applicant:id,first_name,last_name,email,contact_number',
-            'room:id,room_name',
-            'building:id,building_name',
-            'campus:id,campus_name'
-        ]);
+    // 1. Get all schedules (no pagination here)
+    $schedules = exam_schedules::with([
+        'campus',
+        'building',
+        'room',
+        'applicant'
+    ])
+    ->orderBy('campus_id')
+    ->orderBy('building_id')
+    ->orderBy('room_id')
+    ->get();
 
-        $schedules = $schedulesQuery->paginate($perPage, ['*'], 'page', $page);
-
-        // Group the items on this page
-        $grouped = $schedules->getCollection()->groupBy('campus_id')->map(function ($campusSchedules, $campusId) {
-            $campusName = optional($campusSchedules->first()->campus)->campus_name ?? 'Unknown Campus';
-
-            $buildings = $campusSchedules->groupBy('building_id')->map(function ($buildingSchedules, $buildingId) {
-                $buildingName = optional($buildingSchedules->first()->building)->building_name ?? 'Unknown Building';
-
-                $rooms = $buildingSchedules->groupBy('room_id')->map(function ($roomSchedules, $roomId) {
-                    $roomName = optional($roomSchedules->first()->room)->room_name ?? 'Unknown Room';
-
-                    $students = $roomSchedules->map(function ($schedule) {
-                        $applicant = $schedule->applicant;
-                        return [
-                            'schedule_id' => $schedule->id,
-                            'admission_id' => $applicant->id ?? null,
-                            'test_permit_no' => $schedule->test_permit_no,
-                            'first_name' => $applicant->first_name ?? 'N/A',
-                            'last_name' => $applicant->last_name ?? 'N/A',
-                            'email' => $applicant->email ?? 'N/A',
-                            'contact_number' => $applicant->contact_number ?? 'N/A',
-                            'exam_date' => $schedule->exam_date,
-                            'exam_time_from' => $schedule->exam_time_from,
-                            'exam_time_to' => $schedule->exam_time_to,
-                            'exam_score' => $schedule->exam_score,
-                            'exam_status' => $schedule->exam_status,
-                        ];
-                    })->values();
-
-                    return [
-                        'room_id' => $roomId,
-                        'room_name' => $roomName,
-                        'students' => $students,
-                    ];
-                })->values();
-
+    // 2. Group by campus -> building -> room
+    $grouped = $schedules->groupBy('campus_id')->map(function ($campusSchedules) {
+        $campus = $campusSchedules->first()->campus;
+        return [
+            'campus_id' => $campus->id,
+            'campus_name' => $campus->campus_name,
+            'buildings' => $campusSchedules->groupBy('building_id')->map(function ($buildingSchedules) {
+                $building = $buildingSchedules->first()->building;
                 return [
-                    'building_id' => $buildingId,
-                    'building_name' => $buildingName,
-                    'rooms' => $rooms,
+                    'building_id' => $building->id,
+                    'building_name' => $building->building_name,
+                    'rooms' => $buildingSchedules->groupBy('room_id')->map(function ($roomSchedules) {
+                        $room = $roomSchedules->first()->room;
+                        return [
+                            'room_id' => $room->id,
+                            'room_name' => $room->room_name,
+                            'students' => $roomSchedules->map(function ($schedule) {
+                                return [
+                                    'schedule_id' => $schedule->id,
+                                    'admission_id' => $schedule->applicant->admission_id,
+                                    'test_permit_no' => $schedule->applicant->test_permit_no,
+                                    'first_name' => $schedule->applicant->first_name,
+                                    'last_name' => $schedule->applicant->last_name,
+                                    'email' => $schedule->applicant->email,
+                                    'contact_number' => $schedule->applicant->contact_number,
+                                    'exam_date' => $schedule->exam_date,
+                                    'exam_time_from' => $schedule->exam_time_from,
+                                    'exam_time_to' => $schedule->exam_time_to,
+                                    'exam_score' => $schedule->exam_score,
+                                    'exam_status' => $schedule->exam_status,
+                                    'academic_program_id' => $schedule->academic_program_id,
+                                    'course_name' => $schedule->course_name,
+                                ];
+                            })->values(),
+                        ];
+                    })->values(),
                 ];
-            })->values();
+            })->values(),
+        ];
+    })->values();
 
-            return [
-                'campus_id' => $campusId,
-                'campus_name' => $campusName,
-                'buildings' => $buildings,
-            ];
-        })->values();
+    // 3. Manual pagination on grouped campuses
+    $total = $grouped->count();
+    $paged = $grouped->forPage($page, $perPage)->values();
 
-        // Return paginated data with meta
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Exam schedules grouped by campus, building, and room.',
-            'data' => $grouped,
-            'meta' => [
-                'current_page' => $schedules->currentPage(),
-                'per_page' => $schedules->perPage(),
-                'total' => $schedules->total(),
-                'last_page' => $schedules->lastPage(),
-            ]
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to retrieve grouped exam schedules.',
-            'error' => $e->getMessage(),
-        ], 500);
-    }
+    // 4. Return JSON with manual pagination meta
+    return response()->json([
+        'isSuccess' => true,
+        'message' => 'Exam schedules grouped by campus, building, and room.',
+        'data' => $paged,
+        'meta' => [
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'last_page' => ceil($total / $perPage),
+        ]
+    ]);
 }
+
 
 
 
