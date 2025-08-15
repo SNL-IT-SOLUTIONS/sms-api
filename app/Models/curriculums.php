@@ -12,7 +12,6 @@ class curriculums extends Model
     protected $fillable = [
         'curriculum_name',
         'curriculum_description',
-        'course_id',
     ];
 
    public function subjects()

@@ -69,7 +69,7 @@ class EnrollmentsController extends Controller
 
             return [
                 // Exam Schedule Details
-                'schedule_id'       => $schedule->id,
+                'id'       => $schedule->id,
                 'test_permit_no'    => $schedule->test_permit_no,
                 'exam_date'         => $schedule->exam_date,
                 'exam_time_from'    => $schedule->exam_time_from,

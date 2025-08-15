@@ -26,7 +26,7 @@ class CoursesController extends Controller
             // Validate the request data
             $validated = $request->validate([
                 'course_name' => 'required|string|max:100',
-                'course_type' => 'required|string|max:50',
+                'curriculum_id' =>'required|integer|exists:curriculums,id', 
                 'course_code' => 'required|string|max:10|unique:courses,course_code',
                 'strand' => 'nullable|string|max:50',
                 'course_description' => 'nullable|string|max:255',
@@ -37,7 +37,7 @@ class CoursesController extends Controller
             $course = courses::create([
                 'course_name' => $validated['course_name'],
                 'course_code' => $validated['course_code'],
-                'course_type' => $validated['course_type'],
+                'curriculum_id' => $validated['curriculum_id'],
                 'strand' => $validated['strand'] ?? null,
                 'course_description' => $validated['course_description'] ?? null,
                 'course_units' => $validated['course_units'],
@@ -103,7 +103,7 @@ class CoursesController extends Controller
             // Validate the request data
             $validated = $request->validate([
                 'course_name' => 'sometimes|required|string|max:100',
-                'course_type' => 'sometimes|required|string|max:50',
+                'curriculum_id' => 'sometimes|required|integer|exists:curriculums,id',
                 'course_code' => 'sometimes|required|string|max:10|unique:courses,course_code,' . $id,
                 'strand' => 'sometimes|nullable|string|max:50',
                 'course_description' => 'sometimes|nullable|string|max:255',
@@ -115,7 +115,7 @@ class CoursesController extends Controller
             $course->update([
                 'course_name' => $validated['course_name'] ?? $course->course_name,
                 'course_code' => $validated['course_code'] ?? $course->course_code,
-                'course_type' => $validated['course_type'] ?? $course->course_type,
+                'curriculum_id' => $validated['curriculum_id'] ?? $course->curriculum_id,
                 'strand' => $validated['strand'] ?? $course->strand,
                 'course_description' => $validated['course_description'] ?? $course->course_description,
                 'course_units' => $validated['course_units'] ?? $course->course_units,
