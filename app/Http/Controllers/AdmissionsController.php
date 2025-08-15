@@ -33,82 +33,59 @@ use Illuminate\Support\Facades\Log;
 class AdmissionsController extends Controller
 {
 
+    public function getExamSchedules(Request $request)
+    {
+        $perPage = (int) $request->input('per_page', 10);
+        $page = (int) $request->input('page', 1);
 
-public function getExamSchedules(Request $request)
-{
-    $perPage = (int) $request->input('per_page', 5);
-    $page = (int) $request->input('page', 1);
+        $query = exam_schedules::with(['applicant']);
 
-    // 1. Get all schedules (no pagination here)
-    $schedules = exam_schedules::with([
-        'campus',
-        'building',
-        'room',
-        'applicant'
-    ])
-    ->orderBy('campus_id')
-    ->orderBy('building_id')
-    ->orderBy('room_id')
-    ->get();
+        // Search filter
+        if ($search = $request->input('search')) {
+            $query->whereHas('applicant', function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                ->orWhere('last_name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
 
-    // 2. Group by campus -> building -> room
-    $grouped = $schedules->groupBy('campus_id')->map(function ($campusSchedules) {
-        $campus = $campusSchedules->first()->campus;
-        return [
-            'campus_id' => $campus->id,
-            'campus_name' => $campus->campus_name,
-            'buildings' => $campusSchedules->groupBy('building_id')->map(function ($buildingSchedules) {
-                $building = $buildingSchedules->first()->building;
-                return [
-                    'building_id' => $building->id,
-                    'building_name' => $building->building_name,
-                    'rooms' => $buildingSchedules->groupBy('room_id')->map(function ($roomSchedules) {
-                        $room = $roomSchedules->first()->room;
-                        return [
-                            'room_id' => $room->id,
-                            'room_name' => $room->room_name,
-                            'students' => $roomSchedules->map(function ($schedule) {
-                                return [
-                                    'schedule_id' => $schedule->id,
-                                    'admission_id' => $schedule->applicant->admission_id,
-                                    'test_permit_no' => $schedule->applicant->test_permit_no,
-                                    'first_name' => $schedule->applicant->first_name,
-                                    'last_name' => $schedule->applicant->last_name,
-                                    'email' => $schedule->applicant->email,
-                                    'contact_number' => $schedule->applicant->contact_number,
-                                    'exam_date' => $schedule->exam_date,
-                                    'exam_time_from' => $schedule->exam_time_from,
-                                    'exam_time_to' => $schedule->exam_time_to,
-                                    'exam_score' => $schedule->exam_score,
-                                    'exam_status' => $schedule->exam_status,
-                                    'academic_program_id' => $schedule->academic_program_id,
-                                    'course_name' => $schedule->course_name,
-                                ];
-                            })->values(),
-                        ];
-                    })->values(),
-                ];
-            })->values(),
-        ];
-    })->values();
+        // Order by created_at (latest first)
+        $paginated = $query->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
 
-    // 3. Manual pagination on grouped campuses
-    $total = $grouped->count();
-    $paged = $grouped->forPage($page, $perPage)->values();
+        // Transform data
+        $examInfo = $paginated->getCollection()->map(function ($schedule) {
+            return [
+                'schedule_id' => $schedule->id,
+                'admission_id' => $schedule->applicant->admission_id ?? null,
+                'test_permit_no' => $schedule->applicant->test_permit_no ?? null,
+                'first_name' => $schedule->applicant->first_name ?? null,
+                'last_name' => $schedule->applicant->last_name ?? null,
+                'email' => $schedule->applicant->email ?? null,
+                'contact_number' => $schedule->applicant->contact_number ?? null,
+                'exam_date' => $schedule->exam_date,
+                'exam_time_from' => $schedule->exam_time_from,
+                'exam_time_to' => $schedule->exam_time_to,
+                'exam_score' => $schedule->exam_score,
+                'exam_status' => $schedule->exam_status,
+                'academic_program_id' => $schedule->academic_program_id,
+                'course_name' => $schedule->course_name,
+                'created_at' => $schedule->created_at,
+            ];
+        });
 
-    // 4. Return JSON with manual pagination meta
-    return response()->json([
-        'isSuccess' => true,
-        'message' => 'Exam schedules grouped by campus, building, and room.',
-        'exam_info' => $paged,
-        'meta' => [
-            'current_page' => $page,
-            'per_page' => $perPage,
-            'total' => $total,
-            'last_page' => ceil($total / $perPage),
-        ]
-    ]);
-}
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Exam schedules list ordered by creation date.',
+            'exam_info' => $examInfo,
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+                'last_page' => $paginated->lastPage(),
+            ]
+        ]);
+    }
 
 
 
@@ -1225,27 +1202,27 @@ private function saveFileToPublic(Request $request, $field, $prefix)
             }
         }
 
-        // Get buildings for selected campus
-        public function getBuildingsByCampus($campusId)
-        {
-            try {
-                $buildings = campus_buildings::where('campus_id', $campusId)
-                    ->select('id', 'building_name')
-                    ->get();
+        // // Get buildings for selected campus
+        // public function getBuildingsByCampus($campusId)
+        // {
+        //     try {
+        //         $buildings = campus_buildings::where('campus_id', $campusId)
+        //             ->select('id', 'building_name')
+        //             ->get();
 
-                return response()->json([
-                    'isSuccess' => true,
-                    'message' => 'Buildings fetched successfully.',
-                    'buildings' => $buildings
-                ]);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Failed to fetch buildings.',
-                    'error' => $e->getMessage(),
-                ], 500);
-            }
-        }
+        //         return response()->json([
+        //             'isSuccess' => true,
+        //             'message' => 'Buildings fetched successfully.',
+        //             'buildings' => $buildings
+        //         ]);
+        //     } catch (\Exception $e) {
+        //         return response()->json([
+        //             'isSuccess' => false,
+        //             'message' => 'Failed to fetch buildings.',
+        //             'error' => $e->getMessage(),
+        //         ], 500);
+        //     }
+        // }
 
         // Existing rooms function (unchanged)
         public function getByBuilding($buildingid)
