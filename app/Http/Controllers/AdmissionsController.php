@@ -33,59 +33,66 @@ use Illuminate\Support\Facades\Log;
 class AdmissionsController extends Controller
 {
 
-    public function getExamSchedules(Request $request)
-    {
-        $perPage = (int) $request->input('per_page', 10);
-        $page = (int) $request->input('page', 1);
+   public function getExamSchedules(Request $request)
+{
+    $perPage = (int) $request->input('per_page', 10);
+    $page = (int) $request->input('page', 1);
 
-        $query = exam_schedules::with(['applicant']);
+    $query = exam_schedules::with(['applicant', 'campus', 'building', 'room']);
 
-        // Search filter
-        if ($search = $request->input('search')) {
-            $query->whereHas('applicant', function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                ->orWhere('last_name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-
-        // Order by created_at (latest first)
-        $paginated = $query->orderBy('created_at', 'desc')
-            ->paginate($perPage, ['*'], 'page', $page);
-
-        // Transform data
-        $examInfo = $paginated->getCollection()->map(function ($schedule) {
-            return [
-                'schedule_id' => $schedule->id,
-                'admission_id' => $schedule->applicant->admission_id ?? null,
-                'test_permit_no' => $schedule->applicant->test_permit_no ?? null,
-                'first_name' => $schedule->applicant->first_name ?? null,
-                'last_name' => $schedule->applicant->last_name ?? null,
-                'email' => $schedule->applicant->email ?? null,
-                'contact_number' => $schedule->applicant->contact_number ?? null,
-                'exam_date' => $schedule->exam_date,
-                'exam_time_from' => $schedule->exam_time_from,
-                'exam_time_to' => $schedule->exam_time_to,
-                'exam_score' => $schedule->exam_score,
-                'exam_status' => $schedule->exam_status,
-                'academic_program_id' => $schedule->academic_program_id,
-                'course_name' => $schedule->course_name,
-                'created_at' => $schedule->created_at,
-            ];
+    // Search filter (by applicant or schedule fields)
+    if ($search = $request->input('search')) {
+        $query->whereHas('applicant', function ($q) use ($search) {
+            $q->where('first_name', 'like', "%{$search}%")
+              ->orWhere('last_name', 'like', "%{$search}%")
+              ->orWhere('email', 'like', "%{$search}%");
         });
-
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Exam schedules list ordered by creation date.',
-            'exam_info' => $examInfo,
-            'pagination' => [
-                'current_page' => $paginated->currentPage(),
-                'per_page' => $paginated->perPage(),
-                'total' => $paginated->total(),
-                'last_page' => $paginated->lastPage(),
-            ]
-        ]);
     }
+
+    // Order by created_at (latest first)
+    $paginated = $query->orderBy('created_at', 'desc')
+        ->paginate($perPage, ['*'], 'page', $page);
+
+    // Transform into flat table rows
+    $examInfo = $paginated->getCollection()->map(function ($schedule) {
+        return [
+            'schedule_id' => $schedule->id,
+            'campus_id' => $schedule->campus->id ?? null,
+            'campus_name' => $schedule->campus->campus_name ?? null,
+            'building_id' => $schedule->building->id ?? null,
+            'building_name' => $schedule->building->building_name ?? null,
+            'room_id' => $schedule->room->id ?? null,
+            'room_name' => $schedule->room->room_name ?? null,
+            'admission_id' => $schedule->applicant->admission_id ?? null,
+            'test_permit_no' => $schedule->applicant->test_permit_no ?? null,
+            'first_name' => $schedule->applicant->first_name ?? null,
+            'last_name' => $schedule->applicant->last_name ?? null,
+            'email' => $schedule->applicant->email ?? null,
+            'contact_number' => $schedule->applicant->contact_number ?? null,
+            'exam_date' => $schedule->exam_date,
+            'exam_time_from' => $schedule->exam_time_from,
+            'exam_time_to' => $schedule->exam_time_to,
+            'exam_score' => $schedule->exam_score,
+            'exam_status' => $schedule->exam_status,
+            'academic_program_id' => $schedule->academic_program_id,
+            'course_name' => $schedule->course_name,
+            'created_at' => $schedule->created_at,
+        ];
+    });
+
+    return response()->json([
+        'isSuccess' => true,
+        'message' => 'Exam schedules list ordered by creation date.',
+        'exam_info' => $examInfo,
+        'meta' => [
+            'current_page' => $paginated->currentPage(),
+            'per_page' => $paginated->perPage(),
+            'total' => $paginated->total(),
+            'last_page' => $paginated->lastPage(),
+        ]
+    ]);
+}
+
 
 
 
