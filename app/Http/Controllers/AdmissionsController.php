@@ -160,8 +160,9 @@ public function getExamSchedules(Request $request)
     public function getAdmissions(Request $request)
 {
     try {
-        $query = admissions::with(['academic_program', 'schoolCampus', 'school_years'])
-            ->where('is_archived', '0');
+    $query = admissions::with(['academic_program', 'schoolCampus', 'school_years'])
+        ->where('is_archived', '0')
+        ->orderBy('created_at', 'desc'); 
 
         // Search by keyword
         if ($request->has('search')) {
