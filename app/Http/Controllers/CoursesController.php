@@ -24,14 +24,15 @@ class CoursesController extends Controller
                 ], 401);
             }
             // Validate the request data
-            $validated = $request->validate([
-                'course_name' => 'required|string|max:100',
-                'curriculum_id' =>'required|integer|exists:curriculums,id', 
-                'course_code' => 'required|string|max:10|unique:courses,course_code',
-                'strand' => 'nullable|string|max:50',
-                'course_description' => 'nullable|string|max:255',
-                'course_units' => 'required|integer|min:3',
+           $validated = $request->validate([
+            'course_name'       => 'required|string|max:100',
+            'curriculum_id'     => 'required|integer|exists:curriculums,id|unique:courses,curriculum_id',
+            'course_code'       => 'required|string|max:10|unique:courses,course_code',
+            'strand'            => 'nullable|string|max:50',
+            'course_description'=> 'nullable|string|max:255',
+            'course_units'      => 'required|integer|min:3',
             ]);
+
 
             // Create a new course
             $course = courses::create([

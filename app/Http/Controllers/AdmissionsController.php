@@ -945,6 +945,8 @@ public function sendExamination(Request $request)
 }
 
 
+
+
 public function inputExamScores(Request $request)
 {
     $data = $request->all(); // expects an array of {id, exam_score}
@@ -962,10 +964,52 @@ public function inputExamScores(Request $request)
                 throw new \Exception("Invalid score for schedule ID {$item['id']}");
             }
 
-            $schedule = exam_schedules::findOrFail($item['id']);
+            $schedule = exam_schedules::with('applicant')->findOrFail($item['id']);
             $schedule->exam_score = $item['exam_score'];
             $schedule->exam_status = ($item['exam_score'] >= $passingScore) ? 'passed' : 'reconsider';
             $schedule->save();
+
+            // If passed, send email
+            if ($schedule->exam_status === 'passed' && $schedule->applicant && $schedule->applicant->email) {
+                $studentName = trim($schedule->applicant->first_name . ' ' . $schedule->applicant->last_name);
+
+              $htmlContent = "
+            <html>
+                <body style='font-family: Arial, sans-serif; color: #333;'>
+                    <div style='max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                        <h2 style='color: #004aad;'>SNL Examination Result</h2>
+                        <p>Dear <strong>{$studentName}</strong>,</p>
+                        <p>We are pleased to inform you that you have <strong style='color: green;'>passed</strong> the SNL entrance examination.</p>
+                        <p>Your exam score: <strong>{$item['exam_score']}</strong></p>
+                        <p>Congratulations on this achievement! Our admissions team will contact you with the next steps in the enrollment process.</p>
+                        <br>
+                        <h3 style='color: #004aad;'>Important Enrollment Requirements</h3>
+                        <p>Please prepare and bring the <strong>original copies</strong> of the following documents when you visit the admissions office:</p>
+                        <ul>
+                            <li>Form 137 (High School Permanent Record)</li>
+                            <li>Form 138 (Report Card)</li>
+                            <li>Certificate of Good Moral Character</li>
+                            <li>Certificate of Completion (COC)</li>
+                            <li>PSA-issued Birth Certificate</li>
+                        </ul>
+                        <p>Failure to present these documents may delay your enrollment process.</p>
+                        <br>
+                        <p>Best regards,</p>
+                        <p><strong>SNL Admissions Office</strong><br>
+                        Smart National Learning School<br>
+                        Email: admissions@snl.edu<br>
+                        Phone: (123) 456-7890</p>
+                    </div>
+                </body>
+            </html>
+    ";
+
+                Mail::send([], [], function ($message) use ($schedule, $studentName, $htmlContent) {
+                    $message->to($schedule->applicant->email, $studentName)
+                        ->subject('SNL Examination Result')
+                        ->setBody($htmlContent, 'text/html');
+                });
+            }
 
             $results[] = [
                 'schedule_id' => $schedule->id,
@@ -988,6 +1032,7 @@ public function inputExamScores(Request $request)
         'results' => $results,
     ]);
 }
+
 
     public function getExamScoreSummary()
 {
