@@ -148,6 +148,117 @@ class EnrollmentsController extends Controller
     }
 }
 
+public function getPassedStudents(Request $request)
+{
+    try {
+        $perPage = $request->input('per_page', 5);
+        $page = $request->input('page', 1);
+
+        $query = exam_schedules::with([
+            'applicant.academic_program:id,course_name',
+            'room:id,room_name',
+            'building:id,building_name',
+            'campus:id,campus_name'
+        ])
+        ->where('exam_status', 'passed'); // Only passed students
+
+        // Optional search filter
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->whereHas('applicant', function ($q) use ($search) {
+                $q->where('first_name', 'like', "%$search%")
+                  ->orWhere('last_name', 'like', "%$search%")
+                  ->orWhere('email', 'like', "%$search%")
+                  ->orWhere('contact_number', 'like', "%$search%");
+            });
+        }
+
+        $query->orderBy('created_at', 'desc');
+
+        $schedules = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $data = $schedules->map(function ($schedule) {
+            $admission = $schedule->applicant;
+
+            return [
+                // Exam Schedule Info
+                'id'              => $schedule->id,
+                'test_permit_no'  => $schedule->test_permit_no,
+                'exam_date'       => $schedule->exam_date,
+                'exam_time_from'  => $schedule->exam_time_from,
+                'exam_time_to'    => $schedule->exam_time_to,
+                'exam_score'      => $schedule->exam_score,
+                'exam_status'     => $schedule->exam_status,
+                'room_name'       => optional($schedule->room)->room_name,
+                'building_name'   => optional($schedule->building)->building_name,
+                'campus_name'     => optional($schedule->campus)->campus_name,
+
+                // Admission Info
+                'admission_id'    => $admission->id ?? null,
+                'first_name'      => $admission->first_name ?? null,
+                'middle_name'     => $admission->middle_name ?? null,
+                'last_name'       => $admission->last_name ?? null,
+                'suffix'          => $admission->suffix ?? null,
+                'full_name'       => trim(($admission->first_name ?? '') . ' ' . ($admission->middle_name ?? '') . ' ' . ($admission->last_name ?? '') . ' ' . ($admission->suffix ?? '')),
+                'gender'          => $admission->gender ?? null,
+                'birthdate'       => $admission->birthdate ?? null,
+                'birthplace'      => $admission->birthplace ?? null,
+                'civil_status'    => $admission->civil_status ?? null,
+                'email'           => $admission->email ?? null,
+                'contact_number'  => $admission->contact_number ?? null,
+                'telephone_number'=> $admission->telephone_number ?? null,
+                'street_address'  => $admission->street_address ?? null,
+                'province'        => $admission->province ?? null,
+                'city'            => $admission->city ?? null,
+                'barangay'        => $admission->barangay ?? null,
+                'nationality'     => $admission->nationality ?? null,
+                'religion'        => $admission->religion ?? null,
+                'ethnic_affiliation'=> $admission->ethnic_affiliation ?? null,
+                'is_4ps_member'   => $admission->is_4ps_member ?? null,
+                'is_insurance_member'=> $admission->is_insurance_member ?? null,
+                'is_vaccinated'   => $admission->is_vaccinated ?? null,
+                'is_indigenous'   => $admission->is_indigenous ?? null,
+                'application_type'=> $admission->application_type ?? null,
+                'lrn'             => $admission->lrn ?? null,
+                'last_school_attended' => $admission->last_school_attended ?? null,
+                'remarks'         => $admission->remarks ?? null,
+                'grade_level'     => $admission->grade_level ?? null,
+                'guardian_name'   => $admission->guardian_name ?? null,
+                'guardian_contact'=> $admission->guardian_contact ?? null,
+                'mother_name'     => $admission->mother_name ?? null,
+                'mother_contact'  => $admission->mother_contact ?? null,
+                'father_name'     => $admission->father_name ?? null,
+                'father_contact'  => $admission->father_contact ?? null,
+                'blood_type'      => $admission->blood_type ?? null,
+                'good_moral'      => $admission && $admission->good_moral ? asset($admission->good_moral) : null,
+                'form_137'        => $admission && $admission->form_137 ? asset($admission->form_137) : null,
+                'form_138'        => $admission && $admission->form_138 ? asset($admission->form_138) : null,
+                'birth_certificate'=> $admission && $admission->birth_certificate ? asset($admission->birth_certificate) : null,
+                'certificate_of_completion'=> $admission && $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
+            ];
+        });
+
+        return response()->json([
+            'isSuccess' => true,
+            'message'   => 'List of students who passed the exam.',
+            'data'      => $data,
+            'meta'      => [
+                'current_page' => $schedules->currentPage(),
+                'per_page'     => $schedules->perPage(),
+                'total'        => $schedules->total(),
+                'last_page'    => $schedules->lastPage(),
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Failed to retrieve passed students.',
+            'error'     => $e->getMessage(),
+        ], 500);
+    }
+}
+
 
 
     public function getStudentCurriculum($studentId)
