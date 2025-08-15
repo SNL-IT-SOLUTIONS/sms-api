@@ -100,7 +100,7 @@ public function getExamSchedules(Request $request)
     return response()->json([
         'isSuccess' => true,
         'message' => 'Exam schedules grouped by campus, building, and room.',
-        'data' => $paged,
+        'exam_info' => $paged,
         'meta' => [
             'current_page' => $page,
             'per_page' => $perPage,
