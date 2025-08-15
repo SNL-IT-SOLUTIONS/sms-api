@@ -104,7 +104,7 @@ Route::post('approveadmission/{id}', [AdmissionsController::class, 'approveAdmis
 Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmission'])->middleware('auth:sanctum');
 });
 // //Enrellments Management
-Route::get('getenrollments', [EnrollmentsController::class, 'getEnrollments']);
+Route::get('getenrollments', [EnrollmentsController::class, 'getExamineesResult']);
 Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('enrollstudent/{id}', [EnrollmentsController::class, 'enrollStudent']);

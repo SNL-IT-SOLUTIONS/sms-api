@@ -32,7 +32,7 @@ use Throwable;
 class EnrollmentsController extends Controller
 {
 
-    public function getEnrollments(Request $request)
+    public function getExamineesResult(Request $request)
 {
     try {
         $perPage = $request->input('per_page', 5); // default 10 per page
