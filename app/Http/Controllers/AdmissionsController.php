@@ -130,121 +130,141 @@ class AdmissionsController extends Controller
     }
 
  
-
-    public function getAdmissions(Request $request)
+public function getAllEnrollments(Request $request)
 {
     try {
-    $query = admissions::with(['academic_program', 'schoolCampus', 'school_years'])
-        ->where('is_archived', '0')
-        ->orderBy('created_at', 'desc'); 
+        $perPage = $request->get('per_page', 10);
 
-        // Search by keyword
+        // Base query
+        $query = students::with([
+            'examSchedule.applicant.gradeLevel',
+            'examSchedule.applicant.course',
+            'examSchedule.applicant.campus',
+            'section'
+        ]);
+
+        // Search by keyword (student number or applicant name)
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('academic_year', 'like', "%$search%")
-                    ->orWhere('first_name', 'like', "%$search%")
-                    ->orWhere('last_name', 'like', "%$search%");
+                $q->where('student_number', 'like', "%{$search}%")
+                  ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
+                      $q2->where('first_name', 'like', "%{$search}%")
+                         ->orWhere('last_name', 'like', "%{$search}%");
+                  });
             });
         }
 
         // Filters
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
+        if ($request->has('campus')) {
+            $campus = $request->campus;
+            $query->whereHas('examSchedule.applicant.campus', function ($q) use ($campus) {
+                $q->where('campus_name', $campus);
+            });
         }
 
-        if ($request->has('school_campus')) {
-            $query->where('school_campus', $request->school_campus);
+        if ($request->has('course')) {
+            $course = $request->course;
+            $query->whereHas('examSchedule.applicant.course', function ($q) use ($course) {
+                $q->where('course_name', $course);
+            });
         }
 
-        if ($request->has('academic_program')) {
-            $query->where('academic_program', $request->academic_program);
+        if ($request->has('section')) {
+            $section = $request->section;
+            $query->whereHas('section', function ($q) use ($section) {
+                $q->where('section_name', $section);
+            });
         }
 
-        if ($request->has('academic_year')) {
-            $query->where('academic_year', $request->academic_year);
-        }
+        // Paginate
+        $students = $query->paginate($perPage);
 
-        $admissions = $query->paginate(10);
+        // Map results
+        $enrollments = $students->map(function ($student) {
+            $examSchedule = $student->examSchedule;
+            $admission    = $examSchedule?->applicant;
+            $courseId     = $student->course_id;
 
-       $admissionsData = $admissions->map(function ($admission) {
-        $storagePath = 'storage/';
+            // Get curriculum & subjects
+            $curriculum = DB::table('curriculums')->where('course_id', $courseId)->first();
+            $subjects = [];
+            $totalUnits = 0;
 
-    return [
-        'id' => $admission->id,
-        'test_permit_no' => $admission->test_permit_no,
-        'applicant_number' => $admission->applicant_number,
-        'status' => $admission->status,
-        'first_name' => $admission->first_name,
-        'middle_name' => $admission->middle_name,
-        'last_name' => $admission->last_name,
-        'suffix' => $admission->suffix,
-        'full_name' => trim($admission->first_name . ' ' . $admission->middle_name . ' ' . $admission->last_name . ' ' . $admission->suffix),
-        'gender' => $admission->gender,
-        'birthdate' => $admission->birthdate,
-        'birthplace' => $admission->birthplace,
-        'civil_status' => $admission->civil_status,
-        'email' => $admission->email,
-        'grade_level' => $admission->grade_level_id,
-        'contact_number' => $admission->contact_number,
-        'telephone_number' => $admission->telephone_number,
-        'street_address' => $admission->street_address,
-        'province' => $admission->province,
-        'city' => $admission->city,
-        'barangay' => $admission->barangay,
-        'nationality' => $admission->nationality,
-        'religion' => $admission->religion,
-        'ethnic_affiliation' => $admission->ethnic_affiliation,
-        'is_4ps_member' => $admission->is_4ps_member,
-        'is_insurance_member' => $admission->is_insurance_member,
-        'is_vaccinated' => $admission->is_vaccinated,
-        'is_indigenous' => $admission->is_indigenous,
-        'application_type' => $admission->application_type,
-        'lrn' => $admission->lrn,
-        'last_school_attended' => $admission->last_school_attended,
-        'remarks' => $admission->remarks,
-        
-        // Files as full URLs
-     'good_moral' => $admission->good_moral ? asset($admission->good_moral) : null,
-    'form_137' => $admission->form_137 ? asset($admission->form_137) : null,
-    'form_138' => $admission->form_138 ? asset($admission->form_138) : null,
-    'birth_certificate' => $admission->birth_certificate ? asset($admission->birth_certificate) : null,
-    'certificate_of_completion' => $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
+            if ($curriculum) {
+                $currSubjects = DB::table('curriculum_subject as cs')
+                    ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+                    ->where('cs.curriculum_id', $curriculum->id)
+                    ->select('s.id as subject_id', 's.subject_name', 's.units')
+                    ->get();
 
+                foreach ($currSubjects as $subj) {
+                    $subjects[] = [
+                        'subject_id' => $subj->subject_id,
+                        'subject_name' => $subj->subject_name,
+                        'units' => $subj->units,
+                    ];
+                    $totalUnits += $subj->units;
+                }
+            }
 
-        'grade_level' => $admission->grade_level_id,
-        'guardian_name' => $admission->guardian_name,
-        'guardian_contact' => $admission->guardian_contact,
-        'mother_name' => $admission->mother_name,
-        'mother_contact' => $admission->mother_contact,
-        'father_name' => $admission->father_name,
-        'father_contact' => $admission->father_contact,
-        'blood_type' => $admission->blood_type,
-
-        // Related Names
-        'academic_program' => optional($admission->academic_program)->course_name,
-        'school_campus' => optional($admission->schoolCampus)->campus_name,
-        'academic_year' => optional($admission->school_years)->school_year,
-    ];
-});
+            return [
+                'id' => $student->id,
+                'student_number' => $student->student_number,
+                'status' => $student->enrollment_status,
+                'payment_status' => $student->payment_status,
+                'grade_level' => $admission?->gradeLevel?->grade_level,
+                'course' => $admission?->course?->course_name,
+                'campus' => $admission?->campus?->campus_name,
+                'tuition_fee' => $student->tuition_fee,
+                'misc_fee' => $student->misc_fee,
+                'units_fee' => $student->units_fee,
+                'exam' => [
+                    'exam_id' => $examSchedule?->id,
+                    'exam_date' => $examSchedule?->exam_date,
+                    'exam_status' => $examSchedule?->exam_status,
+                    'exam_score' => $examSchedule?->exam_score,
+                ],
+                'applicant' => [
+                    'applicant_id' => $admission?->id,
+                    'first_name' => $admission?->first_name,
+                    'last_name' => $admission?->last_name,
+                    'email' => $admission?->email,
+                    'contact' => $admission?->contact_number,
+                ],
+                'section' => [
+                    'section_id' => $student->section?->id,
+                    'section_name' => $student->section?->section_name,
+                ],
+                'curriculum' => $curriculum ? [
+                    'id' => $curriculum->id,
+                    'name' => $curriculum->curriculum_name,
+                    'description' => $curriculum->curriculum_description,
+                ] : null,
+                'subjects' => $subjects,
+                'total_units' => $totalUnits,
+            ];
+        });
 
         return response()->json([
             'isSuccess' => true,
-            'admissions' => $admissionsData,
+            'data' => $enrollments,
             'pagination' => [
-                'current_page' => $admissions->currentPage(),
-                'per_page' => $admissions->perPage(),
-                'total' => $admissions->total(),
-                'last_page' => $admissions->lastPage(),
+                'current_page' => $students->currentPage(),
+                'per_page' => $students->perPage(),
+                'total' => $students->total(),
+                'last_page' => $students->lastPage(),
             ],
         ]);
     } catch (Throwable $e) {
         return response()->json([
             'isSuccess' => false,
-            'message' => 'Failed to retrieve admissions.',
+            'message' => 'Failed to retrieve enrollments.',
             'error' => $e->getMessage(),
         ], 500);
     }
+}
+
 }
 
 
