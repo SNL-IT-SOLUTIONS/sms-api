@@ -590,7 +590,7 @@ public function getAllEnrollments()
                     'id'   => $student->section?->id,
                     'name' => $student->section?->section_name,
                 ],
-],
+
                 'curriculum' => $curriculum ? [
                     'id'          => $curriculum->id,
                     'name'        => $curriculum->curriculum_name,
