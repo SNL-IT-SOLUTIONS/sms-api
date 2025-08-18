@@ -522,14 +522,18 @@ public function chooseSubjects(Request $request)
 
 
 
-public function getAllEnrollments()
+public function getAllEnrollments(Request $request)
 {
     try {
+        $perPage = $request->get('per_page', 10); // default 10 per page
+        $page = $request->get('page', 1);
+
         $students = students::with([
             'examSchedule.applicant.gradeLevel',
             'examSchedule.applicant.course',
-            'examSchedule.applicant.campus' // assuming you define a relationship in Admission model
-        ])->get();
+            'examSchedule.applicant.campus',
+            'section' // make sure this relationship exists
+        ])->paginate($perPage, ['*'], 'page', $page);
 
         $results = [];
 
@@ -563,13 +567,13 @@ public function getAllEnrollments()
             }
 
             $results[] = [
-                'student_id'      => $student->id,
+                'id'      => $student->id,
                 'student_number'  => $student->student_number,
                 'status'          => $student->enrollment_status,
                 'payment_status'  => $student->payment_status,
                 'grade_level'     => $admission?->gradeLevel?->grade_level,
                 'course'          => $admission?->course?->course_name,
-                'campus'          => $admission?->campus?->campus_name, // <--- added campus
+                'campus'          => $admission?->campus?->campus_name,
                 'tuition_fee'     => $student->tuition_fee,
                 'misc_fee'        => $student->misc_fee,
                 'units_fee'       => $student->units_fee,
@@ -590,7 +594,6 @@ public function getAllEnrollments()
                     'section_id'   => $student->section?->id,
                     'section_name' => $student->section?->section_name,
                 ],
-
                 'curriculum' => $curriculum ? [
                     'id'          => $curriculum->id,
                     'name'        => $curriculum->curriculum_name,
@@ -604,6 +607,12 @@ public function getAllEnrollments()
         return response()->json([
             'isSuccess' => true,
             'data'      => $results,
+            'pagination' => [
+                'total'        => $students->total(),
+                'per_page'     => $students->perPage(),
+                'current_page' => $students->currentPage(),
+                'last_page'    => $students->lastPage(),
+            ],
         ], 200);
 
     } catch (\Exception $e) {
@@ -613,6 +622,7 @@ public function getAllEnrollments()
         ], 500);
     }
 }
+
 
 
 
