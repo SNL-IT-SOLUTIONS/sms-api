@@ -587,8 +587,8 @@ public function getAllEnrollments()
                     'contact'       => $admission?->contact_number,
                 ],
                 'section' => [
-                    'id'   => $student->section?->id,
-                    'name' => $student->section?->section_name,
+                    'section_id'   => $student->section?->id,
+                    'section_name' => $student->section?->section_name,
                 ],
 
                 'curriculum' => $curriculum ? [
