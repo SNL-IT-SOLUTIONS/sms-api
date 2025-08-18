@@ -929,7 +929,6 @@ public function inputExamScores(Request $request)
 
     foreach ($data as $item) {
         try {
-            // Validate each item
             if (!isset($item['id']) || !isset($item['exam_score'])) {
                 throw new \Exception("Both id and exam_score are required");
             }
@@ -942,58 +941,6 @@ public function inputExamScores(Request $request)
             $schedule->exam_score = $item['exam_score'];
             $schedule->exam_status = ($item['exam_score'] >= $passingScore) ? 'passed' : 'reconsider';
             $schedule->save();
-
-            // If passed AND email not yet sent
-            if (
-                $schedule->exam_status === 'passed' &&
-                $schedule->applicant &&
-                $schedule->applicant->email &&
-                !$schedule->exam_score_sent // check if not sent
-            ) {
-                $studentName = trim($schedule->applicant->first_name . ' ' . $schedule->applicant->last_name);
-
-                $htmlContent = "
-                <html>
-                    <body style='font-family: Arial, sans-serif; color: #333;'>
-                        <div style='max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
-                            <h2 style='color: #004aad;'>SNL Examination Result</h2>
-                            <p>Dear <strong>{$studentName}</strong>,</p>
-                            <p>We are pleased to inform you that you have <strong style='color: green;'>passed</strong> the SNL entrance examination.</p>
-                            <p>Your exam score: <strong>{$item['exam_score']}</strong></p>
-                            <p>Congratulations on this achievement! Our admissions team will contact you with the next steps in the enrollment process.</p>
-                            <br>
-                            <h3 style='color: #004aad;'>Important Enrollment Requirements</h3>
-                            <p>Please prepare and bring the <strong>original copies</strong> of the following documents when you visit the admissions office:</p>
-                            <ul>
-                                <li>Form 137 (High School Permanent Record)</li>
-                                <li>Form 138 (Report Card)</li>
-                                <li>Certificate of Good Moral Character</li>
-                                <li>Certificate of Completion (COC)</li>
-                                <li>PSA-issued Birth Certificate</li>
-                            </ul>
-                            <p>Failure to present these documents may delay your enrollment process.</p>
-                            <br>
-                            <p>Best regards,</p>
-                            <p><strong>SNL Admissions Office</strong><br>
-                            Smart National Learning School<br>
-                            Email: admissions@snl.edu<br>
-                            Phone: (123) 456-7890</p>
-                        </div>
-                    </body>
-                </html>
-                ";
-
-                // Send the email
-                Mail::send([], [], function ($message) use ($schedule, $studentName, $htmlContent) {
-                    $message->to($schedule->applicant->email, $studentName)
-                        ->subject('SNL Examination Result')
-                        ->setBody($htmlContent, 'text/html');
-                });
-
-                // Mark as sent
-                $schedule->exam_score_sent = 1;
-                $schedule->save();
-            }
 
             $results[] = [
                 'schedule_id' => $schedule->id,
@@ -1017,6 +964,115 @@ public function inputExamScores(Request $request)
         'results' => $results,
     ]);
 }
+
+
+
+    public function sendExamResult($scheduleId)
+{
+    try {
+        $schedule = exam_schedules::with('applicant')->findOrFail($scheduleId);
+
+        if (!$schedule->applicant || !$schedule->applicant->email) {
+            throw new \Exception("Applicant or email not found for schedule ID {$scheduleId}");
+        }
+
+        if ($schedule->exam_status !== 'passed') {
+            throw new \Exception("Student did not pass the exam, no email will be sent.");
+        }
+
+        if ($schedule->exam_score_sent) {
+            throw new \Exception("Exam result email already sent.");
+        }
+
+        $studentName = trim($schedule->applicant->first_name . ' ' . $schedule->applicant->last_name);
+        $score = $schedule->exam_score;
+
+        $htmlContent = "
+        <html>
+            <body style='font-family: Arial, sans-serif; color: #333;'>
+                <div style='max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                    <h2 style='color: #004aad;'>SNL Examination Result</h2>
+                    <p>Dear <strong>{$studentName}</strong>,</p>
+                    <p>We are pleased to inform you that you have <strong style='color: green;'>passed</strong> the SNL entrance examination.</p>
+                    <p>Your exam score: <strong>{$score}</strong></p>
+                    <p>Congratulations on this achievement! Our admissions team will contact you with the next steps in the enrollment process.</p>
+                    <br>
+                    <h3 style='color: #004aad;'>Important Enrollment Requirements</h3>
+                    <p>Please prepare and bring the <strong>original copies</strong> of the following documents when you visit the admissions office:</p>
+                    <ul>
+                        <li>Form 137 (High School Permanent Record)</li>
+                        <li>Form 138 (Report Card)</li>
+                        <li>Certificate of Good Moral Character</li>
+                        <li>Certificate of Completion (COC)</li>
+                        <li>PSA-issued Birth Certificate</li>
+                    </ul>
+                    <p>Failure to present these documents may delay your enrollment process.</p>
+                    <br>
+                    <p>Best regards,</p>
+                    <p><strong>SNL Admissions Office</strong><br>
+                    Smart National Learning School<br>
+                    Email: admissions@snl.edu<br>
+                    Phone: (123) 456-7890</p>
+                </div>
+            </body>
+        </html>
+        ";
+
+        Mail::send([], [], function ($message) use ($schedule, $studentName, $htmlContent) {
+            $message->to($schedule->applicant->email, $studentName)
+                ->subject('SNL Examination Result')
+                ->setBody($htmlContent, 'text/html');
+        });
+
+        $schedule->exam_score_sent = 1;
+        $schedule->save();
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => "Exam result email sent to {$studentName} ({$schedule->applicant->email})"
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+
+    public function sendBulkExamResults(Request $request)
+{
+    $validated = $request->validate([
+        'schedule_ids' => 'required|array',
+        'schedule_ids.*' => 'integer|exists:exam_schedules,id',
+    ]);
+
+    $results = [];
+    foreach ($validated['schedule_ids'] as $id) {
+        try {
+            $response = $this->sendExamResult($id, true); // pass "true" to indicate it's called internally
+            $results[] = [
+                'schedule_id' => $id,
+                'status' => 'success',
+                'message' => $response->getData()->message ?? 'Sent',
+            ];
+        } catch (\Exception $e) {
+            $results[] = [
+                'schedule_id' => $id,
+                'status' => 'failed',
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    return response()->json([
+        'isSuccess' => true,
+        'message' => 'Bulk exam result emails processed.',
+        'results' => $results,
+    ]);
+}
+
 
 
     public function getExamScoreSummary()
@@ -1174,23 +1230,22 @@ private function saveFileToPublic(Request $request, $field, $prefix)
         }
     }
 
-   public function getUniqueSchoolYearsDropdown()
+public function getUniqueSchoolYearsDropdown()
 {
     try {
-        $data = school_years::selectRaw('MAX(id) as id, school_year')
-            ->groupBy('school_year')
+        $data = school_years::selectRaw("id, CONCAT(TRIM(school_year), ' ', TRIM(semester)) as academic_year")
             ->orderBy('school_year', 'desc')
             ->get();
 
         return response()->json([
             'isSuccess' => true,
-            'message' => 'Unique school years fetched successfully.',
+            'message' => 'School years fetched successfully.',
             'academic_years' => $data
         ]);
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         return response()->json([
             'isSuccess' => false,
-            'message' => 'Failed to fetch unique school years.',
+            'message' => 'Failed to fetch school years.',
             'error' => $e->getMessage(),
         ], 500);
     }

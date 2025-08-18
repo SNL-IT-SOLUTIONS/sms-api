@@ -95,6 +95,8 @@ Route::post('sendexamination', [AdmissionsController::class, 'sendExamination'])
 Route::post('deleteadmission/{id}', [AdmissionsController::class, 'deleteAdmission']);
 Route::post('/reserve-slot/{id}', [AdmissionsController::class, 'reserveSlot']);
 Route::post("examscores", [AdmissionsController::class, 'inputExamScores']);
+Route::post('sendexamresult', [AdmissionsController::class, 'sendBulkExamResults']);
+
 Route::get('getexamscoresummary', [AdmissionsController::class, 'getExamScoreSummary']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -103,6 +105,9 @@ Route::post('acceptadmission/{id}', [AdmissionsController::class, 'acceptapplica
 Route::post('approveadmission/{id}', [AdmissionsController::class, 'approveAdmission'])->middleware('auth:sanctum');
 Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmission'])->middleware('auth:sanctum');
 });
+
+
+
 // //Enrellments Management
 Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStudents']);
 Route::get('getenrollments', [EnrollmentsController::class, 'getExamineesResult']);
