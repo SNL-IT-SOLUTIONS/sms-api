@@ -536,11 +536,10 @@ public function getAllEnrollments()
 
             if ($curriculum) {
                 $subjects = DB::table('curriculum_subject as cs')
-                    ->join('subjects as s', 'cs.id', '=', 's.id')
+                    ->join('subjects as s', 'cs.subject_id', '=', 's.id') // <-- fix here
                     ->where('cs.curriculum_id', $curriculum->id)
                     ->select('s.id as subject_id', 's.subject_name', 's.units')
                     ->get();
-
                 foreach ($subjects as $subj) {
                     $subjectOptions[] = [
                         'subject_id'   => $subj->subject_id,

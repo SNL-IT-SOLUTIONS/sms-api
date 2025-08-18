@@ -120,6 +120,7 @@ Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
 Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
 Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
 Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
+Route::post('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
 });
 
    Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
