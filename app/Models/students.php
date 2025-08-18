@@ -50,6 +50,10 @@ public function course()
     return $this->belongsTo(courses::class, 'course_id');
 }
 
+public function section()
+{
+    return $this->belongsTo(sections::class, 'section_id'); // assuming 'section_id' is the foreign key
+}
 
 
 }
