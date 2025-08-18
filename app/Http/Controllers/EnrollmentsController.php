@@ -302,138 +302,146 @@ public function getPassedStudents(Request $request)
 }
 
 
-//TO FIX #1
 
 
 
+//FOR FIRST YEAR STUDENTS
     public function enrollStudent(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'student_id' => 'required|integer|exists:exam_schedules,id',
-                'misc_fee' => 'required|numeric|min:0',
-                'section_id' => 'required|integer|exists:sections,id'
-            ]);
+{
+    try {
+        $validated = $request->validate([
+            'student_id' => 'required|integer|exists:exam_schedules,id', // schedule_id
+            'misc_fee'   => 'required|numeric|min:0',
+            'section_id' => 'required|integer|exists:sections,id',
+        ]);
 
-            $schedule = exam_schedules::with('applicant.academic_program')->find($validated['student_id']);
-            if (!$schedule || !$schedule->applicant) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Exam schedule or applicant not found.',
-                ], 404);
-            }
-
-            $admission = $schedule->applicant;
-
-            // Check if already enrolled
-            $existingStudent = students::where('admission_id', $admission->id)->first();
-            if ($existingStudent) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'This applicant is already enrolled.',
-                ], 400);
-            }
-
-            // Generate student number and password
-            $lastStudent = students::latest('id')->first();
-            $nextId = $lastStudent ? $lastStudent->id + 1 : 1;
-            $studentNumber = 'SNL-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
-            $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
-            $rawPassword = $studentNumber . $birthdateFormatted;
-            $hashedPassword = Hash::make($rawPassword);
-
-            $courseId = $admission->academic_program_id ?? null;
-
-            // Calculate total units from curriculum
-            $subjectOptions = [];
-            $totalUnits = 0;
-
-            $curriculum = DB::table('curriculums')
-                ->where('course_id', $courseId)
-                ->first();
-
-            if ($curriculum) {
-                $subjects = DB::table('curriculum_subject as cs')
-                    ->join('subjects as s', 'cs.subject_id', '=', 's.id')
-                    ->where('cs.curriculum_id', $curriculum->id)
-                    ->select('s.id as subject_id', 's.subject_name', 's.units')
-                    ->get();
-
-                foreach ($subjects as $subj) {
-                    $subjectOptions[] = [
-                        'subject_id' => $subj->subject_id,
-                        'subject_name' => $subj->subject_name,
-                        'units' => $subj->units,
-                    ];
-                    $totalUnits += $subj->units;
-                }
-            }
-
-            // Tuition calculation
-            $unitRate   = 200;
-            $miscFee    = $validated['misc_fee'];
-            $unitsFee   = $totalUnits * $unitRate;
-            $tuitionFee = $unitsFee + $miscFee;
-
-            // Save student (no subjects pivot)
-            $student = new students();
-            $student->admission_id = $admission->id;
-            $student->student_number = $studentNumber;
-            $student->password = $hashedPassword;
-            $student->profile_img = null;
-            $student->student_status = 0;
-            $student->course_id = $courseId;
-            $student->section_id = $validated['section_id'];
-            $student->units_fee = $unitsFee;   
-            $student->misc_fee = $miscFee;     
-            $student->tuition_fee = $tuitionFee; 
-            $student->is_active = 1;
-            $student->save();
-
-            // Send email
-            $html = '
-            <html>
-            <body style="font-family: Arial, sans-serif;">
-                <div style="border:1px solid #ccc; padding:20px; max-width:600px; margin:auto;">
-                    <h2>Enrollment Confirmation</h2>
-                    <p>Hello <strong>' . $admission->first_name . ' ' . $admission->last_name . '</strong>,</p>
-                    <p>You have been successfully enrolled. Here are your login credentials:</p>
-                    <ul>
-                        <li><strong>Student Number:</strong> ' . $studentNumber . '</li>
-                        <li><strong>Password:</strong> ' . $rawPassword . '</li>
-                        <li><strong>Tuition Fee:</strong> ₱' . number_format($tuitionFee, 2) . '</li>
-                    </ul>
-                    <p>Please keep this information secure.</p>
-                    <br>
-                    <p>Best regards,<br>Enrollment Team</p>
-                </div>
-            </body>
-            </html>
-            ';
-
-            Mail::send([], [], function ($message) use ($admission, $html) {
-                $message->to($admission->email)
-                    ->subject('Your Enrollment Credentials')
-                    ->setBody($html, 'text/html');
-            });
-
-            return response()->json([
-                'isSuccess' => true,
-                'message' => 'Student enrolled successfully and credentials sent to email.',
-                'student_number' => $studentNumber,
-                'units_fee' => $unitsFee,
-                'misc_fee' => $miscFee,
-                'tuition_fee' => $tuitionFee,
-                'total_units' => $totalUnits,
-                'subject_options' => $subjectOptions,
-            ]);
-        } catch (\Exception $e) {
+        // fetch schedule with applicant + program
+        $schedule = exam_schedules::with('applicant.academic_program')->find($validated['student_id']);
+        if (!$schedule || !$schedule->applicant) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Error: ' . $e->getMessage(),
-            ], 500);
+                'message'   => 'Exam schedule or applicant not found.',
+            ], 404);
         }
+
+        $admission = $schedule->applicant;
+
+        // check if already enrolled
+        $existingStudent = students::where('exam_schedules_id', $schedule->id)->first();
+        if ($existingStudent) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'This applicant is already enrolled.',
+            ], 400);
+        }
+
+        // generate student number + password
+        $lastStudent     = students::latest('id')->first();
+        $nextId          = $lastStudent ? $lastStudent->id + 1 : 1;
+        $studentNumber   = 'SNL-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+        $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
+        $rawPassword     = $studentNumber . $birthdateFormatted;
+        $hashedPassword  = Hash::make($rawPassword);
+
+        $courseId = $admission->academic_program_id ?? null;
+
+        // calculate total units
+        $subjectOptions = [];
+        $totalUnits = 0;
+
+        $curriculum = DB::table('curriculums')
+            ->where('course_id', $courseId)
+            ->first();
+
+        if ($curriculum) {
+            $subjects = DB::table('curriculum_subject as cs')
+                ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+                ->where('cs.curriculum_id', $curriculum->id)
+                ->select('s.id as subject_id', 's.subject_name', 's.units')
+                ->get();
+
+            foreach ($subjects as $subj) {
+                $subjectOptions[] = [
+                    'subject_id'   => $subj->subject_id,
+                    'subject_name' => $subj->subject_name,
+                    'units'        => $subj->units,
+                ];
+                $totalUnits += $subj->units;
+            }
+        }
+
+        // tuition
+        $unitRate   = 200;
+        $miscFee    = $validated['misc_fee'];
+        $unitsFee   = $totalUnits * $unitRate;
+        $tuitionFee = $unitsFee + $miscFee;
+
+        // save student (copy grade_level from admissions)
+        $student = new students();
+        $student->exam_schedules_id = $schedule->id;
+        $student->student_number    = $studentNumber;
+        $student->password          = $hashedPassword;
+        $student->profile_img       = null;
+        $student->student_status    = 0;
+        $student->course_id         = $courseId;
+        $student->section_id        = $validated['section_id'];
+        $student->grade_level       = $admission->grade_level; // ✅ pulled from admission
+        $student->units_fee         = $unitsFee;
+        $student->misc_fee          = $miscFee;
+        $student->tuition_fee       = $tuitionFee;
+        $student->is_active         = 1;
+        $student->save();
+
+        // send email
+        $html = '
+        <html>
+        <body style="font-family: Arial, sans-serif;">
+            <div style="border:1px solid #ccc; padding:20px; max-width:600px; margin:auto;">
+                <h2>Enrollment Confirmation</h2>
+                <p>Hello <strong>' . $admission->first_name . ' ' . $admission->last_name . '</strong>,</p>
+                <p>You have been successfully enrolled. Here are your login credentials:</p>
+                <ul>
+                    <li><strong>Student Number:</strong> ' . $studentNumber . '</li>
+                    <li><strong>Password:</strong> ' . $rawPassword . '</li>
+                    <li><strong>Tuition Fee:</strong> ₱' . number_format($tuitionFee, 2) . '</li>
+                    <li><strong>Year Level:</strong> ' . $admission->grade_level . '</li>
+                </ul>
+                <p>Please keep this information secure.</p>
+                <br>
+                <p>Best regards,<br>Enrollment Team</p>
+            </div>
+        </body>
+        </html>
+        ';
+
+        Mail::send([], [], function ($message) use ($admission, $html) {
+            $message->to($admission->email)
+                ->subject('Your Enrollment Credentials')
+                ->setBody($html, 'text/html');
+        });
+
+        return response()->json([
+            'isSuccess'      => true,
+            'message'        => 'Student enrolled successfully and credentials sent to email.',
+            'student_number' => $studentNumber,
+            'year_level'     => $admission->grade_level,
+            'units_fee'      => $unitsFee,
+            'misc_fee'       => $miscFee,
+            'tuition_fee'    => $tuitionFee,
+            'total_units'    => $totalUnits,
+            'subject_options'=> $subjectOptions,
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Error: ' . $e->getMessage(),
+        ], 500);
     }
+}
+
+
+
 
 
 

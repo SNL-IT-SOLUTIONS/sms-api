@@ -15,7 +15,7 @@ class Admissions extends Model
         'lrn',
         'applicant_number',
         'academic_year_id',
-        'grade_level',
+        'grade_level_id',
 
         'school_campus_id',
         'application_type',

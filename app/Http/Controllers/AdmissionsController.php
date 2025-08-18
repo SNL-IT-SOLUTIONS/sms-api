@@ -211,7 +211,7 @@ class AdmissionsController extends Controller
     'certificate_of_completion' => $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
 
 
-        'grade_level' => $admission->grade_level,
+        'grade_level' => $admission->grade_level_id,
         'guardian_name' => $admission->guardian_name,
         'guardian_contact' => $admission->guardian_contact,
         'mother_name' => $admission->mother_name,
@@ -419,7 +419,7 @@ class AdmissionsController extends Controller
                 'academic_program_id' => 'required|exists:courses,id',
                 'school_campus_id' => 'required|exists:school_campus,id',
                 'academic_year_id' => 'required|exists:school_years,id',
-                'grade_level' => 'nullable|string|max:50',
+                'grade_level_id' => 'required|exists:grade_levels,id',
                 'semester' => 'nullable|string|max:50',
                 'application_type' => 'required|string|max:50',
 
@@ -453,7 +453,7 @@ class AdmissionsController extends Controller
                 'account_id' => null,
                 'applicant_number' => $applicantNumber,
                 'academic_year_id' => $validated['academic_year_id'],
-                'grade_level' => $validated['grade_level'] ?? null,
+                'grade_level_id' => $validated['grade_level_id'] ?? null,
                 'semester' => $validated['semester'] ?? null,
                 'school_campus_id' => $validated['school_campus_id'],
                 'application_type' => $validated['application_type'],

@@ -17,6 +17,8 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
+use App\Http\Controllers\GradeLevelsController;
+
 
 
 /*
@@ -118,6 +120,17 @@ Route::middleware('auth:sanctum')->group(function () {
      Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
 
 });
+
+
+// Year Levels Management
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
+    Route::post('creategradelevel', [GradeLevelsController::class, 'creategradeLevels']);
+    Route::post('updategradelevel/{id}', [GradeLevelsController::class, 'updategradeLevels']);
+    Route::post('deletegradelevel/{id}', [GradeLevelsController::class, 'deletegradeLevels']);
+    
+});
+
 
 
 //Assign Schedule
