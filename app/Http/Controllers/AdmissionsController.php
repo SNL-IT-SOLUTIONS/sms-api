@@ -185,6 +185,7 @@ class AdmissionsController extends Controller
         'birthplace' => $admission->birthplace,
         'civil_status' => $admission->civil_status,
         'email' => $admission->email,
+        'grade_level' => $admission->grade_level_id,
         'contact_number' => $admission->contact_number,
         'telephone_number' => $admission->telephone_number,
         'street_address' => $admission->street_address,

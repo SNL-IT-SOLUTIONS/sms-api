@@ -121,7 +121,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 });
 
-
+   Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
 // Year Levels Management
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
