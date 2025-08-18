@@ -31,7 +31,7 @@ class Student extends Model
         'has_good_moral',
         'has_certificate_of_completion',
         'academic_year_id',
-        'year_level_id',
+        'grade_level_id',
     ];
 
     // 🔗 Relationships
@@ -55,8 +55,8 @@ class Student extends Model
         return $this->belongsTo(school_years::class, 'academic_year_id');
     }
 
-    public function yearLevel()
+    public function gradeLevel()
     {
-        return $this->belongsTo(year_levels::class, 'year_level_id');
+        return $this->belongsTo(grade__levels::class, 'grade_level_id');
     }
 }

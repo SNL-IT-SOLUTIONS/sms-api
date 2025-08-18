@@ -105,5 +105,9 @@ class Admissions extends Model
         return $this->hasOne(students::class, 'admission_id');
     }
 
+    public function gradeLevel()
+{
+    return $this->belongsTo(grade__levels::class, 'grade_level_id');
+}
 
 }

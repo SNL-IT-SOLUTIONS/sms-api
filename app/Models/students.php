@@ -13,12 +13,18 @@ class students extends Model
      protected $table = 'students';
 
     protected $fillable = [
-        'admission_id',
+         'exam_schedules_id',
         'student_number',
         'password',
         'profile_img',
         'student_status',
+        'course_id',
         'section_id',
+        'academic_year_id',
+        'grade_level_id',
+        'units_fee',
+        'misc_fee',
+        'tuition_fee',
         'is_active',
     ];
       protected $hidden = [
@@ -33,6 +39,17 @@ public function admission()
 {
     return $this->belongsTo(admissions::class, 'admission_id');
 }
+
+public function examSchedule()
+{
+    return $this->belongsTo(exam_schedules::class, 'exam_schedules_id');
+}
+
+public function course()
+{
+    return $this->belongsTo(courses::class, 'course_id');
+}
+
 
 
 }

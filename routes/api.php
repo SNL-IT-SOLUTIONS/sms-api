@@ -111,14 +111,15 @@ Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmissi
 
 
 // //Enrellments Management
-Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStudents']);
-Route::get('getenrollments', [EnrollmentsController::class, 'getExamineesResult']);
-Route::middleware('auth:sanctum')->group(function () {
-    
-    Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
-     Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
-     Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
 
+Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStudents']);
+Route::get('getenrollments', [EnrollmentsController::class, 'getAllEnrollments']);
+
+Route::middleware('auth:sanctum')->group(function () {
+Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
+Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
+Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
+Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
 });
 
    Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
