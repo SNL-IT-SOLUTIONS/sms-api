@@ -44,5 +44,10 @@ public function students()
     return $this->hasMany(students::class, 'section_id');
 }
 
+public function section()
+{
+    return $this->belongsTo(sections::class, 'section_id');
+}
+
 
 }

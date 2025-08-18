@@ -316,7 +316,7 @@ public function enrollStudent(Request $request)
             'section_id'  => 'required|integer|exists:sections,id',
         ]);
 
-        // Fetch schedule with applicant
+        // Fetch schedule with applicant and grade level
         $schedule = exam_schedules::with(['applicant.gradeLevel'])->find($validated['student_id']);
 
         if (!$schedule || !$schedule->applicant) {
@@ -344,6 +344,12 @@ public function enrollStudent(Request $request)
         $rawPassword   = $studentNumber . $birthdateFormatted;
         $hashedPassword = Hash::make($rawPassword);
 
+        // Ensure grade_level_id is valid
+        $gradeLevelId = $admission->grade_level_id;
+        if (!DB::table('grade_levels')->where('id', $gradeLevelId)->exists()) {
+            $gradeLevelId = 1; // fallback to first year if missing
+        }
+
         // Create student record
         $student = students::create([
             'exam_schedules_id' => $schedule->id,
@@ -354,14 +360,17 @@ public function enrollStudent(Request $request)
             'course_id'         => $admission->academic_program_id,
             'section_id'        => $validated['section_id'],
             'academic_year_id'  => $admission->academic_year_id,
-            'grade_level_id'    => $admission->grade_level_id,
+            'grade_level_id'    => $gradeLevelId,
             'units_fee'         => 0,
             'misc_fee'          => $validated['misc_fee'],
             'tuition_fee'       => 0,
             'is_active'         => 1,
         ]);
 
-        $gradeLevelName = $admission->gradeLevel->grade_level_id ?? 'N/A';
+        // Get grade level name safely
+        $gradeLevelName = DB::table('grade_levels')
+            ->where('id', $gradeLevelId)
+            ->value('grade_level') ?? 'N/A';
 
         // Send email with credentials
         $html = '
@@ -407,6 +416,7 @@ public function enrollStudent(Request $request)
         ], 500);
     }
 }
+
 
 
 
@@ -517,7 +527,8 @@ public function getAllEnrollments()
     try {
         $students = students::with([
             'examSchedule.applicant.gradeLevel',
-            'examSchedule.applicant.course'
+            'examSchedule.applicant.course',
+            'examSchedule.applicant.campus' // assuming you define a relationship in Admission model
         ])->get();
 
         $results = [];
@@ -536,10 +547,11 @@ public function getAllEnrollments()
 
             if ($curriculum) {
                 $subjects = DB::table('curriculum_subject as cs')
-                    ->join('subjects as s', 'cs.subject_id', '=', 's.id') // <-- fix here
+                    ->join('subjects as s', 'cs.subject_id', '=', 's.id')
                     ->where('cs.curriculum_id', $curriculum->id)
                     ->select('s.id as subject_id', 's.subject_name', 's.units')
                     ->get();
+
                 foreach ($subjects as $subj) {
                     $subjectOptions[] = [
                         'subject_id'   => $subj->subject_id,
@@ -550,7 +562,6 @@ public function getAllEnrollments()
                 }
             }
 
-            // ---- Build clean response ----
             $results[] = [
                 'student_id'      => $student->id,
                 'student_number'  => $student->student_number,
@@ -558,6 +569,10 @@ public function getAllEnrollments()
                 'payment_status'  => $student->payment_status,
                 'grade_level'     => $admission?->gradeLevel?->grade_level,
                 'course'          => $admission?->course?->course_name,
+                'campus'          => $admission?->campus?->campus_name, // <--- added campus
+                'tuition_fee'     => $student->tuition_fee,
+                'misc_fee'        => $student->misc_fee,
+                'units_fee'       => $student->units_fee,
                 'exam' => [
                     'exam_id'       => $examSchedule?->id,
                     'exam_date'     => $examSchedule?->exam_date,
@@ -571,6 +586,11 @@ public function getAllEnrollments()
                     'email'         => $admission?->email,
                     'contact'       => $admission?->contact_number,
                 ],
+                'section' => [
+                    'id'   => $student->section?->id,
+                    'name' => $student->section?->section_name,
+                ],
+],
                 'curriculum' => $curriculum ? [
                     'id'          => $curriculum->id,
                     'name'        => $curriculum->curriculum_name,
@@ -593,6 +613,7 @@ public function getAllEnrollments()
         ], 500);
     }
 }
+
 
 
 
