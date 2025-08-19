@@ -384,7 +384,7 @@ public function getReconsideredStudents(Request $request)
     public function getStudentCurriculum($studentId)
 {
     try {
-        $student = Student::with([
+        $student = students::with([
             'enrollment.section.curriculum.subjects'
         ])->find($studentId);
 
@@ -418,6 +418,7 @@ public function getReconsideredStudents(Request $request)
         ]);
     }
 }
+
 
 
 

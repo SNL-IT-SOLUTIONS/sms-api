@@ -1351,6 +1351,7 @@ private function saveFileToPublic(Request $request, $field, $prefix)
     }
 
     
+
     public function getAcademicYearsDropdown()
     {
         try {
@@ -1415,27 +1416,27 @@ public function getUniqueSchoolYearsDropdown()
             }
         }
 
-        // // Get buildings for selected campus
-        // public function getBuildingsByCampus($campusId)
-        // {
-        //     try {
-        //         $buildings = campus_buildings::where('campus_id', $campusId)
-        //             ->select('id', 'building_name')
-        //             ->get();
+        // Get buildings for selected campus
+        public function getBuildingsByCampus($campusId)
+        {
+            try {
+                $buildings = campus_buildings::where('campus_id', $campusId)
+                    ->select('id', 'building_name')
+                    ->get();
 
-        //         return response()->json([
-        //             'isSuccess' => true,
-        //             'message' => 'Buildings fetched successfully.',
-        //             'buildings' => $buildings
-        //         ]);
-        //     } catch (\Exception $e) {
-        //         return response()->json([
-        //             'isSuccess' => false,
-        //             'message' => 'Failed to fetch buildings.',
-        //             'error' => $e->getMessage(),
-        //         ], 500);
-        //     }
-        // }
+                return response()->json([
+                    'isSuccess' => true,
+                    'message' => 'Buildings fetched successfully.',
+                    'buildings' => $buildings
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Failed to fetch buildings.',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
+        }
 
         // Existing rooms function (unchanged)
         public function getByBuilding($buildingid)
