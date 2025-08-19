@@ -1361,26 +1361,6 @@ private function saveFileToPublic(Request $request, $field, $prefix)
     }
 
     
-
-    public function getAcademicYearsDropdown()
-    {
-        try {
-            $data = school_years::select('id', 'school_year', 'semester')->get();
-
-            return response()->json([
-                'isSuccess' => true,
-                'message' => 'Academic years fetched successfully.',
-                'academic_years' => $data
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Failed to fetch academic years.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
 public function getUniqueSchoolYearsDropdown()
 {
     try {

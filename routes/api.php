@@ -235,7 +235,6 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('dropdown')->group(function () {
     Route::get('getstatuses', [AdmissionsController::class, 'getAdmissionStatuses']);
     Route::get('academic-programs', [AdmissionsController::class, 'getAcademicProgramsDropdown']);
-    Route::get('academic-years', [AdmissionsController::class, 'getAcademicYearsDropdown']);
     Route::get('schoolyears', [AdmissionsController::class, 'getUniqueSchoolYearsDropdown']);
     Route::get('courses', [SectionsController::class, 'getCoursesDropdown']);
     Route::get('sections', [SectionsController::class, 'getSectionsDropdown']);
