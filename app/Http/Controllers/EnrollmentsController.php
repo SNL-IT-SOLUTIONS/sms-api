@@ -838,7 +838,7 @@ public function enroll(Request $request)
 public function getAllEnrollments(Request $request)
 {
     try {
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 5);
         $page = $request->get('page', 1);
 
         // Base query
