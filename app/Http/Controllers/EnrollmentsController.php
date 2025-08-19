@@ -590,6 +590,36 @@ $sectionId = DB::table('sections')
     }
 }
 
+public function updateStudentDocs(Request $request, $studentId)
+{
+    $validated = $request->validate([
+        'has_form137'  => 'required|boolean',
+        'has_form138'  => 'required|boolean',
+        'has_birth_certificate' => 'required|boolean',
+        'has_good_moral' => 'required|boolean',
+        'has_certificate_of_completion' => 'required|boolean',
+    ]);
+
+    $student = students::findOrFail($studentId);
+
+    $hasAllDocs = $validated['has_form137'] 
+               && $validated['has_form138'] 
+               && $validated['has_good_moral'] 
+               && $validated['has_certificate_of_completion']
+               && $validated['has_birth_certificate'];
+
+    $student->update([
+        ...$validated,
+        'enrollment_status' => $hasAllDocs ? 'Official Enrolled' : 'Unofficial Enrolled',
+    ]);
+
+    return response()->json([
+        'isSuccess' => true,
+        'message'   => 'Student documents updated successfully.',
+        'student'   => $student
+    ]);
+}
+
 
 
 
@@ -598,7 +628,7 @@ $sectionId = DB::table('sections')
 
 
 //STUDENT CHOOSE SUBJECTS
-public function chooseSubjects(Request $request)
+public function enroll(Request $request)
 {
     try {
         // Get the logged-in student
