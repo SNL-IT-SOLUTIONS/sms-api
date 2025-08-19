@@ -190,7 +190,7 @@ class AdmissionsController extends Controller
         'academic_program' => optional($admission->academic_program)->course_name,
         'school_campus' => optional($admission->schoolCampus)->campus_name,
        'academic_year'   => optional($admission->school_years)
-    ? optional($admission->school_years)->school_year . ' • ' . optional($admission->school_years)->semester
+    ? optional($admission->school_years)->school_year . ' - ' . optional($admission->school_years)->semester
     : null,
     ];
 });
