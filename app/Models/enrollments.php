@@ -30,6 +30,7 @@ class Student extends Model
         'has_form138',
         'has_good_moral',
         'has_certificate_of_completion',
+        'has_birth_certificate',
         'academic_year_id',
         'grade_level_id',
     ];

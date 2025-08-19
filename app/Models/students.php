@@ -12,21 +12,27 @@ class students extends Model
     use HasFactory;
      protected $table = 'students';
 
-    protected $fillable = [
-         'exam_schedules_id',
-        'student_number',
-        'password',
-        'profile_img',
-        'student_status',
-        'course_id',
-        'section_id',
-        'academic_year_id',
-        'grade_level_id',
-        'units_fee',
-        'misc_fee',
-        'tuition_fee',
-        'is_active',
-    ];
+   protected $fillable = [
+    'exam_schedules_id',
+    'student_number',
+    'password',
+    'profile_img',
+    'student_status',
+    'course_id',
+    'section_id',
+    'academic_year_id',
+    'grade_level_id',
+    'units_fee',
+    'tuition_fee',
+    'is_active',
+    'has_form137',
+    'has_form138',
+    'has_good_moral',
+    'has_certificate_of_completion',
+    'has_birth_certificate',
+    'enrollment_status',
+    'is_active',
+];
       protected $hidden = [
         'password',
     ];
