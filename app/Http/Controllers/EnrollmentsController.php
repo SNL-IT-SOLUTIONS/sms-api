@@ -481,7 +481,7 @@ public function approveStudent(Request $request)
             $gradeLevelId = 1; // fallback
         }
 
-$sectionId = DB::table('sections')
+    $sectionId = DB::table('sections')
     ->where('campus_id', $admission->school_campus_id)
     ->where('is_archived', 0)
     ->orderBy('students_size', 'asc')
@@ -590,6 +590,8 @@ $sectionId = DB::table('sections')
         ], 500);
     }
 }
+
+
 
 public function updateStudentDocs(Request $request, $id)
 {
@@ -978,57 +980,57 @@ public function getAllEnrollments(Request $request)
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
 //Curriculum Subjects
     //This function retrieves the subjects in the curriculum for the authenticated student.
     //It checks if the student has an admission record and fetches the curriculum based on the course ID.
     //It returns a JSON response with the subjects or an error message if not found.
 
-    public function getCurriculumSubjects(Request $request)
-    {
+    public function getCurriculumSubjects()
+{
+    try {
+        // Logged-in student
         $student = auth()->user();
 
-        if (!$student || !$student->admission) {
+        if (!$student) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Student admission not found.'
+                'message'   => 'Student not found.',
             ], 404);
         }
 
-        $courseId = $student->admission->academic_program_id;
-
-        $curriculum = curriculums::where('course_id', $courseId)->first();
+        // Find the student's curriculum
+        $curriculum = DB::table('curriculums')
+            ->where('course_id', $student->course_id)
+            ->first();
 
         if (!$curriculum) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Curriculum not found for this course.'
+                'message'   => 'No curriculum found for this course.',
             ], 404);
         }
 
-        // 🔄 Get related subjects via pivot
-        $subjects = $curriculum->subjects()->get(['subjects.id', 'subject_code', 'subject_name', 'units']);
+        // Get subjects linked to that curriculum
+        $subjects = DB::table('curriculum_subject as cs')
+            ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+            ->where('cs.curriculum_id', $curriculum->id)
+            ->select('s.id', 's.subject_code', 's.subject_name', 's.units')
+            ->get();
 
         return response()->json([
             'isSuccess' => true,
             'curriculum_id' => $curriculum->id,
             'subjects' => $subjects
-        ]);
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Error: ' . $e->getMessage(),
+        ], 500);
     }
+}
+
 
 
     //This function handles the creation of a new enrollment.
