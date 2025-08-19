@@ -118,7 +118,7 @@ Route::get('getenrollments', [EnrollmentsController::class, 'getAllEnrollments']
 
 Route::middleware('auth:sanctum')->group(function () {
 Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
-Route::post('updatestdentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
+Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
 Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
 Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
 Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
