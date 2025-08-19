@@ -590,7 +590,7 @@ $sectionId = DB::table('sections')
     }
 }
 
-public function updateStudentDocs(Request $request, $studentId)
+public function updateStudentDocs(Request $request, $id)
 {
     $validated = $request->validate([
         'has_form137'  => 'required|boolean',
@@ -600,7 +600,7 @@ public function updateStudentDocs(Request $request, $studentId)
         'has_certificate_of_completion' => 'required|boolean',
     ]);
 
-    $student = students::findOrFail($studentId);
+    $student = students::findOrFail($id);
 
     $hasAllDocs = $validated['has_form137'] 
                && $validated['has_form138'] 
