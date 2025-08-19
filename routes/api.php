@@ -113,6 +113,7 @@ Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmissi
 // //Enrellments Management
 
 Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStudents']);
+Route::get('getreconsideredstudents', [EnrollmentsController::class, 'getReconsideredStudents']);
 Route::get('getenrollments', [EnrollmentsController::class, 'getAllEnrollments']);
 
 Route::middleware('auth:sanctum')->group(function () {
