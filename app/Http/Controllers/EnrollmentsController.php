@@ -240,6 +240,11 @@ public function getPassedStudents(Request $request)
                 'form_138'        => $admission && $admission->form_138 ? asset($admission->form_138) : null,
                 'birth_certificate'=> $admission && $admission->birth_certificate ? asset($admission->birth_certificate) : null,
                 'certificate_of_completion'=> $admission && $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
+                'has_form137'   => $schedule->has_form137 ?? null,
+                'has_form138'   => $schedule->has_form138 ?? null,
+                'has_good_moral' => $schedule->has_good_moral ?? null,
+                'has_certificate_of_completion' => $schedule->has_certificate_of_completion ?? null,
+                'has_birth_certificate' => $schedule->has_birth_certificate ?? null,
             ];
         });
 
