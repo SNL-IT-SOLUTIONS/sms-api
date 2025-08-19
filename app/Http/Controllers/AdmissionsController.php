@@ -126,8 +126,16 @@ class AdmissionsController extends Controller
             $query->where('academic_program', $request->academic_program);
         }
 
-        if ($request->has('academic_year')) {
-            $query->where('academic_year', $request->academic_year);
+        if ($request->has('school_year')) {
+        $query->whereHas('school_years', function ($q) use ($request) {
+            $q->where('school_year', $request->school_year);
+        });
+         }
+
+        if ($request->has('semester')) {
+            $query->whereHas('school_years', function ($q) use ($request) {
+                $q->where('semester', $request->semester);
+            });
         }
 
         $admissions = $query->paginate(10);
