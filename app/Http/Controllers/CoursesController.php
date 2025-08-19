@@ -26,7 +26,7 @@ class CoursesController extends Controller
             // Validate the request data
            $validated = $request->validate([
             'course_name'       => 'required|string|max:100',
-            'course_code'       => 'required|string|max:10|unique:courses,course_code',
+            'course_code'       => 'required|string|max:100|unique:courses,course_code',
             'course_description'=> 'nullable|string|max:255',
             ]);
 
