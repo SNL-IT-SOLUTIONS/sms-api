@@ -90,7 +90,7 @@ Route::get('getusers', [AccountsController::class, 'getUsers']);
 
 // // Admissions Management
 Route::get('getexaminees', [AdmissionsController::class, 'getExamSchedules']);
-Route::post('getadmissions', [AdmissionsController::class, 'getAdmissions']);
+Route::get('getadmissions', [AdmissionsController::class, 'getAdmissions']);
 Route::post('applyadmission', [AdmissionsController::class, 'applyAdmission']);
 Route::post('sendcustomemail', [AdmissionsController::class, 'sendCustomEmail'])->middleware('auth:sanctum');
 Route::post('sendexamination', [AdmissionsController::class, 'sendExamination'])->middleware('auth:sanctum');
