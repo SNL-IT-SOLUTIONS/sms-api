@@ -1445,19 +1445,4 @@ public function getUniqueSchoolYearsDropdown()
             return response()->json($rooms);
         }
 
-
-//    public function getBuildingsByAdmission($admissionId)
-// {
-//     $admission = admissions::select('school_campus_id')->findOrFail($admissionId);
-
-//     $buildings = campus_buildings::where('campus_id', $admission->school_campus_id)
-//         ->select('id', 'building_name')
-//         ->get();
-
-//     return response()->json([
-//         'isSuccess' => true,
-//         'message' => 'Buildings fetched successfully.',
-//         'buildings' => $buildings
-//     ]);
-// }
 }

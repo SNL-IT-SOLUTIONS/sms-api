@@ -419,19 +419,23 @@ public function getReconsideredStudents(Request $request)
     }
 }
 
+    
+
 
 
 
 
 
 //1st step REGISTRAR
-public function enrollStudent(Request $request)
+public function approveStudent(Request $request)
 {
     try {
         $validated = $request->validate([
-            'student_id'  => 'required|integer|exists:exam_schedules,id',
-            'misc_fee'    => 'required|numeric|min:0',
-            'section_id'  => 'required|integer|exists:sections,id',
+            'student_id'   => 'required|integer|exists:exam_schedules,id',
+            'has_form137'  => 'required|boolean',
+            'has_form138'  => 'required|boolean',
+            'has_good_moral' => 'required|boolean',
+            'has_certificate_of_completion' => 'required|boolean',
         ]);
 
         // Fetch schedule with applicant and grade level
@@ -454,38 +458,64 @@ public function enrollStudent(Request $request)
             ], 400);
         }
 
-        // Generate student number + hashed password
+        // Generate student number + password
         $lastStudent   = students::latest('id')->first();
         $nextId        = $lastStudent ? $lastStudent->id + 1 : 1;
         $studentNumber = 'SNL-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
-        $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
-        $rawPassword   = $studentNumber . $birthdateFormatted;
-        $hashedPassword = Hash::make($rawPassword);
 
-        // Ensure grade_level_id is valid
+        $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
+        $rawPassword        = $studentNumber . $birthdateFormatted;
+        $hashedPassword     = Hash::make($rawPassword);
+
+        // Validate grade_level_id
         $gradeLevelId = $admission->grade_level_id;
         if (!DB::table('grade_levels')->where('id', $gradeLevelId)->exists()) {
-            $gradeLevelId = 1; // fallback to first year if missing
+            $gradeLevelId = 1; // fallback
         }
 
-        // Create student record
+        // Auto-assign section (first available in that grade level or course)
+        $sectionId = DB::table('sections')
+            ->where('grade_level_id', $gradeLevelId)
+            ->where('course_id', $admission->academic_program_id)
+            ->value('id');
+
+        if (!$sectionId) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'No available section found for this course/grade level.',
+            ], 400);
+        }
+
+        // Check if student has complete documents
+        $hasAllDocs = $validated['has_form137'] 
+                   && $validated['has_form138'] 
+                   && $validated['has_good_moral'] 
+                   && $validated['has_certificate_of_completion'];
+
+        $enrollmentStatus = $hasAllDocs ? 'Official Enrolled' : 'Unofficial Enrolled';
+
+        // Create student record with docs
         $student = students::create([
-            'exam_schedules_id' => $schedule->id,
-            'student_number'    => $studentNumber,
-            'password'          => $hashedPassword,
-            'profile_img'       => null,
-            'student_status'    => 0,
-            'course_id'         => $admission->academic_program_id,
-            'section_id'        => $validated['section_id'],
-            'academic_year_id'  => $admission->academic_year_id,
-            'grade_level_id'    => $gradeLevelId,
-            'units_fee'         => 0,
-            'misc_fee'          => $validated['misc_fee'],
-            'tuition_fee'       => 0,
-            'is_active'         => 1,
+            'exam_schedules_id'             => $schedule->id,
+            'student_number'                => $studentNumber,
+            'password'                      => $hashedPassword,
+            'profile_img'                   => null,
+            'student_status'                => 0,
+            'course_id'                     => $admission->academic_program_id,
+            'section_id'                    => $sectionId,
+            'academic_year_id'              => $admission->academic_year_id,
+            'grade_level_id'                => $gradeLevelId,
+            'units_fee'                     => 0,
+            'tuition_fee'                   => 0,
+            'is_active'                     => 1,
+            'has_form137'                   => $validated['has_form137'],
+            'has_form138'                   => $validated['has_form138'],
+            'has_good_moral'                => $validated['has_good_moral'],
+            'has_certificate_of_completion' => $validated['has_certificate_of_completion'],
+            'enrollment_status'             => $enrollmentStatus,
         ]);
 
-        // Get grade level name safely
+        // Grade level name
         $gradeLevelName = DB::table('grade_levels')
             ->where('id', $gradeLevelId)
             ->value('grade_level') ?? 'N/A';
@@ -501,8 +531,8 @@ public function enrollStudent(Request $request)
                 <ul>
                     <li><strong>Student Number:</strong> ' . $studentNumber . '</li>
                     <li><strong>Password:</strong> ' . $rawPassword . '</li>
-                    <li><strong>Tuition Fee:</strong> ₱' . number_format($validated['misc_fee'], 2) . '</li>
                     <li><strong>Grade Level:</strong> ' . $gradeLevelName . '</li>
+                    <li><strong>Enrollment Status:</strong> ' . $enrollmentStatus . '</li>
                 </ul>
                 <p>Please keep this information secure.</p>
                 <br>
@@ -524,7 +554,14 @@ public function enrollStudent(Request $request)
             'student_id'     => $student->id,
             'student_number' => $studentNumber,
             'grade_level'    => $gradeLevelName,
-            'misc_fee'       => $validated['misc_fee'],
+            'section_id'     => $sectionId,
+            'enrollment_status' => $enrollmentStatus,
+            'documents'      => [
+                'form137'   => $student->has_form137,
+                'form138'   => $student->has_form138,
+                'good_moral'=> $student->has_good_moral,
+                'certificate_of_completion' => $student->has_certificate_of_completion,
+            ]
         ], 200);
 
     } catch (\Exception $e) {
