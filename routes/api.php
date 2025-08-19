@@ -110,7 +110,7 @@ Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmissi
 
 
 
-// //Enrellments Management
+// //Enrollments Management
 
 Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStudents']);
 Route::get('getreconsideredstudents', [EnrollmentsController::class, 'getReconsideredStudents']);

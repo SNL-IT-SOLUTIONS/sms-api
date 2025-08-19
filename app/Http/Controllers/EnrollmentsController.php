@@ -435,6 +435,7 @@ public function getReconsideredStudents(Request $request)
 //1st step REGISTRAR
 public function approveStudent(Request $request)
 {
+    $user = Auth::user();
     try {
         $validated = $request->validate([
             'id'   => 'required|integer|exists:exam_schedules,id',
@@ -722,6 +723,7 @@ public function enroll(Request $request)
         ], 500);
     }
 }
+
 
 
 
