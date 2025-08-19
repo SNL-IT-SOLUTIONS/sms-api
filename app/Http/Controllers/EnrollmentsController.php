@@ -615,6 +615,7 @@ public function getAllEnrollments(Request $request)
                 'course' => $admission?->course?->course_name,
                 'campus' => $admission?->campus?->campus_name,
                 'tuition_fee' => $student->tuition_fee,
+                'is_active' => $student->is_active,
                 'misc_fee' => $student->misc_fee,
                 'units_fee' => $student->units_fee,
                 'exam' => [
