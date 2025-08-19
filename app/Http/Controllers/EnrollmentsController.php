@@ -480,12 +480,11 @@ public function approveStudent(Request $request)
             $gradeLevelId = 1; // fallback
         }
 
-        // Auto-assign section (first available in that grade level or course)
-        $sectionId = DB::table('sections')
-            ->where('campus_id', $admission->school_campus_id)
-            ->where('is_archived', 0)
-            ->orderBy('students_size', 'asc') // optional: balance load
-            ->value('id');
+$sectionId = DB::table('sections')
+    ->where('campus_id', $admission->school_campus_id)
+    ->where('is_archived', 0)
+    ->orderBy('students_size', 'asc')
+    ->value('id');
 
         if (!$sectionId) {
             return response()->json([
@@ -508,6 +507,9 @@ public function approveStudent(Request $request)
                    && $validated['has_birth_certificate'];
 
         $enrollmentStatus = $hasAllDocs ? 'Official Enrolled' : 'Unofficial Enrolled';
+        $schedule->update([
+        'is_approved' => 1
+    ]);
 
         // Create student record with docs
         $student = students::create([
@@ -530,10 +532,6 @@ public function approveStudent(Request $request)
             'has_birth_certificate'         => $validated['has_birth_certificate'],
             'enrollment_status'             => $enrollmentStatus,
         ]);
-        $schedule->update([
-        'is_approved' => 1
-    ]);
-
         // Grade level name
         $gradeLevelName = DB::table('grade_levels')
             ->where('id', $gradeLevelId)
