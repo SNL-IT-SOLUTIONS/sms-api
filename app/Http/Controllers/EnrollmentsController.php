@@ -196,7 +196,6 @@ public function getPassedStudents(Request $request)
                 'is_approved'     => $schedule->is_approved,
                 'room_name'       => optional($schedule->room)->room_name,
                 'building_name'   => optional($schedule->building)->building_name,
-                'campus_name'     => optional($schedule->campus)->campus_name,
                 'has_form137'   => $schedule->has_form137 ?? null,
                 'has_form138'   => $schedule->has_form138 ?? null,
                 'has_good_moral' => $schedule->has_good_moral ?? null,
@@ -204,6 +203,7 @@ public function getPassedStudents(Request $request)
                 'has_birth_certificate' => $schedule->has_birth_certificate ?? null,
 
                 // Admission Info
+                'campus_name'     => optional($admission->campus)->campus_name,
                 'admission_id'    => $admission->id ?? null,
                 'first_name'      => $admission->first_name ?? null,
                 'middle_name'     => $admission->middle_name ?? null,
