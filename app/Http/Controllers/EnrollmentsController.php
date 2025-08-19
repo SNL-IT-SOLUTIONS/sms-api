@@ -277,7 +277,8 @@ public function getReconsideredStudents(Request $request)
             'building:id,building_name',
             'campus:id,campus_name'
         ])
-        ->where('exam_status', 'reconsidered'); // Only reconsidered students
+        ->where('exam_status', 'reconsidered')
+        ->where('is_approved', 0);
 
         // Optional search filter
         if ($request->has('search') && !empty($request->search)) {
@@ -306,6 +307,7 @@ public function getReconsideredStudents(Request $request)
                 'exam_time_to'    => $schedule->exam_time_to,
                 'exam_score'      => $schedule->exam_score,
                 'exam_status'     => $schedule->exam_status,
+                'is_approved'     => $schedule->is_approved,
                 'room_name'       => optional($schedule->room)->room_name,
                 'building_name'   => optional($schedule->building)->building_name,
                 'campus_name'     => optional($schedule->campus)->campus_name,
