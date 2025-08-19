@@ -33,7 +33,7 @@ use Illuminate\Support\Facades\Log;
 
 class AdmissionsController extends Controller
 {
-    
+
 
    public function getExamSchedules(Request $request)
 {
@@ -93,6 +93,123 @@ class AdmissionsController extends Controller
             'last_page' => $paginated->lastPage(),
         ]
     ]);
+}
+
+
+    public function getAdmissions(Request $request)
+{
+    try {
+    $query = admissions::with(['academic_program', 'schoolCampus', 'school_years'])
+        ->where('is_archived', '0')
+        ->orderBy('created_at', 'desc'); 
+
+        // Search by keyword
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('academic_year', 'like', "%$search%")
+                    ->orWhere('first_name', 'like', "%$search%")
+                    ->orWhere('last_name', 'like', "%$search%");
+            });
+        }
+
+        // Filters
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('school_campus')) {
+            $query->where('school_campus', $request->school_campus);
+        }
+
+        if ($request->has('academic_program')) {
+            $query->where('academic_program', $request->academic_program);
+        }
+
+        if ($request->has('academic_year')) {
+            $query->where('academic_year', $request->academic_year);
+        }
+
+        $admissions = $query->paginate(10);
+
+       $admissionsData = $admissions->map(function ($admission) {
+        $storagePath = 'storage/';
+
+    return [
+        'id' => $admission->id,
+        'test_permit_no' => $admission->test_permit_no,
+        'applicant_number' => $admission->applicant_number,
+        'status' => $admission->status,
+        'first_name' => $admission->first_name,
+        'middle_name' => $admission->middle_name,
+        'last_name' => $admission->last_name,
+        'suffix' => $admission->suffix,
+        'full_name' => trim($admission->first_name . ' ' . $admission->middle_name . ' ' . $admission->last_name . ' ' . $admission->suffix),
+        'gender' => $admission->gender,
+        'birthdate' => $admission->birthdate,
+        'birthplace' => $admission->birthplace,
+        'civil_status' => $admission->civil_status,
+        'email' => $admission->email,
+        'grade_level' => $admission->grade_level_id,
+        'contact_number' => $admission->contact_number,
+        'telephone_number' => $admission->telephone_number,
+        'street_address' => $admission->street_address,
+        'province' => $admission->province,
+        'city' => $admission->city,
+        'barangay' => $admission->barangay,
+        'nationality' => $admission->nationality,
+        'religion' => $admission->religion,
+        'ethnic_affiliation' => $admission->ethnic_affiliation,
+        'is_4ps_member' => $admission->is_4ps_member,
+        'is_insurance_member' => $admission->is_insurance_member,
+        'is_vaccinated' => $admission->is_vaccinated,
+        'is_indigenous' => $admission->is_indigenous,
+        'application_type' => $admission->application_type,
+        'lrn' => $admission->lrn,
+        'last_school_attended' => $admission->last_school_attended,
+        'remarks' => $admission->remarks,
+        
+        // Files as full URLs
+     'good_moral' => $admission->good_moral ? asset($admission->good_moral) : null,
+    'form_137' => $admission->form_137 ? asset($admission->form_137) : null,
+    'form_138' => $admission->form_138 ? asset($admission->form_138) : null,
+    'birth_certificate' => $admission->birth_certificate ? asset($admission->birth_certificate) : null,
+    'certificate_of_completion' => $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
+
+
+        'grade_level' => $admission->grade_level_id,
+        'guardian_name' => $admission->guardian_name,
+        'guardian_contact' => $admission->guardian_contact,
+        'mother_name' => $admission->mother_name,
+        'mother_contact' => $admission->mother_contact,
+        'father_name' => $admission->father_name,
+        'father_contact' => $admission->father_contact,
+        'blood_type' => $admission->blood_type,
+
+        // Related Names
+        'academic_program' => optional($admission->academic_program)->course_name,
+        'school_campus' => optional($admission->schoolCampus)->campus_name,
+        'academic_year' => optional($admission->school_years)->school_year,
+    ];
+});
+
+        return response()->json([
+            'isSuccess' => true,
+            'admissions' => $admissionsData,
+            'pagination' => [
+                'current_page' => $admissions->currentPage(),
+                'per_page' => $admissions->perPage(),
+                'total' => $admissions->total(),
+                'last_page' => $admissions->lastPage(),
+            ],
+        ]);
+    } catch (Throwable $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve admissions.',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 }
 
 
