@@ -150,6 +150,7 @@ class EnrollmentsController extends Controller
     }
 }
 
+//PASS STUDENTS
 public function getPassedStudents(Request $request)
 {
     try {
@@ -306,7 +307,7 @@ public function getPassedStudents(Request $request)
 
 
 
-//FOR FIRST YEAR STUDENTS
+//1st step REGISTRAR
 public function enrollStudent(Request $request)
 {
     try {
@@ -419,7 +420,7 @@ public function enrollStudent(Request $request)
 
 
 
-
+//STUDENT CHOOSE SUBJECTS
 public function chooseSubjects(Request $request)
 {
     try {
@@ -525,15 +526,54 @@ public function chooseSubjects(Request $request)
 public function getAllEnrollments(Request $request)
 {
     try {
-        $perPage = $request->get('per_page', 10); // default 10 per page
+        $perPage = $request->get('per_page', 10);
         $page = $request->get('page', 1);
 
-        $students = students::with([
+        // Base query
+        $query = students::with([
             'examSchedule.applicant.gradeLevel',
             'examSchedule.applicant.course',
             'examSchedule.applicant.campus',
-            'section' // make sure this relationship exists
-        ])->paginate($perPage, ['*'], 'page', $page);
+            'section'
+        ]);
+
+        // Search
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('student_number', 'like', "%$search%")
+                  ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
+                      $q2->where('first_name', 'like', "%$search%")
+                         ->orWhere('last_name', 'like', "%$search%");
+                  });
+            });
+        }
+
+        // Filters
+        if ($request->has('campus')) {
+            $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
+                $q->where('campus_name', $request->campus);
+            });
+        }
+
+        if ($request->has('course')) {
+            $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
+                $q->where('course_name', $request->course);
+            });
+        }
+
+        if ($request->has('section')) {
+            $query->whereHas('section', function ($q) use ($request) {
+                $q->where('section_name', $request->section);
+            });
+        }
+
+        if ($request->has('status')) {
+            $query->where('enrollment_status', $request->status);
+        }
+
+        // Paginate
+        $students = $query->paginate($perPage, ['*'], 'page', $page);
 
         $results = [];
 
@@ -542,10 +582,10 @@ public function getAllEnrollments(Request $request)
             $admission    = $examSchedule?->applicant;
             $courseId     = $student->course_id;
 
-            // ---- Get Curriculum & Subjects ----
+            // Get Curriculum & Subjects
             $subjectOptions = [];
-            $totalUnits     = 0;
-            $curriculum     = DB::table('curriculums')
+            $totalUnits = 0;
+            $curriculum = DB::table('curriculums')
                 ->where('course_id', $courseId)
                 ->first();
 
@@ -567,58 +607,58 @@ public function getAllEnrollments(Request $request)
             }
 
             $results[] = [
-                'id'      => $student->id,
-                'student_number'  => $student->student_number,
-                'status'          => $student->enrollment_status,
-                'payment_status'  => $student->payment_status,
-                'grade_level'     => $admission?->gradeLevel?->grade_level,
-                'course'          => $admission?->course?->course_name,
-                'campus'          => $admission?->campus?->campus_name,
-                'tuition_fee'     => $student->tuition_fee,
-                'misc_fee'        => $student->misc_fee,
-                'units_fee'       => $student->units_fee,
+                'id' => $student->id,
+                'student_number' => $student->student_number,
+                'status' => $student->enrollment_status,
+                'payment_status' => $student->payment_status,
+                'grade_level' => $admission?->gradeLevel?->grade_level,
+                'course' => $admission?->course?->course_name,
+                'campus' => $admission?->campus?->campus_name,
+                'tuition_fee' => $student->tuition_fee,
+                'misc_fee' => $student->misc_fee,
+                'units_fee' => $student->units_fee,
                 'exam' => [
-                    'exam_id'       => $examSchedule?->id,
-                    'exam_date'     => $examSchedule?->exam_date,
-                    'exam_status'   => $examSchedule?->exam_status,
-                    'exam_score'    => $examSchedule?->exam_score,
+                    'exam_id' => $examSchedule?->id,
+                    'exam_date' => $examSchedule?->exam_date,
+                    'exam_status' => $examSchedule?->exam_status,
+                    'exam_score' => $examSchedule?->exam_score,
                 ],
                 'applicant' => [
-                    'applicant_id'  => $admission?->id,
-                    'first_name'    => $admission?->first_name,
-                    'last_name'     => $admission?->last_name,
-                    'email'         => $admission?->email,
-                    'contact'       => $admission?->contact_number,
+                    'applicant_id' => $admission?->id,
+                    'first_name' => $admission?->first_name,
+                    'last_name' => $admission?->last_name,
+                    'email' => $admission?->email,
+                    'contact' => $admission?->contact_number,
                 ],
                 'section' => [
-                    'section_id'   => $student->section?->id,
+                    'section_id' => $student->section?->id,
                     'section_name' => $student->section?->section_name,
                 ],
                 'curriculum' => $curriculum ? [
-                    'id'          => $curriculum->id,
-                    'name'        => $curriculum->curriculum_name,
+                    'id' => $curriculum->id,
+                    'name' => $curriculum->curriculum_name,
                     'description' => $curriculum->curriculum_description,
                 ] : null,
-                'subjects'    => $subjectOptions,
+                'subjects' => $subjectOptions,
                 'total_units' => $totalUnits,
             ];
         }
 
         return response()->json([
             'isSuccess' => true,
-            'data'      => $results,
+            'data' => $results,
             'pagination' => [
-                'total'        => $students->total(),
-                'per_page'     => $students->perPage(),
+                'total' => $students->total(),
+                'per_page' => $students->perPage(),
                 'current_page' => $students->currentPage(),
-                'last_page'    => $students->lastPage(),
+                'last_page' => $students->lastPage(),
             ],
         ], 200);
 
     } catch (\Exception $e) {
         return response()->json([
             'isSuccess' => false,
-            'message'   => 'Error: ' . $e->getMessage(),
+            'message' => 'Error: ' . $e->getMessage(),
         ], 500);
     }
 }
