@@ -571,6 +571,9 @@ public function getAllEnrollments(Request $request)
         if ($request->has('status')) {
             $query->where('enrollment_status', $request->status);
         }
+        if ($request->has('is_active')) {
+           $query->where('is_active', $request->is_active);
+}
 
         // Paginate
         $students = $query->paginate($perPage, ['*'], 'page', $page);
