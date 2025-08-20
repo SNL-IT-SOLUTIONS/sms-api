@@ -283,7 +283,7 @@ public function getReconsideredStudents(Request $request)
             'building:id,building_name',
             'campus:id,campus_name'
         ])
-        ->where('exam_status', 'reconsidered')
+        ->where('exam_status', 'reconsider')
         ->where('is_approved', 0);
 
         // Optional search filter

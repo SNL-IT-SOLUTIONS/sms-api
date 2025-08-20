@@ -126,6 +126,7 @@ Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']
 Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
 Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
 
+
 });
 
    Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
