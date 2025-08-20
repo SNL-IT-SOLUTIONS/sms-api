@@ -391,7 +391,7 @@ public function markAsPassed($id)
         $user = Auth::user();
         $schedule = exam_schedules::with('applicant')->findOrFail($id);
 
-        if ($schedule->exam_status !== 'reconsidered') {
+        if ($schedule->exam_status !== 'reconsider') {
             return response()->json([
                 'isSuccess' => false,
                 'message'   => 'This student is not marked for reconsideration.',
