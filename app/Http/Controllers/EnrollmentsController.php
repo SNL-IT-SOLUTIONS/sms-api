@@ -385,6 +385,89 @@ public function getReconsideredStudents(Request $request)
 }
 
 
+public function markAsPassed($id)
+{
+    try {
+        $schedule = exam_schedules::with('applicant')->findOrFail($id);
+
+        if ($schedule->exam_status !== 'reconsidered') {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'This student is not marked for reconsideration.',
+            ], 400);
+        }
+
+        $schedule->update([
+            'exam_status' => 'passed',
+            'is_approved' => 1,
+        ]);
+
+        // Send email to applicant
+        if ($schedule->applicant && $schedule->applicant->email) {
+            $this->sendPassedEmail($schedule->applicant);
+        }
+
+        return response()->json([
+            'isSuccess' => true,
+            'message'   => 'Student status changed to passed successfully.',
+            'data'      => $schedule
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Error: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+protected function sendPassedEmail($applicant, $score = null)
+{
+    $studentName = trim("{$applicant->first_name} {$applicant->last_name}");
+    $to = $applicant->email;
+
+    $subject = "SNL Examination Result - Congratulations!";
+
+    $htmlContent = "
+        <html>
+            <body style='font-family: Arial, sans-serif; color: #333;'>
+                <div style='max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                    <h2 style='color: #004aad;'>SNL Examination Result</h2>
+                    <p>Dear <strong>{$studentName}</strong>,</p>
+                    <p>We are pleased to inform you that you have <strong style='color: green;'>passed</strong> the SNL entrance examination.</p>
+                    <p>Your exam score: <strong>{$score}</strong></p>
+                    <p>Congratulations on this achievement! Our admissions team will contact you with the next steps in the enrollment process.</p>
+                    <br>
+                    <h3 style='color: #004aad;'>Important Enrollment Requirements</h3>
+                    <p>Please prepare and bring the <strong>original copies</strong> of the following documents when you visit the admissions office:</p>
+                    <ul>
+                        <li>Form 137 (High School Permanent Record)</li>
+                        <li>Form 138 (Report Card)</li>
+                        <li>Certificate of Good Moral Character</li>
+                        <li>Certificate of Completion (COC)</li>
+                        <li>PSA-issued Birth Certificate</li>
+                    </ul>
+                    <p>Failure to present these documents may delay your enrollment process.</p>
+                    <br>
+                    <p>Best regards,</p>
+                    <p><strong>SNL Admissions Office</strong><br>
+                    Smart National Learning School<br>
+                    Email: admissions@snl.edu<br>
+                    Phone: (123) 456-7890</p>
+                </div>
+            </body>
+        </html>
+    ";
+
+    Mail::send([], [], function ($message) use ($to, $subject, $htmlContent) {
+        $message->to($to)
+                ->subject($subject)
+                ->setBody($htmlContent, 'text/html');
+    });
+}
+
+
+
 
 
     public function getStudentCurriculum($studentId)
@@ -426,11 +509,6 @@ public function getReconsideredStudents(Request $request)
 }
 
     
-
-
-
-
-
 
 //1st step REGISTRAR
 public function approveStudent(Request $request)
@@ -627,11 +705,105 @@ public function updateStudentDocs(Request $request, $id)
 
 
 
+public function enrollStudentSubject(Request $request)
+{
+    try {
+        // Validate incoming request
+        $validated = $request->validate([
+            'student_id'    => 'required|integer|exists:students,id',
+            'subject_ids'   => 'required|array|min:1',
+            'subject_ids.*' => 'integer|exists:subjects,id',
+        ]);
+
+        // Find the student
+        $student = students::find($validated['student_id']);
+        if (!$student) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Student not found.',
+            ], 404);
+        }
+
+        // Find the curriculum for the student's course
+        $curriculum = DB::table('curriculums')
+            ->where('course_id', $student->course_id)
+            ->first();
+
+        if (!$curriculum) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'No curriculum assigned for this course.',
+            ], 400);
+        }
+
+        // Get allowed subjects for that curriculum
+        $allowedSubjects = DB::table('curriculum_subject')
+            ->where('curriculum_id', $curriculum->id)
+            ->pluck('subject_id')
+            ->toArray();
+
+        // Check that all submitted subjects are allowed
+        foreach ($validated['subject_ids'] as $subjectId) {
+            if (!in_array($subjectId, $allowedSubjects)) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'One or more subjects are not part of the curriculum.',
+                ], 400);
+            }
+        }
+
+        // Remove previous choices
+        DB::table('student_subjects')->where('student_id', $student->id)->delete();
+
+        // Insert new subject choices
+        $now = now();
+        $insertData = [];
+        foreach ($validated['subject_ids'] as $subjectId) {
+            $insertData[] = [
+                'student_id' => $student->id,
+                'subject_id' => $subjectId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        DB::table('student_subjects')->insert($insertData);
+
+        // Recalculate total units + fees
+        $totalUnits = DB::table('student_subjects as ss')
+            ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+            ->where('ss.student_id', $student->id)
+            ->sum('s.units');
+
+        $unitRate   = 200; // example
+        $unitsFee   = $totalUnits * $unitRate;
+        $tuitionFee = $unitsFee + $student->misc_fee;
+
+        $student->update([
+            'units_fee'   => $unitsFee,
+            'tuition_fee' => $tuitionFee,
+        ]);
+
+        return response()->json([
+            'isSuccess'   => true,
+            'message'     => 'Subjects selected successfully.',
+            'total_units' => $totalUnits,
+            'units_fee'   => $unitsFee,
+            'misc_fee'    => $student->misc_fee,
+            'tuition_fee' => $tuitionFee,
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Error: ' . $e->getMessage(),
+        ], 500);
+    }
+}
 
 
 
 //STUDENT CHOOSE SUBJECTS
-public function enroll(Request $request)
+public function enrollNow(Request $request)
 {
     try {
         // Get the logged-in student
@@ -729,106 +901,106 @@ public function enroll(Request $request)
 
 
 
-    public function enrollNow(Request $request)
-{
-    try {
-        // 🔐 Authenticated student
-        $student = auth()->user();
+//     public function enrollNow(Request $request)
+// {
+//     try {
+//         // 🔐 Authenticated student
+//         $student = auth()->user();
 
-        if (!$student) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Unauthenticated user.'
-            ], 401);
-        }
+//         if (!$student) {
+//             return response()->json([
+//                 'isSuccess' => false,
+//                 'message' => 'Unauthenticated user.'
+//             ], 401);
+//         }
 
-        // 🔗 Load student admission record
-        $student->load('admission');
+//         // 🔗 Load student admission record
+//         $student->load('admission');
 
-        if (!$student->admission) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Student admission not found.'
-            ], 404);
-        }
+//         if (!$student->admission) {
+//             return response()->json([
+//                 'isSuccess' => false,
+//                 'message' => 'Student admission not found.'
+//             ], 404);
+//         }
 
-        // ✅ Validate incoming subject_ids (optional)
-        $validated = $request->validate([
-            'subject_ids' => 'nullable|array',
-            'subject_ids.*' => 'exists:subjects,id',
-        ]);
+//         // ✅ Validate incoming subject_ids (optional)
+//         $validated = $request->validate([
+//             'subject_ids' => 'nullable|array',
+//             'subject_ids.*' => 'exists:subjects,id',
+//         ]);
 
-        $courseId = $student->admission->academic_program_id;
-        $schoolYearId = $student->admission->school_year_id;
+//         $courseId = $student->admission->academic_program_id;
+//         $schoolYearId = $student->admission->school_year_id;
 
-        // 📚 Get curriculum by course
-        $curriculum = curriculums::where('course_id', $courseId)->first();
+//         // 📚 Get curriculum by course
+//         $curriculum = curriculums::where('course_id', $courseId)->first();
 
-        if (!$curriculum) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Curriculum not found for this course.'
-            ], 404);
-        }
+//         if (!$curriculum) {
+//             return response()->json([
+//                 'isSuccess' => false,
+//                 'message' => 'Curriculum not found for this course.'
+//             ], 404);
+//         }
 
-        // 🧠 Get subject IDs from curriculum
-        $curriculumSubjectIds = $curriculum->subjects->pluck('id');
+//         // 🧠 Get subject IDs from curriculum
+//         $curriculumSubjectIds = $curriculum->subjects->pluck('id');
 
-        // 🎯 Decide what subjects to enroll in
-        if (!empty($validated['subject_ids'])) {
-            $enrolledSubjectIds = collect($validated['subject_ids']);
-        } elseif ($curriculumSubjectIds->isNotEmpty()) {
-            $enrolledSubjectIds = $curriculumSubjectIds;
-        } else {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'No subjects found in curriculum and none provided manually.'
-            ], 404);
-        }
+//         // 🎯 Decide what subjects to enroll in
+//         if (!empty($validated['subject_ids'])) {
+//             $enrolledSubjectIds = collect($validated['subject_ids']);
+//         } elseif ($curriculumSubjectIds->isNotEmpty()) {
+//             $enrolledSubjectIds = $curriculumSubjectIds;
+//         } else {
+//             return response()->json([
+//                 'isSuccess' => false,
+//                 'message' => 'No subjects found in curriculum and none provided manually.'
+//             ], 404);
+//         }
 
-        // 🧩 Find an available section (based on capacity)
-        $section = sections::where('course_id', $courseId)
-            ->withCount('students')
-            ->get()
-            ->filter(function ($section) {
-                return $section->students_count < $section->max_students;
-            })
-            ->first();
+//         // 🧩 Find an available section (based on capacity)
+//         $section = sections::where('course_id', $courseId)
+//             ->withCount('students')
+//             ->get()
+//             ->filter(function ($section) {
+//                 return $section->students_count < $section->max_students;
+//             })
+//             ->first();
 
-        if (!$section) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'No section available for this course.'
-            ], 404);
-        }
+//         if (!$section) {
+//             return response()->json([
+//                 'isSuccess' => false,
+//                 'message' => 'No section available for this course.'
+//             ], 404);
+//         }
 
-        // 🔐 Assign section and update student status
-        $student->section_id = $section->id;
-        $student->student_status = 1; // Assume 1 = Enrolled
-        $student->save();
+//         // 🔐 Assign section and update student status
+//         $student->section_id = $section->id;
+//         $student->student_status = 1; // Assume 1 = Enrolled
+//         $student->save();
 
-        // 🔗 Sync subjects
-        $student->subjects()->sync($enrolledSubjectIds);
+//         // 🔗 Sync subjects
+//         $student->subjects()->sync($enrolledSubjectIds);
 
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Student enrolled and subjects assigned successfully.',
-            'enrolled' => [
-                'student_number' => $student->student_number,
-                'section' => $section->section_name,
-                'subjects' => subjects::whereIn('id', $enrolledSubjectIds)
-                    ->get(['id', 'subject_code', 'subject_name']),
-            ]
-        ]);
+//         return response()->json([
+//             'isSuccess' => true,
+//             'message' => 'Student enrolled and subjects assigned successfully.',
+//             'enrolled' => [
+//                 'student_number' => $student->student_number,
+//                 'section' => $section->section_name,
+//                 'subjects' => subjects::whereIn('id', $enrolledSubjectIds)
+//                     ->get(['id', 'subject_code', 'subject_name']),
+//             ]
+//         ]);
 
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Enrollment failed.',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-}
+//     } catch (\Exception $e) {
+//         return response()->json([
+//             'isSuccess' => false,
+//             'message' => 'Enrollment failed.',
+//             'error' => $e->getMessage()
+//         ], 500);
+//     }
+// }
 
 
 
@@ -886,7 +1058,6 @@ public function getAllEnrollments(Request $request)
         if ($request->has('is_active')) {
            $query->where('is_active', $request->is_active);
 }
-
         // Paginate
         $students = $query->paginate($perPage, ['*'], 'page', $page);
 

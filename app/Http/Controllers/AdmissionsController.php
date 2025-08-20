@@ -224,12 +224,6 @@ class AdmissionsController extends Controller
 
 
 
-
-
-
-
-
-
     public function getAdmissionById($id)
     {
         try {
@@ -393,140 +387,6 @@ public function getAllEnrollments(Request $request)
         ], 500);
     }
 }
-
-
-
-
-
-
-    public function sendManualAdmissionEmail(Request $request)
-    {
-        $request->validate([
-            'emails' => 'required|array',
-            'emails.*' => 'email',
-            'subject' => 'required|string',
-            'custom_message' => 'required|string',
-        ]);
-
-        $failedEmails = [];
-
-        foreach ($request->emails as $email) {
-            $admission = admissions::where('email', $email)->first();
-
-            if (!$admission) {
-                $failedEmails[] = $email;
-                continue;
-            }
-
-            $logoUrl = 'https://fileport.io/get/Cf2MRDiXkoVWEMqqlioHTQ09tN9GssRpbtZl4TCuUgneQmez_cby-fPw5cG3IqipODFod8HsL1pa3wPjOllBRufHmN8q62OOGtJH1A5jRTuXVbqlQDxjkWzC8_IWawy3O6OosYMZhtNaSesNASGE55FfUls1iLAgBiNJnZrovFOsuJRYKVqGhZ2UayJR2fuoVn9W8X0_aLwVcbf0Qo8OEuDF8r9HBOg69oGxWGk6_YWsT-0GeqHzIKzVg1Xh6EPvaR7UbkJCrXUz7u_1W5IsX9'; // Replace with your actual logo URL
-
-            $htmlContent = "
-        <html>
-        <head>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background-color: #f7f9fb;
-                    color: #333;
-                    padding: 20px;
-                }
-                .email-container {
-                    max-width: 600px;
-                    margin: auto;
-                    background: #ffffff;
-                    padding: 30px;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                }
-                .header {
-                    text-align: center;
-                    margin-bottom: 30px;
-                }
-                .footer {
-                    margin-top: 40px;
-                    font-size: 12px;
-                    color: #888;
-                    text-align: center;
-                }
-            </style>
-        </head>
-        <body>
-            <div class='email-container'>
-                <div class='header'>
-                    <img src='{$logoUrl}' alt='Logo' height='80' />
-                    <h2>Entrance Examination</h2>
-                </div>
-                <p>Dear <strong>{$admission->first_name}</strong>,</p>
-                <p>{$request->custom_message}</p>
-                <p><strong>Program Applied:</strong> {$admission->academic_program}</p>
-                <p>We appreciate your interest and look forward to your success with us.</p>
-                <p>Best regards,<br><strong>Admissions Office</strong></p>
-
-                <div class='footer'>
-                    &copy; " . date('Y') . " Your Institution. All rights reserved.
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-
-            try {
-                Mail::send([], [], function ($message) use ($email, $htmlContent, $request) {
-                    $message->to($email)
-                        ->subject($request->subject)
-                        ->setBody($htmlContent, 'text/html');
-                });
-            } catch (\Exception $e) {
-                $failedEmails[] = $email;
-            }
-        }
-
-        return response()->json([
-            'isSuccess' => count($failedEmails) === 0,
-            'message' => count($failedEmails) === 0
-                ? 'Emails sent successfully.'
-                : 'Some emails failed to send.',
-            'failed' => $failedEmails
-        ]);
-    }
-
-
-    public function sendCustomEmail(Request $request)
-    {
-        $validated = $request->validate([
-            'recipient_email' => 'required|email',
-            'recipient_name' => 'required|string|max:255',
-            'email_type' => 'required|string', // e.g., entrance_exam, interview_schedule, etc.
-            'custom_data' => 'nullable|array'  // contains placeholders like exam_date, location, etc.
-        ]);
-
-        $template = $this->getEmailTemplate($validated['email_type']);
-
-        if (!$template) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Invalid email template selected.',
-            ], 400);
-        }
-
-        // Replace placeholders
-        $placeholders = $validated['custom_data'] ?? [];
-        $placeholders['name'] = $validated['recipient_name'];
-        foreach ($placeholders as $key => $value) {
-            $template = str_replace('{{' . $key . '}}', $value, $template);
-        }
-
-        // Send the email using Mail::html instead of Mail::raw
-        Mail::html($template, function ($message) use ($validated) {
-            $message->to($validated['recipient_email'], $validated['recipient_name'])
-                ->subject(Str::title(str_replace('_', ' ', $validated['email_type'])));
-        });
-
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Email sent successfully.',
-        ]);
-    }
 
 
 
@@ -801,7 +661,6 @@ public function getAllEnrollments(Request $request)
 }
 
 
-
 public function sendExamination(Request $request)
 {
     try {
@@ -945,9 +804,6 @@ public function sendExamination(Request $request)
 
 
 
-
-
-
  public function reserveSlot(Request $request, $id)
 {
     try {
@@ -1079,6 +935,7 @@ public function inputExamScores(Request $request)
 
     foreach ($data as $item) {
         try {
+            // Validate each item
             if (!isset($item['id']) || !isset($item['exam_score'])) {
                 throw new \Exception("Both id and exam_score are required");
             }
@@ -1092,12 +949,63 @@ public function inputExamScores(Request $request)
             $schedule->exam_status = ($item['exam_score'] >= $passingScore) ? 'passed' : 'reconsider';
             $schedule->save();
 
+            // ✅ Send email only if passed and not already sent
+            if (
+                $schedule->exam_status === 'passed' &&
+                $schedule->applicant &&
+                $schedule->applicant->email &&
+                !$schedule->exam_score_sent
+            ) {
+                $studentName = trim($schedule->applicant->first_name . ' ' . $schedule->applicant->last_name);
+
+                $htmlContent = "
+                <html>
+                    <body style='font-family: Arial, sans-serif; color: #333;'>
+                        <div style='max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                            <h2 style='color: #004aad;'>SNL Examination Result</h2>
+                            <p>Dear <strong>{$studentName}</strong>,</p>
+                            <p>We are pleased to inform you that you have <strong style='color: green;'>passed</strong> the SNL entrance examination.</p>
+                            <p>Your exam score: <strong>{$item['exam_score']}</strong></p>
+                            <p>Congratulations on this achievement! Our admissions team will contact you with the next steps in the enrollment process.</p>
+                            <br>
+                            <h3 style='color: #004aad;'>Important Enrollment Requirements</h3>
+                            <p>Please prepare and bring the <strong>original copies</strong> of the following documents when you visit the admissions office:</p>
+                            <ul>
+                                <li>Form 137 (High School Permanent Record)</li>
+                                <li>Form 138 (Report Card)</li>
+                                <li>Certificate of Good Moral Character</li>
+                                <li>Certificate of Completion (COC)</li>
+                                <li>PSA-issued Birth Certificate</li>
+                            </ul>
+                            <p>Failure to present these documents may delay your enrollment process.</p>
+                            <br>
+                            <p>Best regards,</p>
+                            <p><strong>SNL Admissions Office</strong><br>
+                            Smart National Learning School<br>
+                            Email: admissions@snl.edu<br>
+                            Phone: (123) 456-7890</p>
+                        </div>
+                    </body>
+                </html>
+                ";
+
+                Mail::send([], [], function ($message) use ($schedule, $studentName, $htmlContent) {
+                    $message->to($schedule->applicant->email, $studentName)
+                        ->subject('SNL Examination Result')
+                        ->setBody($htmlContent, 'text/html');
+                });
+
+                // ✅ Mark as sent
+                $schedule->exam_score_sent = 1;
+                $schedule->save();
+            }
+
             $results[] = [
                 'schedule_id' => $schedule->id,
                 'status' => 'success',
                 'exam_score' => $schedule->exam_score,
                 'exam_status' => $schedule->exam_status,
-                'email_sent' => $schedule->exam_score_sent
+                'email_sent' => $schedule->exam_score_sent,
             ];
         } catch (\Exception $e) {
             $results[] = [
@@ -1117,111 +1025,9 @@ public function inputExamScores(Request $request)
 
 
 
-    public function sendExamResult($scheduleId)
-{
-    try {
-        $schedule = exam_schedules::with('applicant')->findOrFail($scheduleId);
-
-        if (!$schedule->applicant || !$schedule->applicant->email) {
-            throw new \Exception("Applicant or email not found for schedule ID {$scheduleId}");
-        }
-
-        if ($schedule->exam_status !== 'passed') {
-            throw new \Exception("Student did not pass the exam, no email will be sent.");
-        }
-
-        if ($schedule->exam_score_sent) {
-            throw new \Exception("Exam result email already sent.");
-        }
-
-        $studentName = trim($schedule->applicant->first_name . ' ' . $schedule->applicant->last_name);
-        $score = $schedule->exam_score;
-
-        $htmlContent = "
-        <html>
-            <body style='font-family: Arial, sans-serif; color: #333;'>
-                <div style='max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
-                    <h2 style='color: #004aad;'>SNL Examination Result</h2>
-                    <p>Dear <strong>{$studentName}</strong>,</p>
-                    <p>We are pleased to inform you that you have <strong style='color: green;'>passed</strong> the SNL entrance examination.</p>
-                    <p>Your exam score: <strong>{$score}</strong></p>
-                    <p>Congratulations on this achievement! Our admissions team will contact you with the next steps in the enrollment process.</p>
-                    <br>
-                    <h3 style='color: #004aad;'>Important Enrollment Requirements</h3>
-                    <p>Please prepare and bring the <strong>original copies</strong> of the following documents when you visit the admissions office:</p>
-                    <ul>
-                        <li>Form 137 (High School Permanent Record)</li>
-                        <li>Form 138 (Report Card)</li>
-                        <li>Certificate of Good Moral Character</li>
-                        <li>Certificate of Completion (COC)</li>
-                        <li>PSA-issued Birth Certificate</li>
-                    </ul>
-                    <p>Failure to present these documents may delay your enrollment process.</p>
-                    <br>
-                    <p>Best regards,</p>
-                    <p><strong>SNL Admissions Office</strong><br>
-                    Smart National Learning School<br>
-                    Email: admissions@snl.edu<br>
-                    Phone: (123) 456-7890</p>
-                </div>
-            </body>
-        </html>
-        ";
-
-        Mail::send([], [], function ($message) use ($schedule, $studentName, $htmlContent) {
-            $message->to($schedule->applicant->email, $studentName)
-                ->subject('SNL Examination Result')
-                ->setBody($htmlContent, 'text/html');
-        });
-
-        $schedule->exam_score_sent = 1;
-        $schedule->save();
-
-        return response()->json([
-            'isSuccess' => true,
-            'message' => "Exam result email sent to {$studentName} ({$schedule->applicant->email})"
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Error: ' . $e->getMessage()
-        ], 500);
-    }
-}
 
 
-
-    public function sendBulkExamResults(Request $request)
-{
-    $validated = $request->validate([
-        'schedule_ids' => 'required|array',
-        'schedule_ids.*' => 'integer|exists:exam_schedules,id',
-    ]);
-
-    $results = [];
-    foreach ($validated['schedule_ids'] as $id) {
-        try {
-            $response = $this->sendExamResult($id, true); // pass "true" to indicate it's called internally
-            $results[] = [
-                'schedule_id' => $id,
-                'status' => 'success',
-                'message' => $response->getData()->message ?? 'Sent',
-            ];
-        } catch (\Exception $e) {
-            $results[] = [
-                'schedule_id' => $id,
-                'status' => 'failed',
-                'message' => $e->getMessage(),
-            ];
-        }
-    }
-
-    return response()->json([
-        'isSuccess' => true,
-        'message' => 'Bulk exam result emails processed.',
-        'results' => $results,
-    ]);
-}
+  
 
 
 
@@ -1302,20 +1108,20 @@ public function inputExamScores(Request $request)
 
 
     //HELPERS
-private function saveFileToPublic(Request $request, $field, $prefix)
-{
-    if ($request->hasFile($field)) {
-        $file = $request->file($field);
-        $directory = public_path('admission_files');
-        if (!file_exists($directory)) {
-            mkdir($directory, 0755, true);
+    private function saveFileToPublic(Request $request, $field, $prefix)
+    {
+        if ($request->hasFile($field)) {
+            $file = $request->file($field);
+            $directory = public_path('admission_files');
+            if (!file_exists($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            $filename = $prefix . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($directory, $filename);
+            return 'admission_files/' . $filename;
         }
-        $filename = $prefix . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        $file->move($directory, $filename);
-        return 'admission_files/' . $filename;
+        return null;
     }
-    return null;
-}
 
 
     //Dropdowns
