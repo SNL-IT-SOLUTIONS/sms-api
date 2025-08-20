@@ -1110,7 +1110,7 @@ if ($curriculum) {
     ->get();
 
     foreach ($subjects as $subj) {
-        $key = "Grade {$subj->grade_level_id} - {$subj->semester} Semester";
+        $key = "Grade {$subj->grade_level_id} - {$subj->semester}";
 
         $groupedSubjects[$key][] = [
             'subject_id'   => $subj->subject_id,
