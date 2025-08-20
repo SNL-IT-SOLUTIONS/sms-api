@@ -43,6 +43,7 @@ public function getCurriculums(Request $request)
     $validated = $request->validate([
         'curriculum_name' => 'required|string|max:255',
         'curriculum_description' => 'nullable|string',
+        'course_id' => 'required|exists:courses,id',
         'subject_ids' => 'nullable|array',
         'subject_ids.*' => 'exists:subjects,id',
     ]);
@@ -83,6 +84,7 @@ public function getCurriculums(Request $request)
     $validated = $request->validate([
         'curriculum_name' => 'sometimes|required|string|max:255',
         'curriculum_description' => 'nullable|string',
+        'course_id' => 'sometimes|required|exists:courses,id',
         'subject_ids' => 'nullable|array',
         'subject_ids.*' => 'exists:subjects,id',
     ]);

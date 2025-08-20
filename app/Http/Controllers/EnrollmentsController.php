@@ -384,7 +384,7 @@ public function getReconsideredStudents(Request $request)
     }
 }
 
-
+// Mark student as passed
 public function markAsPassed($id)
 {
     try {
@@ -465,12 +465,12 @@ protected function sendPassedEmail($applicant, $score = null)
                 ->setBody($htmlContent, 'text/html');
     });
 }
+//
 
 
 
 
-
-    public function getStudentCurriculum($studentId)
+public function getStudentCurriculum($studentId)
 {
     try {
         $student = students::with([
