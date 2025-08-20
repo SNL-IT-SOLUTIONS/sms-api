@@ -787,15 +787,18 @@ public function enrollStudent(Request $request)
         DB::table('student_subjects')->insert($insertData);
 
         // Recalculate total units + fees
-        $totalUnits = $subjects->sum('units');
-        $unitRate   = 200; // example
-        $unitsFee   = $totalUnits * $unitRate;
-        $tuitionFee = $unitsFee + $student->misc_fee;
+     $totalUnits = $subjects->sum('units');
+    $unitRate   = 200; 
+    $miscfee    = 2000; 
+    $unitsFee   = $totalUnits * $unitRate;
+    $tuitionFee = $unitsFee + $miscfee;
 
-        $student->update([
-            'units_fee'   => $unitsFee,
-            'tuition_fee' => $tuitionFee,
-        ]);
+    // ✅ Update student with fees
+    $student->update([
+        'units_fee'   => $unitsFee,
+        'misc_fee'    => $miscfee, 
+        'tuition_fee' => $tuitionFee,
+]);
 
         return response()->json([
             'isSuccess'     => true,
