@@ -705,14 +705,12 @@ public function updateStudentDocs(Request $request, $id)
 
 
 
-public function enrollStudentSubject(Request $request)
+public function enrollStudent(Request $request)
 {
     try {
         // Validate incoming request
         $validated = $request->validate([
-            'student_id'    => 'required|integer|exists:students,id',
-            'subject_ids'   => 'required|array|min:1',
-            'subject_ids.*' => 'integer|exists:subjects,id',
+            'student_id' => 'required|integer|exists:students,id',
         ]);
 
         // Find the student
@@ -724,7 +722,27 @@ public function enrollStudentSubject(Request $request)
             ], 404);
         }
 
-        // Find the curriculum for the student's course
+        // Check grade level
+        if (!$student->grade_level_id) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Student does not have a grade level assigned.',
+            ], 400);
+        }
+
+        // Get grade level info (includes school_year_id)
+        $gradeLevel = DB::table('grade_levels')
+            ->where('id', $student->grade_level_id)
+            ->first();
+
+        if (!$gradeLevel) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Grade level not found.',
+            ], 404);
+        }
+
+        // Get the curriculum of the student's course
         $curriculum = DB::table('curriculums')
             ->where('course_id', $student->course_id)
             ->first();
@@ -736,20 +754,19 @@ public function enrollStudentSubject(Request $request)
             ], 400);
         }
 
-        // Get allowed subjects for that curriculum
-        $allowedSubjects = DB::table('curriculum_subject')
-            ->where('curriculum_id', $curriculum->id)
-            ->pluck('subject_id')
-            ->toArray();
+        // Fetch subjects through curriculum_subject pivot
+        $subjects = DB::table('curriculum_subject')
+            ->join('subjects', 'curriculum_subject.subject_id', '=', 'subjects.id')
+            ->where('curriculum_subject.curriculum_id', $curriculum->id)
+            ->where('subjects.grade_level_id', $gradeLevel->id) // <-- filter by grade level
+            ->select('subjects.*')
+            ->get();
 
-        // Check that all submitted subjects are allowed
-        foreach ($validated['subject_ids'] as $subjectId) {
-            if (!in_array($subjectId, $allowedSubjects)) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'One or more subjects are not part of the curriculum.',
-                ], 400);
-            }
+        if ($subjects->isEmpty()) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'No subjects found for this grade level in the curriculum.',
+            ], 400);
         }
 
         // Remove previous choices
@@ -758,22 +775,19 @@ public function enrollStudentSubject(Request $request)
         // Insert new subject choices
         $now = now();
         $insertData = [];
-        foreach ($validated['subject_ids'] as $subjectId) {
+        foreach ($subjects as $subject) {
             $insertData[] = [
-                'student_id' => $student->id,
-                'subject_id' => $subjectId,
-                'created_at' => $now,
-                'updated_at' => $now,
+                'student_id'    => $student->id,
+                'subject_id'    => $subject->id,
+                'school_year_id'=> $gradeLevel->school_year_id,
+                'created_at'    => $now,
+                'updated_at'    => $now,
             ];
         }
         DB::table('student_subjects')->insert($insertData);
 
         // Recalculate total units + fees
-        $totalUnits = DB::table('student_subjects as ss')
-            ->join('subjects as s', 'ss.subject_id', '=', 's.id')
-            ->where('ss.student_id', $student->id)
-            ->sum('s.units');
-
+        $totalUnits = $subjects->sum('units');
         $unitRate   = 200; // example
         $unitsFee   = $totalUnits * $unitRate;
         $tuitionFee = $unitsFee + $student->misc_fee;
@@ -784,12 +798,14 @@ public function enrollStudentSubject(Request $request)
         ]);
 
         return response()->json([
-            'isSuccess'   => true,
-            'message'     => 'Subjects selected successfully.',
-            'total_units' => $totalUnits,
-            'units_fee'   => $unitsFee,
-            'misc_fee'    => $student->misc_fee,
-            'tuition_fee' => $tuitionFee,
+            'isSuccess'     => true,
+            'message'       => 'Student automatically enrolled with curriculum subjects for their grade level.',
+            'total_units'   => $totalUnits,
+            'units_fee'     => $unitsFee,
+            'misc_fee'      => $student->misc_fee,
+            'tuition_fee'   => $tuitionFee,
+            'subjects'      => $subjects,
+            'school_year'   => $gradeLevel->school_year_id,
         ], 200);
 
     } catch (\Exception $e) {
@@ -799,6 +815,8 @@ public function enrollStudentSubject(Request $request)
         ], 500);
     }
 }
+
+
 
 
 
@@ -1011,17 +1029,18 @@ public function getAllEnrollments(Request $request)
 {
     try {
         $perPage = $request->get('per_page', 5);
-        $page = $request->get('page', 1);
+        $page    = $request->get('page', 1);
 
-        // Base query
+        // Base query with relationships
         $query = students::with([
             'examSchedule.applicant.gradeLevel',
             'examSchedule.applicant.course',
             'examSchedule.applicant.campus',
+            'examSchedule.applicant.campus',
             'section'
         ]);
 
-        // Search
+        // 🔎 Search
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -1033,32 +1052,30 @@ public function getAllEnrollments(Request $request)
             });
         }
 
-        // Filters
+        // 🎯 Filters
         if ($request->has('campus')) {
             $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
                 $q->where('campus_name', $request->campus);
             });
         }
-
         if ($request->has('course')) {
             $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
                 $q->where('course_name', $request->course);
             });
         }
-
         if ($request->has('section')) {
             $query->whereHas('section', function ($q) use ($request) {
                 $q->where('section_name', $request->section);
             });
         }
-
         if ($request->has('status')) {
             $query->where('enrollment_status', $request->status);
         }
         if ($request->has('is_active')) {
-           $query->where('is_active', $request->is_active);
-}
-        // Paginate
+            $query->where('is_active', $request->is_active);
+        }
+
+        // 📄 Paginate
         $students = $query->paginate($perPage, ['*'], 'page', $page);
 
         $results = [];
@@ -1068,88 +1085,102 @@ public function getAllEnrollments(Request $request)
             $admission    = $examSchedule?->applicant;
             $courseId     = $student->course_id;
 
-            // Get Curriculum & Subjects
-            $subjectOptions = [];
-            $totalUnits = 0;
-            $curriculum = DB::table('curriculums')
+            // 📚 Curriculum & Grouped Subjects
+            $curriculum   = DB::table('curriculums')
                 ->where('course_id', $courseId)
                 ->first();
 
-            if ($curriculum) {
-               $subjects = DB::table('student_subjects as ss')
-                ->join('subjects as s', 'ss.subject_id', '=', 's.id')
-                ->where('ss.student_id', $student->id)
-                ->select('s.id as subject_id', 's.subject_name', 's.units')
-                ->get();
+          $groupedSubjects = [];
+$totalUnits      = 0;
 
+if ($curriculum) {
+   $subjects = DB::table('student_subjects as ss')
+    ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+    ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
+    ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id') // ✅ get semester
+    ->where('ss.student_id', $student->id)
+    ->where('cs.curriculum_id', $curriculum->id)
+    ->select(
+        's.id as subject_id',
+        's.subject_name',
+        's.units',
+        's.grade_level_id',
+        'sy.semester' // ✅ comes from school_years now
+    )
+    ->get();
 
-                foreach ($subjects as $subj) {
-                    $subjectOptions[] = [
-                        'subject_id'   => $subj->subject_id,
-                        'subject_name' => $subj->subject_name,
-                        'units'        => $subj->units,
-                    ];
-                    $totalUnits += $subj->units;
-                }
-            }
+    foreach ($subjects as $subj) {
+        $key = "Grade {$subj->grade_level_id} - {$subj->semester} Semester";
 
+        $groupedSubjects[$key][] = [
+            'subject_id'   => $subj->subject_id,
+            'subject_name' => $subj->subject_name,
+            'units'        => $subj->units,
+        ];
+
+        $totalUnits += $subj->units;
+    }
+}
+
+            // 📝 Final Student Data
             $results[] = [
-                'id' => $student->id,
+                'id'             => $student->id,
                 'student_number' => $student->student_number,
-                'status' => $student->enrollment_status,
+                'status'         => $student->enrollment_status,
                 'payment_status' => $student->payment_status,
-                'grade_level' => $admission?->gradeLevel?->grade_level,
-                'course' => $admission?->course?->course_name,
-                'campus' => $admission?->campus?->campus_name,
-                'tuition_fee' => $student->tuition_fee,
-                'is_active' => $student->is_active,
-                'misc_fee' => $student->misc_fee,
-                'units_fee' => $student->units_fee,
+                'grade_level'    => $admission?->gradeLevel?->grade_level,
+                'course'         => $admission?->course?->course_name,
+                'campus'         => $admission?->campus?->campus_name,
+                'tuition_fee'    => $student->tuition_fee,
+                'is_active'      => $student->is_active,
+                'misc_fee'       => $student->misc_fee,
+                'units_fee'      => $student->units_fee,
                 'exam' => [
-                    'exam_id' => $examSchedule?->id,
-                    'exam_date' => $examSchedule?->exam_date,
+                    'exam_id'     => $examSchedule?->id,
+                    'exam_date'   => $examSchedule?->exam_date,
                     'exam_status' => $examSchedule?->exam_status,
-                    'exam_score' => $examSchedule?->exam_score,
+                    'exam_score'  => $examSchedule?->exam_score,
                 ],
                 'applicant' => [
                     'applicant_id' => $admission?->id,
-                    'first_name' => $admission?->first_name,
-                    'last_name' => $admission?->last_name,
-                    'email' => $admission?->email,
-                    'contact' => $admission?->contact_number,
+                    'first_name'   => $admission?->first_name,
+                    'last_name'    => $admission?->last_name,
+                    'email'        => $admission?->email,
+                    'contact'      => $admission?->contact_number,
                 ],
                 'section' => [
-                    'section_id' => $student->section?->id,
+                    'section_id'   => $student->section?->id,
                     'section_name' => $student->section?->section_name,
                 ],
                 'curriculum' => $curriculum ? [
-                    'id' => $curriculum->id,
-                    'name' => $curriculum->curriculum_name,
+                    'id'          => $curriculum->id,
+                    'name'        => $curriculum->curriculum_name,
                     'description' => $curriculum->curriculum_description,
                 ] : null,
-                'subjects' => $subjectOptions,
-                'total_units' => $totalUnits,
+                'subjects_by_semester' => $groupedSubjects,
+                'total_units'          => $totalUnits,
             ];
         }
 
         return response()->json([
-            'isSuccess' => true,
-            'data' => $results,
+            'isSuccess'  => true,
+            'data'       => $results,
             'pagination' => [
-                'total' => $students->total(),
-                'per_page' => $students->perPage(),
+                'total'        => $students->total(),
+                'per_page'     => $students->perPage(),
                 'current_page' => $students->currentPage(),
-                'last_page' => $students->lastPage(),
+                'last_page'    => $students->lastPage(),
             ],
         ], 200);
 
     } catch (\Exception $e) {
         return response()->json([
             'isSuccess' => false,
-            'message' => 'Error: ' . $e->getMessage(),
+            'message'   => 'Error: ' . $e->getMessage(),
         ], 500);
     }
 }
+
 
 
 //Curriculum Subjects

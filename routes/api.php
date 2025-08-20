@@ -123,8 +123,7 @@ Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
 Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
 Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
 Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
-Route::post('enrollstudentsubject', [EnrollmentsController::class, 'enrollStudentSubject']);
-Route::get('getreconsideredstudents', [EnrollmentsController::class, 'getReconsideredStudents']);
+Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
 Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
 
 });
