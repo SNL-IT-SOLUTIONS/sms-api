@@ -388,6 +388,7 @@ public function getReconsideredStudents(Request $request)
 public function markAsPassed($id)
 {
     try {
+        $user = Auth::user();
         $schedule = exam_schedules::with('applicant')->findOrFail($id);
 
         if ($schedule->exam_status !== 'reconsidered') {
