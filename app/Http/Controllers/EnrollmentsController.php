@@ -400,7 +400,6 @@ public function markAsPassed($id)
 
         $schedule->update([
             'exam_status' => 'passed',
-            'is_approved' => 1,
         ]);
 
         // Send email to applicant
