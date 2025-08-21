@@ -10,7 +10,7 @@ class subjects extends Model
     use HasFactory;
     protected $table = 'subjects';
        protected $fillable = [
-        'course_id',
+        'grade_level_id',
         'curriculum_id',
         'subject_code',
         'subject_name',
@@ -18,9 +18,9 @@ class subjects extends Model
     ];
 
 
-public function course()
+public function gradeLevel()
 {
-    return $this->belongsTo(courses::class, 'course_id');
+    return $this->belongsTo(grade__levels::class, 'grade_level_id');
 }
 public function students()
     {

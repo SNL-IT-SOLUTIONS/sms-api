@@ -1403,7 +1403,7 @@ public function getCurriculumSubjectsByAdmin(Request $request)
 
             return response()->json([
                 'isSuccess' => true,
-                'data' => $gradeLevels
+                'gradelevel' => $gradeLevels
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

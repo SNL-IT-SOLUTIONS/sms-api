@@ -248,8 +248,7 @@ Route::prefix('dropdown')->group(function () {
     Route::get('campuses', [AdmissionsController::class, 'getCampusDropdown']);
     Route::get('rooms/{buildingid}', [AdmissionsController::class, 'getByBuilding']);
     Route::get('buildings/{campusId}', [AdmissionsController::class, 'getBuildingsByCampus']);
-    // Route::post('buildingsbycampus/{id}', [AdmissionsController::class, 'getBuildingbyCampus']);
-    Route::get('gradelevels', [GradeLevelsController::class, 'getGradeLevelsDropdown']);
+    Route::get('gradelevels', [EnrollmentsController::class, 'getGradeLevelsDropdown']);
 
 
 
