@@ -705,16 +705,14 @@ public function updateStudentDocs(Request $request, $id)
 
 
 
-public function enrollStudent(Request $request)
+
+
+
+public function enrollStudent($id)
 {
     try {
-        // Validate incoming request
-        $validated = $request->validate([
-            'student_id' => 'required|integer|exists:students,id',
-        ]);
-
-        // Find the student
-        $student = students::find($validated['student_id']);
+        // Find the student directly
+        $student = students::find($id);
         if (!$student) {
             return response()->json([
                 'isSuccess' => false,
@@ -758,7 +756,7 @@ public function enrollStudent(Request $request)
         $subjects = DB::table('curriculum_subject')
             ->join('subjects', 'curriculum_subject.subject_id', '=', 'subjects.id')
             ->where('curriculum_subject.curriculum_id', $curriculum->id)
-            ->where('subjects.grade_level_id', $gradeLevel->id) // <-- filter by grade level
+            ->where('subjects.grade_level_id', $gradeLevel->id) // filter by grade level
             ->select('subjects.*')
             ->get();
 
@@ -787,18 +785,20 @@ public function enrollStudent(Request $request)
         DB::table('student_subjects')->insert($insertData);
 
         // Recalculate total units + fees
-     $totalUnits = $subjects->sum('units');
-    $unitRate   = 200; 
-    $miscfee    = 2000; 
-    $unitsFee   = $totalUnits * $unitRate;
-    $tuitionFee = $unitsFee + $miscfee;
+        $totalUnits = $subjects->sum('units');
+        $unitRate   = 200; 
+        $miscfee    = 2000; 
+        $unitsFee   = $totalUnits * $unitRate;
+        $tuitionFee = $unitsFee + $miscfee;
 
-    // ✅ Update student with fees
-    $student->update([
-        'units_fee'   => $unitsFee,
-        'misc_fee'    => $miscfee, 
-        'tuition_fee' => $tuitionFee,
-]);
+        // ✅ Update student with fees
+        $student->update([
+            'units_fee'   => $unitsFee,
+            'misc_fee'    => $miscfee, 
+            'tuition_fee' => $tuitionFee,
+            'is_enrolled' => 1,
+
+        ]);
 
         return response()->json([
             'isSuccess'     => true,
@@ -1041,7 +1041,8 @@ public function getAllEnrollments(Request $request)
             'examSchedule.applicant.campus',
             'examSchedule.applicant.campus',
             'section'
-       ])->orderBy('created_at', 'desc');
+       ])->orderBy('created_at', 'desc')
+         ->where('is_enrolled', 0);
         
 
         // 🔎 Search
