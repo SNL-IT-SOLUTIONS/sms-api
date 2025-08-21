@@ -824,11 +824,11 @@ public function enrollStudent(Request $request)
 
 
 //STUDENT CHOOSE SUBJECTS
-public function enrollNow(Request $request)
+public function enrollNow(Request $request, $id)
 {
     try {
-        // Get the logged-in student
-        $student = auth()->user(); // Make sure auth returns student model
+        // Fetch student by ID instead of auth
+        $student = \App\Models\Student::find($id);
 
         if (!$student) {
             return response()->json([
@@ -837,7 +837,7 @@ public function enrollNow(Request $request)
             ], 404);
         }
 
-        // Validate incoming subject IDs
+        // Validate incoming subject IDs (still need to validate subjects, just not student_id)
         $validated = $request->validate([
             'subject_ids'   => 'required|array|min:1',
             'subject_ids.*' => 'integer|exists:subjects,id',
@@ -851,7 +851,7 @@ public function enrollNow(Request $request)
         if (!$curriculum) {
             return response()->json([
                 'isSuccess' => false,
-                'message'   => 'No curriculum assigned for your course.',
+                'message'   => 'No curriculum assigned for this student\'s course.',
             ], 400);
         }
 
@@ -866,12 +866,12 @@ public function enrollNow(Request $request)
             if (!in_array($subjectId, $allowedSubjects)) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message'   => 'One or more subjects are not part of your curriculum.',
+                    'message'   => 'One or more subjects are not part of the curriculum.',
                 ], 400);
             }
         }
 
-        // Remove previous choices
+        // Remove previous subject choices
         DB::table('student_subjects')->where('student_id', $student->id)->delete();
 
         // Insert new subject choices
@@ -904,7 +904,7 @@ public function enrollNow(Request $request)
 
         return response()->json([
             'isSuccess'   => true,
-            'message'     => 'Subjects selected successfully.',
+            'message'     => 'Subjects enrolled successfully.',
             'total_units' => $totalUnits,
             'units_fee'   => $unitsFee,
             'misc_fee'    => $student->misc_fee,
@@ -1041,7 +1041,8 @@ public function getAllEnrollments(Request $request)
             'examSchedule.applicant.campus',
             'examSchedule.applicant.campus',
             'section'
-        ]);
+       ])->orderBy('created_at', 'desc');
+        
 
         // 🔎 Search
         if ($request->has('search')) {
@@ -1094,23 +1095,23 @@ public function getAllEnrollments(Request $request)
                 ->first();
 
           $groupedSubjects = [];
-$totalUnits      = 0;
+            $totalUnits      = 0;
 
-if ($curriculum) {
-   $subjects = DB::table('student_subjects as ss')
-    ->join('subjects as s', 'ss.subject_id', '=', 's.id')
-    ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
-    ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id') // ✅ get semester
-    ->where('ss.student_id', $student->id)
-    ->where('cs.curriculum_id', $curriculum->id)
-    ->select(
-        's.id as subject_id',
-        's.subject_name',
-        's.units',
-        's.grade_level_id',
-        'sy.semester' // ✅ comes from school_years now
-    )
-    ->get();
+        if ($curriculum) {
+        $subjects = DB::table('student_subjects as ss')
+            ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+            ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
+            ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id') // ✅ get semester
+            ->where('ss.student_id', $student->id)
+            ->where('cs.curriculum_id', $curriculum->id)
+            ->select(
+                's.id as subject_id',
+                's.subject_name',
+                's.units',
+                's.grade_level_id',
+                'sy.semester' // ✅ comes from school_years now
+            )
+            ->get();
 
     foreach ($subjects as $subj) {
         $key = "Grade {$subj->grade_level_id} - {$subj->semester}";

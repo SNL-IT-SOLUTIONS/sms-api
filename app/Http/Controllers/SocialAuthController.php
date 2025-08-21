@@ -23,7 +23,7 @@ class SocialAuthController extends Controller
    public function handleGoogleCallback()
 {
     try {
-          /** @var \Laravel\Socialite\Two\GithubProvider $provider */
+          /** @var \Laravel\Socialite\Two\GoogleProvider $provider */
             $provider = Socialite::driver('google');
             $googleUser = $provider->stateless()->user();
 
