@@ -1399,7 +1399,7 @@ public function getCurriculumSubjectsByAdmin(Request $request)
             $gradeLevels = DB::table('grade_levels')
                 ->where('is_archived', 0)
                 ->orderBy('grade_level', 'asc')
-                ->get(['id', 'grade_level']);
+                ->get(['id', 'grade_level', 'description']);
 
             return response()->json([
                 'isSuccess' => true,
