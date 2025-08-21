@@ -32,6 +32,7 @@ class students extends Model
     'has_certificate_of_completion',
     'has_birth_certificate',
     'enrollment_status',
+    'is_enrolled',
     'is_active',
 ];
       protected $hidden = [
