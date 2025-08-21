@@ -115,10 +115,11 @@ Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmissi
 Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStudents']);
 Route::get('getreconsideredstudents', [EnrollmentsController::class, 'getReconsideredStudents']);
 Route::get('getenrollments', [EnrollmentsController::class, 'getAllEnrollments']);
+Route::get('getprocesspayment', [EnrollmentsController::class, 'getProcessPayments']);
 
 Route::middleware('auth:sanctum')->group(function () {
 Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
-Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
+Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']); 
 Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
 Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
 Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
