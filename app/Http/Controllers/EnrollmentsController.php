@@ -1238,6 +1238,51 @@ if ($curriculum) {
 }
 
 
+public function getCurriculumSubjectsByAdmin(Request $request)
+{
+    try {
+        $user = auth()->user();
+        // Validate incoming request
+        $request->validate([
+            'course_id' => 'required|integer|exists:courses,id',
+        ]);
+
+        // Find the curriculum for the given course
+        $curriculum = DB::table('curriculums')
+            ->where('course_id', $request->course_id)
+            ->first();
+
+        if (!$curriculum) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'No curriculum found for this course.',
+            ], 404);
+        }
+
+        // Get subjects linked to that curriculum
+        $subjects = DB::table('curriculum_subject as cs')
+            ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+            ->where('cs.curriculum_id', $curriculum->id)
+            ->select('s.id', 's.subject_code', 's.subject_name', 's.units')
+            ->get();
+
+        return response()->json([
+            'isSuccess'      => true,
+            'course_id'      => $request->course_id,
+            'curriculum_id'  => $curriculum->id,
+            'subjects'       => $subjects,
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Error: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+
 
     //This function handles the creation of a new enrollment.
     // public function storeEnrollment(Request $request)
@@ -1347,6 +1392,26 @@ if ($curriculum) {
     //     }
     // }
 
+    //DROPDOWN
+    public function getGradeLevelsDropdown()
+    {
+        try {
+            $gradeLevels = DB::table('grade_levels')
+                ->where('is_archived', 0)
+                ->orderBy('grade_level', 'asc')
+                ->get(['id', 'grade_level']);
+
+            return response()->json([
+                'isSuccess' => true,
+                'data' => $gradeLevels
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Error fetching grade levels: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 
     
 

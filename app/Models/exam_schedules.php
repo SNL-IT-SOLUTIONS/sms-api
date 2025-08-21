@@ -51,4 +51,10 @@ public function campus()
 {
     return $this->belongsTo(school_campus::class, 'campus_id');
 }
+
+    public function admission()
+{
+    return $this->belongsTo(admissions::class, 'admission_id');
+}
+
 }

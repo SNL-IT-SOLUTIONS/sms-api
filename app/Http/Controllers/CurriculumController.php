@@ -90,13 +90,13 @@ public function getCurriculums(Request $request)
     ]);
 
     // Only update the actual fields of the curriculum table
-    Log::info('Updating curriculum ID: ' . $curriculum->id);
+
     $curriculum->update([
         'curriculum_name' => $validated['curriculum_name'] ?? $curriculum->curriculum_name,
         'curriculum_description' => $validated['curriculum_description'] ?? $curriculum->curriculum_description,
         'course_id' => $validated['course_id'] ?? $curriculum->course_id,
     ]);
-    Log::info('Curriculum updated: ' . $curriculum->fresh()->toJson());
+   
 
     // Sync subjects in pivot table if provided
     if (!empty($validated['subject_ids'])) {

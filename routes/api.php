@@ -125,6 +125,8 @@ Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
 Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
 Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
 Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
+Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
+
 
 
 });
@@ -247,6 +249,7 @@ Route::prefix('dropdown')->group(function () {
     Route::get('rooms/{buildingid}', [AdmissionsController::class, 'getByBuilding']);
     Route::get('buildings/{campusId}', [AdmissionsController::class, 'getBuildingsByCampus']);
     // Route::post('buildingsbycampus/{id}', [AdmissionsController::class, 'getBuildingbyCampus']);
+    Route::get('gradelevels', [GradeLevelsController::class, 'getGradeLevelsDropdown']);
 
 
 

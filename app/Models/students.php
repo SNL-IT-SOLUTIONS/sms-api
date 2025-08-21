@@ -19,6 +19,7 @@ class students extends Model
     'profile_img',
     'student_status',
     'course_id',
+    'misc_fee',
     'section_id',
     'academic_year_id',
     'grade_level_id',
@@ -41,25 +42,27 @@ class students extends Model
     {
         return $this->belongsToMany(subjects::class, 'student_subject', 'student_id', 'subject_id');
     }
-public function admission()
-{
-    return $this->belongsTo(admissions::class, 'admission_id');
-}
+    public function admission()
+    {
+        return $this->belongsTo(admissions::class, 'admission_id');
+    }
 
-public function examSchedule()
-{
-    return $this->belongsTo(exam_schedules::class, 'exam_schedules_id');
-}
+    public function examSchedule()
+    {
+        return $this->belongsTo(exam_schedules::class, 'exam_schedules_id');
+    }
 
-public function course()
-{
-    return $this->belongsTo(courses::class, 'course_id');
-}
+    public function course()
+    {
+        return $this->belongsTo(courses::class, 'course_id');
+    }
 
-public function section()
-{
-    return $this->belongsTo(sections::class, 'section_id'); // assuming 'section_id' is the foreign key
-}
+    public function section()
+    {
+        return $this->belongsTo(sections::class, 'section_id'); 
+    }
+
+
 
 
 }
