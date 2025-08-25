@@ -457,7 +457,7 @@ public function getAllEnrollments(Request $request)
             $programName = courses::find($validated['academic_program_id'])->course_name;
 
 
-            $applicantNumber = 'APLN-' . now()->format('YmdHis') . rand(100, 999);
+           $applicantNumber = 'APLN-' . now()->format('y') . str_pad(rand(100, 999), 2, '0', STR_PAD_LEFT);
 
             $admission = admissions::create([
                 'account_id' => null,
