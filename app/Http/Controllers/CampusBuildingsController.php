@@ -21,7 +21,7 @@ public function getBuildingsDropdown()
             ->map(function($building) {
                 return [
                     'id' => $building->id,
-                    'name' => $building->building_name,
+                    'building_name' => $building->building_name,
                 ];
             });
 
