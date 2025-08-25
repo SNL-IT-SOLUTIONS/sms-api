@@ -18,6 +18,7 @@ use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
 use App\Http\Controllers\GradeLevelsController;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 
@@ -32,6 +33,11 @@ use App\Http\Controllers\GradeLevelsController;
 |
 */
 // Done Integration
+
+Route::get('/test-pdf', function() {
+    $pdf = PDF::loadHTML('<h1>Hello World</h1>');
+    return $pdf->stream('test.pdf');
+});
 
 Route::post('verifyaccount', [AccountsController::class, 'verifyAccount']);
 Route::get('/login/google', [SocialAuthController::class, 'redirectToGoogle']);
