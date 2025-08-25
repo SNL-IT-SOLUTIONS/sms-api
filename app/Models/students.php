@@ -41,7 +41,7 @@ class students extends Model
 
     public function subjects()
     {
-        return $this->belongsToMany(subjects::class, 'student_subject', 'student_id', 'subject_id');
+        return $this->belongsToMany(subjects::class, 'student_subjects', 'student_id', 'subject_id');
     }
     public function admission()
     {

@@ -127,6 +127,8 @@ Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']
 Route::post('enrollstudent/{id}', [EnrollmentsController::class, 'enrollStudent']);
 Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
 Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
+Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
+
 
 
 

@@ -24,7 +24,7 @@ public function gradeLevel()
 }
 public function students()
     {
-        return $this->belongsToMany(students::class, 'student_subject', 'subject_id', 'student_id');
+        return $this->belongsToMany(students::class, 'student_subjects', 'subject_id', 'student_id');
     }
 
     public function curriculum()
