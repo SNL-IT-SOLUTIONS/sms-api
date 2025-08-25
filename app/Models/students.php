@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Sanctum\HasApiTokens;
 
+
 class students extends Model
 {
     use HasApiTokens;
@@ -62,6 +63,10 @@ class students extends Model
     {
         return $this->belongsTo(sections::class, 'section_id'); 
     }
+    public function payments()
+{
+    return $this->hasMany(payments::class);
+}
 
 
 

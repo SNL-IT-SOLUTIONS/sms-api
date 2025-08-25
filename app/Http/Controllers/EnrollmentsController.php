@@ -18,6 +18,7 @@ use App\Models\accounts;
 use App\Models\courses;
 use App\Models\students;
 use App\Models\exam_schedules;
+use App\Models\payments;
 use App\Models\subjects;
 use App\Models\transactions;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+
 use Barryvdh\DomPDF\Facade\Pdf;
 
 
@@ -1198,9 +1200,10 @@ public function sendReceipt(Request $request, $id)
                 'message'   => 'No email found for this student.',
             ], 422);
         }
+
         $subjects = $student->subjects()->get(['subject_code', 'subject_name', 'units']);
 
-        // Build PDF content using a Blade template
+        // Build PDF content using Blade
         $pdf = Pdf::loadView('pdf.receipt', [
             'studentNumber' => $studentNumber,
             'courseName'    => $courseName,
@@ -1213,7 +1216,6 @@ public function sendReceipt(Request $request, $id)
             'lastName'      => $lastName,
             'subjects'      => $subjects,
         ]);
-        
 
         // Save PDF temporarily
         $pdfPath = storage_path("app/receipt_{$studentNumber}.pdf");
@@ -1230,8 +1232,12 @@ public function sendReceipt(Request $request, $id)
                 ->setBody('Please see attached Statement of Account (PDF).', 'text/html');
         });
 
-        // Return PDF directly in browser for download too
-        return $pdf->download("Statement_{$studentNumber}.pdf");
+        // Return JSON with success + PDF path
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Receipt generated and emailed successfully.',
+            'pdf_url' => url("storage/receipt_{$studentNumber}.pdf") // optional: make sure you publish storage folder
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
@@ -1240,6 +1246,30 @@ public function sendReceipt(Request $request, $id)
         ], 500);
     }
 }
+
+
+public function confirmPayment($id)
+{
+    $payment = payments::findOrFail($id);
+
+    $payment->status = 'paid';
+    $payment->paid_at = now();
+    $payment->received_by = auth()->id(); // staff/admin who logged it
+    $payment->receipt_no = 'RCPT-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+    $payment->save();
+
+    // Generate PDF receipt
+    $pdf = PDF::loadView('pdf.receipt', ['payment' => $payment]);
+    $pdfPath = storage_path("app/receipts/{$payment->receipt_no}.pdf");
+    $pdf->save($pdfPath);
+
+    return response()->json([
+        'isSuccess' => true,
+        'message'   => 'Payment confirmed and receipt generated',
+        'receipt'   => $payment->receipt_no
+    ]);
+}
+
 
 
 
@@ -1400,6 +1430,8 @@ public function sendReceipt(Request $request, $id)
             ], 500);
         }
     }
+
+    
 
 
 
