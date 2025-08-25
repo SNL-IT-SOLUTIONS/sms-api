@@ -1191,7 +1191,6 @@ class EnrollmentsController extends Controller
         $unitsFee       = number_format((float)$student->units_fee, 2);
         $totalUnits     = (int) ($student->subjects()->sum('units') ?? 0);
 
-        $balanceFormatted = number_format(max($balance, 0), 2);
 
         $firstName = $student->examSchedule?->applicant?->first_name ?? '';
         $lastName  = $student->examSchedule?->applicant?->last_name ?? '';
@@ -1220,7 +1219,6 @@ class EnrollmentsController extends Controller
             <p><b>Misc Fee:</b> ₱{$miscFee}</p>
             <p><b>Units Fee:</b> ₱{$unitsFee}</p>
             <p><b>Total Units:</b> {$totalUnits}</p>
-            <p><b>Outstanding Balance:</b> ₱{$balanceFormatted}</p>
             <p>Please settle your balance on or before the deadline.</p>
         </body>
         </html>
