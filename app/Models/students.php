@@ -63,9 +63,9 @@ class students extends Model
     {
         return $this->belongsTo(sections::class, 'section_id'); 
     }
-    public function payments()
+public function payments()
 {
-    return $this->hasMany(payments::class);
+    return $this->hasMany(payments::class, 'student_id'); // must match the column in payments table
 }
 
 

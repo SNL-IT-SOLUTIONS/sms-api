@@ -1180,19 +1180,21 @@ public function sendReceipt(Request $request, $id)
 {
     try {
         auth()->user();
+
+        // Get student with course and campus info
         $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus'])
             ->findOrFail($id);
 
-        $studentNumber  = $student->student_number;
-        $courseName     = $student->examSchedule?->applicant?->course?->course_name ?? '—';
-        $campusName     = $student->examSchedule?->applicant?->campus?->campus_name ?? '—';
-        $tuitionFee     = number_format((float)$student->tuition_fee, 2);
-        $miscFee        = number_format((float)$student->misc_fee, 2);
-        $unitsFee       = number_format((float)$student->units_fee, 2);
-        $totalUnits     = (int) ($student->subjects()->sum('units') ?? 0);
-        $firstName      = $student->examSchedule?->applicant?->first_name ?? '';
-        $lastName       = $student->examSchedule?->applicant?->last_name ?? '';
-        $email          = $student->examSchedule?->applicant?->email;
+        $studentNumber = $student->student_number;
+        $courseName    = $student->examSchedule?->applicant?->course?->course_name ?? '—';
+        $campusName    = $student->examSchedule?->applicant?->campus?->campus_name ?? '—';
+        $tuitionFee    = number_format((float) $student->tuition_fee, 2);
+        $miscFee       = number_format((float) $student->misc_fee, 2);
+        $unitsFee      = number_format((float) $student->units_fee, 2);
+        $totalUnits    = (int) ($student->subjects()->sum('units') ?? 0);
+        $firstName     = $student->examSchedule?->applicant?->first_name ?? '';
+        $lastName      = $student->examSchedule?->applicant?->last_name ?? '';
+        $email         = $student->examSchedule?->applicant?->email;
 
         if (!$email) {
             return response()->json([
@@ -1203,7 +1205,15 @@ public function sendReceipt(Request $request, $id)
 
         $subjects = $student->subjects()->get(['subject_code', 'subject_name', 'units']);
 
-        // Build PDF content using Blade
+        // Ensure receipts folder exists
+        $receiptDir = storage_path('app/receipts');
+        if (!file_exists($receiptDir)) {
+            mkdir($receiptDir, 0777, true);
+        }
+
+        $pdfPath = $receiptDir . "/receipt_{$studentNumber}.pdf";
+
+        // Generate PDF using Blade template
         $pdf = Pdf::loadView('pdf.receipt', [
             'studentNumber' => $studentNumber,
             'courseName'    => $courseName,
@@ -1216,27 +1226,24 @@ public function sendReceipt(Request $request, $id)
             'lastName'      => $lastName,
             'subjects'      => $subjects,
         ]);
-
-        // Save PDF temporarily
-        $pdfPath = storage_path("app/receipt_{$studentNumber}.pdf");
         $pdf->save($pdfPath);
 
         // Send email with PDF attachment
         Mail::send([], [], function ($message) use ($email, $studentNumber, $pdfPath) {
             $message->to($email)
-                ->subject('Statement of Account - ' . $studentNumber)
+                ->subject("Statement of Account - {$studentNumber}")
                 ->attach($pdfPath, [
-                    'as' => "Statement_{$studentNumber}.pdf",
+                    'as'   => "Statement_{$studentNumber}.pdf",
                     'mime' => 'application/pdf',
                 ])
                 ->setBody('Please see attached Statement of Account (PDF).', 'text/html');
         });
 
-        // Return JSON with success + PDF path
+        // Return JSON success with link
         return response()->json([
             'isSuccess' => true,
-            'message' => 'Receipt generated and emailed successfully.',
-            'pdf_url' => url("storage/receipt_{$studentNumber}.pdf") // optional: make sure you publish storage folder
+            'message'   => 'Receipt generated and emailed successfully.',
+            'pdf_url'   => url("storage/receipts/receipt_{$studentNumber}.pdf")
         ]);
 
     } catch (\Exception $e) {
@@ -1248,27 +1255,6 @@ public function sendReceipt(Request $request, $id)
 }
 
 
-public function confirmPayment($id)
-{
-    $payment = payments::findOrFail($id);
-
-    $payment->status = 'paid';
-    $payment->paid_at = now();
-    $payment->received_by = auth()->id(); // staff/admin who logged it
-    $payment->receipt_no = 'RCPT-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
-    $payment->save();
-
-    // Generate PDF receipt
-    $pdf = PDF::loadView('pdf.receipt', ['payment' => $payment]);
-    $pdfPath = storage_path("app/receipts/{$payment->receipt_no}.pdf");
-    $pdf->save($pdfPath);
-
-    return response()->json([
-        'isSuccess' => true,
-        'message'   => 'Payment confirmed and receipt generated',
-        'receipt'   => $payment->receipt_no
-    ]);
-}
 
 
 

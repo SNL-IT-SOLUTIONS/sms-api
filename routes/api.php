@@ -18,6 +18,7 @@ use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
 use App\Http\Controllers\GradeLevelsController;
+Use App\Http\Controllers\PaymentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 
@@ -135,10 +136,16 @@ Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPass
 Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
 Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
 
-
-
-
 });
+
+//Payments
+Route::post('confirmpayment/{id}', [PaymentsController::class, 'confirmPayment']);
+
+
+
+
+
+
 
    Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
 // Year Levels Management
@@ -257,7 +264,9 @@ Route::prefix('dropdown')->group(function () {
     Route::get('campuses', [AdmissionsController::class, 'getCampusDropdown']);
     Route::get('rooms/{buildingid}', [AdmissionsController::class, 'getByBuilding']);
     Route::get('buildings/{campusId}', [AdmissionsController::class, 'getBuildingsByCampus']);
+    Route::get('buildings', [CampusBuildingsController::class, 'getBuildingsDropdown']);
     Route::get('gradelevels', [EnrollmentsController::class, 'getGradeLevelsDropdown']);
+
 
 
 

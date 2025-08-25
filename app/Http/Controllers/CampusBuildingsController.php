@@ -11,6 +11,37 @@ use Throwable;
 
 class CampusBuildingsController extends Controller
 {
+public function getBuildingsDropdown()
+{
+    try {
+        // Fetch non-archived buildings with campus name
+        $buildings = campus_buildings::with(['campus:id,campus_name'])
+            ->where('is_archived', 0)
+            ->get()
+            ->map(function($building) {
+                return [
+                    'id' => $building->id,
+                    'name' => $building->building_name,
+                ];
+            });
+
+        return response()->json([
+            'isSuccess' => true,
+            'options' => $buildings
+        ], 200);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve buildings.',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+
+
 public function getBuildings(Request $request)
 {
     try {
