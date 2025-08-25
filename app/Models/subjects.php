@@ -13,8 +13,9 @@ class subjects extends Model
         'grade_level_id',
         'curriculum_id',
         'subject_code',
+        'subject_type',
         'subject_name',
-        'units',
+        'units',    
     ];
 
 

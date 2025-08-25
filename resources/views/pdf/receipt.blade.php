@@ -69,6 +69,13 @@
     </table>
 
     <h2>Payment Details</h2>
+    @php
+        // Remove commas and cast to float
+        $miscFeeNum = (float) str_replace(',', '', $miscFee);
+        $unitsFeeNum = (float) str_replace(',', '', $unitsFee);
+        $totalFee = $miscFeeNum + $unitsFeeNum;
+        $tuitionFeeNum = (float) str_replace(',', '', $tuitionFee);
+    @endphp
     <table>
         <tr>
             <th>Description</th>
@@ -77,15 +84,19 @@
 
         <tr>
             <td>Miscellaneous Fee</td>
-            <td>{{ $miscFee }}</td>
+            <td>{{ number_format($miscFeeNum, 2) }}</td>
         </tr>
         <tr>
             <td>Units Fee</td>
-            <td>{{ $unitsFee }}</td>
+            <td>{{ number_format($unitsFeeNum, 2) }}</td>
         </tr>
         <tr>
-            <td>Tuition Fee</td>
-            <td>{{ $tuitionFee }}</td>
+            <td>Total Fee</td>
+            <td>{{ number_format($totalFee, 2) }}</td>
+        </tr>
+        <tr>
+            <td>Need to pay</td>
+            <td>{{ number_format($tuitionFeeNum, 2) }}</td>
         </tr>
     </table>
 

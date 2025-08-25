@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Throwable;
 use App\Models\subjects;
 
@@ -13,12 +12,10 @@ class SubjectsController extends Controller
     public function getSubjects(Request $request)
     {
         try {
-            // Paginate subjects - only non-archived, 5 per page
-            $subjects = subjects::with('gradeLevel') // <-- assumes you have gradeLevel relation
+            $subjects = subjects::with('gradeLevel')
                 ->where('is_archived', 0)
                 ->paginate(5);
 
-            // Map the paginated data
             $formattedSubjects = $subjects->getCollection()->map(function ($subject) {
                 return [
                     'id' => $subject->id,
@@ -27,6 +24,7 @@ class SubjectsController extends Controller
                     'units' => $subject->units,
                     'grade_level_id' => $subject->grade_level_id,
                     'grade_level_name' => $subject->gradeLevel ? $subject->gradeLevel->grade_level : null,
+                    'subject_type' => $subject->subject_type, // <-- added
                 ];
             });
 
@@ -57,14 +55,16 @@ class SubjectsController extends Controller
                 'subject_code' => 'required|string|max:20|unique:subjects,subject_code',
                 'subject_name' => 'required|string|max:255',
                 'units' => 'required|numeric|min:0',
-                'grade_level_id' => 'required|exists:grade_levels,id', // <-- changed
+                'grade_level_id' => 'required|exists:grade_levels,id',
+                'subject_type' => 'required|string|in:major,minor', // <-- added validation
             ]);
 
             $subject = subjects::create([
                 'subject_code' => $request->subject_code,
                 'subject_name' => $request->subject_name,
                 'units' => $request->units,
-                'grade_level_id' => $request->grade_level_id, // <-- changed
+                'grade_level_id' => $request->grade_level_id,
+                'subject_type' => $request->subject_type, // <-- added
             ]);
 
             return response()->json([
@@ -82,50 +82,56 @@ class SubjectsController extends Controller
     }
 
     public function updateSubject(Request $request, $id)
-    {
-        try {
-            $request->validate([
-                'subject_code' => 'sometimes|string|max:20|unique:subjects,subject_code,' . $id,
-                'subject_name' => 'sometimes|string|max:255',
-                'units' => 'required|numeric|min:0',
-                'grade_level_id' => 'required|exists:grade_levels,id', // <-- changed
-            ]);
+{
+    try {
+        $request->validate([
+            'subject_code' => 'sometimes|string|max:20|unique:subjects,subject_code,' . $id,
+            'subject_name' => 'sometimes|string|max:255',
+            'units' => 'sometimes|numeric|min:0',
+            'grade_level_id' => 'sometimes|exists:grade_levels,id',
+            'subject_type' => 'sometimes|in:major,minor',
+        ]);
 
-            $subject = subjects::find($id);
+        $subject = subjects::find($id);
 
-            if (!$subject) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Subject not found.'
-                ]);
-            }
-
-            $subject->update([
-                'subject_code' => $request->subject_code,
-                'subject_name' => $request->subject_name,
-                'units' => $request->units,
-                'grade_level_id' => $request->grade_level_id, // <-- changed
-            ]);
-
-            return response()->json([
-                'isSuccess' => true,
-                'message' => 'Subject updated successfully.',
-                'subject' => $subject
-            ]);
-        } catch (Throwable $e) {
+        if (!$subject) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to update subject.',
-                'error' => $e->getMessage()
+                'message' => 'Subject not found.'
             ]);
         }
+
+        // Only update the fields provided in the request
+        $updateData = $request->only([
+            'subject_code',
+            'subject_name',
+            'units',
+            'grade_level_id',
+            'subject_type',
+        ]);
+
+        $subject->update($updateData);
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Subject updated successfully.',
+            'subject' => $subject
+        ]);
+    } catch (Throwable $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to update subject.',
+            'error' => $e->getMessage()
+        ]);
     }
+}
+
 
     public function deleteSubject($id)
     {
         try {
             $user = auth()->user();
-            if (!$user || $user->role_name !== 'admin') { // <-- simplified, since you said you don’t have user_types
+            if (!$user || $user->role_name !== 'admin') {
                 return response()->json([
                     'isSuccess' => false,
                     'message' => 'Unauthorized access.',
@@ -153,18 +159,18 @@ class SubjectsController extends Controller
     {
         try {
             $subjects = subjects::where('is_archived', 0)
-                ->pluck('subject_name', 'id')
-                ->map(function ($subject_name, $id) {
+                ->get(['id', 'subject_name', 'subject_type'])
+                ->map(function ($subject) {
                     return [
-                        'id' => $id,
-                        'subject_name' => $subject_name,
+                        'id' => $subject->id,
+                        'subject_name' => $subject->subject_name,
+                        'subject_type' => $subject->subject_type, // <-- added
                     ];
-                })
-                ->values(); // Reset array keys for clean indexing
+                });
 
             return response()->json([
                 'isSuccess' => true,
-                'subject' => $subjects,
+                'subjects' => $subjects,
             ]);
         } catch (Throwable $e) {
             return response()->json([
