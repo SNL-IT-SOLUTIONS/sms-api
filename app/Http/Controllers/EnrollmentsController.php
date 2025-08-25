@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class EnrollmentsController extends Controller
@@ -1173,16 +1174,13 @@ class EnrollmentsController extends Controller
 
 
 
-   public function sendReceipt(Request $request, $id)
+public function sendReceipt(Request $request, $id)
 {
     try {
         auth()->user();
         $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus'])
             ->findOrFail($id);
 
-        // 🧮 Calculate balance (if partial payments are tracked in `transactions`)
-
-        // Prep values for HTML email
         $studentNumber  = $student->student_number;
         $courseName     = $student->examSchedule?->applicant?->course?->course_name ?? '—';
         $campusName     = $student->examSchedule?->applicant?->campus?->campus_name ?? '—';
@@ -1190,11 +1188,9 @@ class EnrollmentsController extends Controller
         $miscFee        = number_format((float)$student->misc_fee, 2);
         $unitsFee       = number_format((float)$student->units_fee, 2);
         $totalUnits     = (int) ($student->subjects()->sum('units') ?? 0);
-
-
-        $firstName = $student->examSchedule?->applicant?->first_name ?? '';
-        $lastName  = $student->examSchedule?->applicant?->last_name ?? '';
-        $email     = $student->examSchedule?->applicant?->email;
+        $firstName      = $student->examSchedule?->applicant?->first_name ?? '';
+        $lastName       = $student->examSchedule?->applicant?->last_name ?? '';
+        $email          = $student->examSchedule?->applicant?->email;
 
         if (!$email) {
             return response()->json([
@@ -1203,35 +1199,36 @@ class EnrollmentsController extends Controller
             ], 422);
         }
 
-        // 📨 Send HTML notice (no DB insert)
-        $html = <<<HTML
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="UTF-8"><title>Statement of Account</title></head>
-        <body>
-            <h2>Statement of Account</h2>
-            <p>Hi <strong>{$firstName} {$lastName}</strong>,</p>
-            <p>Here are your current payment details:</p>
-            <p><b>Student Number:</b> {$studentNumber}</p>
-            <p><b>Course:</b> {$courseName}</p>
-            <p><b>Campus:</b> {$campusName}</p>
-            <p><b>Tuition Fee:</b> ₱{$tuitionFee}</p>
-            <p><b>Misc Fee:</b> ₱{$miscFee}</p>
-            <p><b>Units Fee:</b> ₱{$unitsFee}</p>
-            <p><b>Total Units:</b> {$totalUnits}</p>
-            <p>Please settle your balance on or before the deadline.</p>
-        </body>
-        </html>
-        HTML;
+        // Build PDF content using a Blade template
+        $pdf = Pdf::loadView('pdf.receipt', [
+            'studentNumber' => $studentNumber,
+            'courseName'    => $courseName,
+            'campusName'    => $campusName,
+            'tuitionFee'    => $tuitionFee,
+            'miscFee'       => $miscFee,
+            'unitsFee'      => $unitsFee,
+            'totalUnits'    => $totalUnits,
+            'firstName'     => $firstName,
+            'lastName'      => $lastName,
+        ]);
 
-        Mail::html($html, function ($message) use ($email, $studentNumber) {
-            $message->to($email)->subject('Statement of Account - ' . $studentNumber);
+        // Save PDF temporarily
+        $pdfPath = storage_path("app/receipt_{$studentNumber}.pdf");
+        $pdf->save($pdfPath);
+
+        // Send email with PDF attachment
+        Mail::send([], [], function ($message) use ($email, $studentNumber, $pdfPath) {
+            $message->to($email)
+                ->subject('Statement of Account - ' . $studentNumber)
+                ->attach($pdfPath, [
+                    'as' => "Statement_{$studentNumber}.pdf",
+                    'mime' => 'application/pdf',
+                ])
+                ->setBody('Please see attached Statement of Account (PDF).', 'text/html');
         });
 
-        return response()->json([
-            'isSuccess' => true,
-            'message'   => 'Statement sent successfully.',
-        ], 200);
+        // Return PDF directly in browser for download too
+        return $pdf->download("Statement_{$studentNumber}.pdf");
 
     } catch (\Exception $e) {
         return response()->json([
@@ -1240,6 +1237,7 @@ class EnrollmentsController extends Controller
         ], 500);
     }
 }
+
 
 
 
