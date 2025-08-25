@@ -1198,6 +1198,7 @@ public function sendReceipt(Request $request, $id)
                 'message'   => 'No email found for this student.',
             ], 422);
         }
+        $subjects = $student->subjects()->get(['subject_code', 'subject_name', 'units']);
 
         // Build PDF content using a Blade template
         $pdf = Pdf::loadView('pdf.receipt', [
@@ -1210,7 +1211,9 @@ public function sendReceipt(Request $request, $id)
             'totalUnits'    => $totalUnits,
             'firstName'     => $firstName,
             'lastName'      => $lastName,
+            'subjects'      => $subjects,
         ]);
+        
 
         // Save PDF temporarily
         $pdfPath = storage_path("app/receipt_{$studentNumber}.pdf");
