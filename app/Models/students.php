@@ -40,10 +40,16 @@ class students extends Model
         'password',
     ];
 
-    public function subjects()
-    {
-        return $this->belongsToMany(subjects::class, 'student_subjects', 'student_id', 'subject_id');
-    }
+public function subjects()
+{
+    return $this->belongsToMany(
+        subjects::class, // Subject model
+        'student_subjects',         // Pivot table
+        'student_id',               // Foreign key on pivot for this model
+        'subject_id'                // Foreign key on pivot for related model
+    )->withPivot('school_year_id') // include pivot fields if needed
+     ->withTimestamps();
+}
     public function admission()
     {
         return $this->belongsTo(admissions::class, 'admission_id');
@@ -67,6 +73,12 @@ public function payments()
 {
     return $this->hasMany(payments::class, 'student_id'); // must match the column in payments table
 }
+
+public function campus()
+{
+    return $this->belongsTo(school_campus::class, 'school_campus_id');
+}
+
 
 
 

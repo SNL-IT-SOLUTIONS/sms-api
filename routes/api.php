@@ -140,6 +140,8 @@ Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
 
 //Payments
 Route::post('confirmpayment/{id}', [PaymentsController::class, 'confirmPayment']);
+Route::get('getassessmentbill', [PaymentsController::class, 'getAssessmentBilling'])->middleware('auth:sanctum');
+
 
 
 
