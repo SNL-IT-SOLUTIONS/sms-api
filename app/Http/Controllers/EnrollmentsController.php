@@ -706,115 +706,129 @@ class EnrollmentsController extends Controller
 
 
 
-    public function enrollStudent($id)
-    {
+    public function enrollStudents(Request $request)
+{
+    $studentIds = $request->input('student_ids'); // expects array of IDs
+    $results = [];
+
+    if (!is_array($studentIds) || empty($studentIds)) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Please provide an array of student IDs.',
+        ], 400);
+    }
+
+    foreach ($studentIds as $id) {
         try {
-            // Find the student directly
             $student = students::find($id);
             if (!$student) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Student not found.',
-                ], 404);
+                $results[] = [
+                    'student_id' => $id,
+                    'status' => 'failed',
+                    'message' => 'Student not found.'
+                ];
+                continue;
             }
 
-            // Check grade level
             if (!$student->grade_level_id) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Student does not have a grade level assigned.',
-                ], 400);
+                $results[] = [
+                    'student_id' => $id,
+                    'status' => 'failed',
+                    'message' => 'Student does not have a grade level assigned.'
+                ];
+                continue;
             }
 
-            // Get grade level info (includes school_year_id)
-            $gradeLevel = DB::table('grade_levels')
-                ->where('id', $student->grade_level_id)
-                ->first();
-
+            $gradeLevel = DB::table('grade_levels')->where('id', $student->grade_level_id)->first();
             if (!$gradeLevel) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Grade level not found.',
-                ], 404);
+                $results[] = [
+                    'student_id' => $id,
+                    'status' => 'failed',
+                    'message' => 'Grade level not found.'
+                ];
+                continue;
             }
 
-            // Get the curriculum of the student's course
-            $curriculum = DB::table('curriculums')
-                ->where('course_id', $student->course_id)
-                ->first();
-
+            $curriculum = DB::table('curriculums')->where('course_id', $student->course_id)->first();
             if (!$curriculum) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'No curriculum assigned for this course.',
-                ], 400);
+                $results[] = [
+                    'student_id' => $id,
+                    'status' => 'failed',
+                    'message' => 'No curriculum assigned for this course.'
+                ];
+                continue;
             }
 
-            // Fetch subjects through curriculum_subject pivot
             $subjects = DB::table('curriculum_subject')
                 ->join('subjects', 'curriculum_subject.subject_id', '=', 'subjects.id')
                 ->where('curriculum_subject.curriculum_id', $curriculum->id)
-                ->where('subjects.grade_level_id', $gradeLevel->id) // filter by grade level
+                ->where('subjects.grade_level_id', $gradeLevel->id)
                 ->select('subjects.*')
                 ->get();
 
             if ($subjects->isEmpty()) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'No subjects found for this grade level in the curriculum.',
-                ], 400);
+                $results[] = [
+                    'student_id' => $id,
+                    'status' => 'failed',
+                    'message' => 'No subjects found for this grade level in the curriculum.'
+                ];
+                continue;
             }
 
-            // Remove previous choices
+            // Remove previous subjects
             DB::table('student_subjects')->where('student_id', $student->id)->delete();
 
-            // Insert new subject choices
             $now = now();
             $insertData = [];
             foreach ($subjects as $subject) {
                 $insertData[] = [
-                    'student_id'    => $student->id,
-                    'subject_id'    => $subject->id,
+                    'student_id' => $student->id,
+                    'subject_id' => $subject->id,
                     'school_year_id' => $gradeLevel->school_year_id,
-                    'created_at'    => $now,
-                    'updated_at'    => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
                 ];
             }
             DB::table('student_subjects')->insert($insertData);
 
-            // Recalculate total units + fees
+            // Recalculate fees
             $totalUnits = $subjects->sum('units');
             $unitRate   = 200;
-            $miscfee    = 2000;
+            $miscFee    = 2000;
             $unitsFee   = $totalUnits * $unitRate;
-            $tuitionFee = $unitsFee + $miscfee;
+            $tuitionFee = $unitsFee + $miscFee;
 
-            // ✅ Update student with fees
             $student->update([
                 'units_fee'   => $unitsFee,
-                'misc_fee'    => $miscfee,
+                'misc_fee'    => $miscFee,
                 'tuition_fee' => $tuitionFee,
                 'is_enrolled' => 1,
-
             ]);
 
-            return response()->json([
-                'isSuccess'     => true,
-                'message'       => 'Student automatically enrolled with curriculum subjects for their grade level.',
-                'total_units'   => $totalUnits,
-                'units_fee'     => $unitsFee,
-                'misc_fee'      => $student->misc_fee,
-                'tuition_fee'   => $tuitionFee,
-                'subjects'      => $subjects,
-                'school_year'   => $gradeLevel->school_year_id,
-            ], 200);
+            $results[] = [
+                'student_id' => $id,
+                'status' => 'success',
+                'total_units' => $totalUnits,
+                'units_fee' => $unitsFee,
+                'misc_fee' => $miscFee,
+                'tuition_fee' => $tuitionFee,
+            ];
         } catch (\Exception $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'Error: ' . $e->getMessage(),
-            ], 500);
+            $results[] = [
+                'student_id' => $id,
+                'status' => 'failed',
+                'message' => $e->getMessage()
+            ];
         }
     }
+
+    return response()->json([
+        'isSuccess' => true,
+        'message' => 'Bulk enrollment process completed.',
+        'results' => $results,
+    ]);
+}
+
 
 
 
