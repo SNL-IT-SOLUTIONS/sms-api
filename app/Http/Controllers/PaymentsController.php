@@ -13,7 +13,7 @@ class PaymentsController extends Controller
     /**
      * Confirm Payment and Generate Receipt
      */
-public function confirmPayment(Request $request, $studentId)
+   public function confirmPayment(Request $request, $studentId)
 {
     try {
         $student = students::findOrFail($studentId);
@@ -22,43 +22,49 @@ public function confirmPayment(Request $request, $studentId)
         if (!$paidAmount || $paidAmount <= 0) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Invalid payment amount'
+                'message'   => 'Invalid payment amount'
             ], 422);
         }
 
-        // Total tuition due (current remaining tuition)
-    $totalDue = $student->tuition_fee;          // current remaining tuition
-$paidAmount = min((float)$request->input('amount'), $totalDue); // clamp to avoid overpayment
-$remainingBalanceBeforePayment = $totalDue; // this is what you store as 'amount'
+        // Current tuition due before payment
+        $totalDue = $student->tuition_fee;
 
-$paymentStatus = ($paidAmount >= $totalDue) ? 'paid' : 'partial';
+        // Prevent overpayment
+        $paidAmount = min($paidAmount, $totalDue);
 
-$payment = payments::create([
-    'student_id'     => $student->id,
-    'amount'         => $remainingBalanceBeforePayment, // reference
-    'paid_amount'    => $paidAmount,                    // cash given
-    'payment_method' => 'cash',
-    'status'         => $paymentStatus,
-    'receipt_no'     => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
-    'remarks'        => $request->input('remarks', 'Payment'),
-    'paid_at'        => now(),
-    'received_by'    => auth()->id()
-]);
+        // Remaining balance after payment
+        $outstandingBalance = $totalDue - $paidAmount;
 
-// Update student tuition fee
-$student->tuition_fee -= $paidAmount;
-if ($student->tuition_fee < 0) $student->tuition_fee = 0;
-$student->payment_status = $student->tuition_fee == 0 ? 'paid' : 'partial';
-$student->save();
+        // Payment status (fully paid or partial)
+        $paymentStatus = ($outstandingBalance <= 0) ? 'paid' : 'partial';
 
+        // Create payment record
+        $payment = payments::create([
+            'student_id'        => $student->id,
+            'amount'            => $totalDue,           // tuition before payment
+            'paid_amount'       => $paidAmount,         // amount actually paid
+            'payment_method'    => 'cash',
+            'status'            => $paymentStatus,
+            'receipt_no'        => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
+            'remarks'           => $request->input('remarks', 'Payment'),
+            'paid_at'           => now(),
+            'received_by'       => auth()->id(),
+            'remaining_balance' => $outstandingBalance  // 👈 outstanding balance stored in DB
+        ]);
 
+        // Update student record
+        $student->tuition_fee = $outstandingBalance;
+        $student->payment_status = $paymentStatus;
+        $student->save();
+
+        // Return response
         return response()->json([
-            'isSuccess'   => true,
-            'message'     => 'Payment confirmed and receipt generated',
-            'paid_amount' => $paidAmount,
-            'status'      => $student->payment_status,
-            'receipt'     => $payment->receipt_no,
-            'remaining_balance' => $student->tuition_fee
+            'isSuccess'         => true,
+            'message'           => 'Payment confirmed and receipt generated',
+            'paid_amount'       => $paidAmount,
+            'status'            => $student->payment_status,
+            'receipt'           => $payment->receipt_no,
+            'remaining_balance' => $outstandingBalance
         ]);
 
     } catch (\Exception $e) {
@@ -68,7 +74,5 @@ $student->save();
         ], 500);
     }
 }
-
-
 
 }

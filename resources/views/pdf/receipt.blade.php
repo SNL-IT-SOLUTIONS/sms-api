@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Statement of Account</title>
+    <title>Official Receipt</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,6 +14,7 @@
         h2 {
             text-align: center;
             margin-bottom: 20px;
+            text-transform: uppercase;
         }
 
         table {
@@ -42,7 +43,12 @@
 </head>
 
 <body>
-    <h2>Statement of Account</h2>
+    <h2>Official Receipt</h2>
+
+    <p><b>Receipt No:</b> {{ $receiptNo ?? 'N/A' }}</p>
+    <p><b>Date:</b> {{ $paidAt ? \Carbon\Carbon::parse($paidAt)->format('F d, Y h:i A') : now()->format('F d, Y h:i A') }}</p>
+    <hr>
+
     <p><b>Student Name:</b> {{ $firstName }} {{ $lastName }}</p>
     <p><b>Student Number:</b> {{ $studentNumber }}</p>
     <p><b>Course:</b> {{ $courseName }}</p>
@@ -70,18 +76,18 @@
 
     <h2>Payment Details</h2>
     @php
-        // Remove commas and cast to float
         $miscFeeNum = (float) str_replace(',', '', $miscFee);
         $unitsFeeNum = (float) str_replace(',', '', $unitsFee);
         $totalFee = $miscFeeNum + $unitsFeeNum;
         $tuitionFeeNum = (float) str_replace(',', '', $tuitionFee);
+        $paidAmountNum = (float) str_replace(',', '', $paidAmount);
+        $remainingBalanceNum = (float) str_replace(',', '', $remainingBalance);
     @endphp
     <table>
         <tr>
             <th>Description</th>
             <th>Amount (₱)</th>
         </tr>
-
         <tr>
             <td>Miscellaneous Fee</td>
             <td>{{ number_format($miscFeeNum, 2) }}</td>
@@ -95,13 +101,16 @@
             <td>{{ number_format($totalFee, 2) }}</td>
         </tr>
         <tr>
-            <td>Need to pay</td>
-            <td>{{ number_format($tuitionFeeNum, 2) }}</td>
+            <td><b>Paid Amount</b></td>
+            <td><b>{{ number_format($paidAmountNum, 2) }}</b></td>
+        </tr>
+        <tr>
+            <td><b>Remaining Balance</b></td>
+            <td><b>{{ number_format($remainingBalanceNum, 2) }}</b></td>
         </tr>
     </table>
 
-    <p class="footer">Please note that this is a sample receipt and should not be used for any financial transactions.
-    </p>
+    <p class="footer">This is a system-generated receipt. No signature required.</p>
 </body>
 
 </html>

@@ -15,6 +15,7 @@ class payments extends Model
         'student_id',
         'amount',
         'paid_amount',
+        'remaining_balance',
         'payment_method',
         'reference_no',
         'remarks',

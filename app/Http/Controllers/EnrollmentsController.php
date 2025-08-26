@@ -1176,83 +1176,91 @@ class EnrollmentsController extends Controller
 
 
 
-public function sendReceipt(Request $request, $id)
-{
-    try {
-        auth()->user();
+    public function sendReceipt(Request $request, $id)
+    {
+        try {
+            auth()->user();
 
-        // Get student with course and campus info
-        $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus'])
-            ->findOrFail($id);
+            // Get student with course and campus info
+            $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus'])
+                ->findOrFail($id);
 
-        $studentNumber = $student->student_number;
-        $courseName    = $student->examSchedule?->applicant?->course?->course_name ?? '—';
-        $campusName    = $student->examSchedule?->applicant?->campus?->campus_name ?? '—';
-        $tuitionFee    = number_format((float) $student->tuition_fee, 2);
-        $miscFee       = number_format((float) $student->misc_fee, 2);
-        $unitsFee      = number_format((float) $student->units_fee, 2);
-        $totalUnits    = (int) ($student->subjects()->sum('units') ?? 0);
-        $firstName     = $student->examSchedule?->applicant?->first_name ?? '';
-        $lastName      = $student->examSchedule?->applicant?->last_name ?? '';
-        $email         = $student->examSchedule?->applicant?->email;
+            $studentNumber = $student->student_number;
+            $courseName    = $student->examSchedule?->applicant?->course?->course_name ?? '—';
+            $campusName    = $student->examSchedule?->applicant?->campus?->campus_name ?? '—';
+            $tuitionFee    = number_format((float) $student->tuition_fee, 2);
+            $miscFee       = number_format((float) $student->misc_fee, 2);
+            $unitsFee      = number_format((float) $student->units_fee, 2);
+            $totalUnits    = (int) ($student->subjects()->sum('units') ?? 0);
+            $firstName     = $student->examSchedule?->applicant?->first_name ?? '';
+            $lastName      = $student->examSchedule?->applicant?->last_name ?? '';
+            $email         = $student->examSchedule?->applicant?->email;
 
-        if (!$email) {
+            if (!$email) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No email found for this student.',
+                ], 422);
+            }
+
+            $subjects = $student->subjects()->get(['subject_code', 'subject_name', 'units']);
+
+            // Ensure receipts folder exists
+            $receiptDir = storage_path('app/receipts');
+            if (!file_exists($receiptDir)) {
+                mkdir($receiptDir, 0777, true);
+            }
+
+            $pdfPath = $receiptDir . "/receipt_{$studentNumber}.pdf";
+            $latestPayment = $student->payments()->latest()->first();
+            $totalPaid = $student->payments()->sum('paid_amount');
+            $outstandingBalance = $student->tuition_fee; // always the "amount still due"
+
+            // Generate PDF using Blade template
+            $pdf = Pdf::loadView('pdf.receipt', [
+                'studentNumber' => $studentNumber,
+                'courseName'    => $courseName,
+                'campusName'    => $campusName,
+                'tuitionFee'    => $tuitionFee,
+                'miscFee'       => $miscFee,
+                'unitsFee'      => $unitsFee,
+                'totalUnits'    => $totalUnits,
+                'firstName'     => $firstName,
+                'lastName'      => $lastName,
+                'subjects'      => $subjects,
+
+                // 🔑 Add these so Blade stops breaking
+                'receiptNo'          => $latestPayment->receipt_no ?? 'N/A',
+                'paidAt'             => $latestPayment->paid_at ?? now(),
+                'paidAmount'         => $totalPaid,              // total paid so far
+                'remainingBalance'   => $outstandingBalance,     // still due
+            ]);
+            $pdf->save($pdfPath);
+
+            // Send email with PDF attachment
+            Mail::send([], [], function ($message) use ($email, $studentNumber, $pdfPath) {
+                $message->to($email)
+                    ->subject("Statement of Account - {$studentNumber}")
+                    ->attach($pdfPath, [
+                        'as'   => "Statement_{$studentNumber}.pdf",
+                        'mime' => 'application/pdf',
+                    ])
+                    ->setBody('Please see attached Statement of Account (PDF).', 'text/html');
+            });
+
+            // Return JSON success with link
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Receipt generated and emailed successfully.',
+                'pdf_url'   => url("storage/receipts/receipt_{$studentNumber}.pdf")
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message'   => 'No email found for this student.',
-            ], 422);
+                'message'   => 'Error: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $subjects = $student->subjects()->get(['subject_code', 'subject_name', 'units']);
-
-        // Ensure receipts folder exists
-        $receiptDir = storage_path('app/receipts');
-        if (!file_exists($receiptDir)) {
-            mkdir($receiptDir, 0777, true);
-        }
-
-        $pdfPath = $receiptDir . "/receipt_{$studentNumber}.pdf";
-
-        // Generate PDF using Blade template
-        $pdf = Pdf::loadView('pdf.receipt', [
-            'studentNumber' => $studentNumber,
-            'courseName'    => $courseName,
-            'campusName'    => $campusName,
-            'tuitionFee'    => $tuitionFee,
-            'miscFee'       => $miscFee,
-            'unitsFee'      => $unitsFee,
-            'totalUnits'    => $totalUnits,
-            'firstName'     => $firstName,
-            'lastName'      => $lastName,
-            'subjects'      => $subjects,
-        ]);
-        $pdf->save($pdfPath);
-
-        // Send email with PDF attachment
-        Mail::send([], [], function ($message) use ($email, $studentNumber, $pdfPath) {
-            $message->to($email)
-                ->subject("Statement of Account - {$studentNumber}")
-                ->attach($pdfPath, [
-                    'as'   => "Statement_{$studentNumber}.pdf",
-                    'mime' => 'application/pdf',
-                ])
-                ->setBody('Please see attached Statement of Account (PDF).', 'text/html');
-        });
-
-        // Return JSON success with link
-        return response()->json([
-            'isSuccess' => true,
-            'message'   => 'Receipt generated and emailed successfully.',
-            'pdf_url'   => url("storage/receipts/receipt_{$studentNumber}.pdf")
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => 'Error: ' . $e->getMessage(),
-        ], 500);
     }
-}
 
 
 
@@ -1417,7 +1425,7 @@ public function sendReceipt(Request $request, $id)
         }
     }
 
-    
+
 
 
 

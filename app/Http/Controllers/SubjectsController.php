@@ -56,7 +56,7 @@ class SubjectsController extends Controller
                 'subject_name' => 'required|string|max:255',
                 'units' => 'required|numeric|min:0',
                 'grade_level_id' => 'required|exists:grade_levels,id',
-                'subject_type' => 'required|string|in:major,minor', // <-- added validation
+                'subject_type' => 'required|string', // <-- added validation
             ]);
 
             $subject = subjects::create([
@@ -89,7 +89,7 @@ class SubjectsController extends Controller
             'subject_name' => 'sometimes|string|max:255',
             'units' => 'sometimes|numeric|min:0',
             'grade_level_id' => 'sometimes|exists:grade_levels,id',
-            'subject_type' => 'sometimes|in:major,minor',
+            'subject_type' => 'sometimes',
         ]);
 
         $subject = subjects::find($id);
