@@ -35,10 +35,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
 */
 // Done Integration
 
-Route::get('/test-pdf', function() {
-    $pdf = PDF::loadHTML('<h1>Hello World</h1>');
-    return $pdf->stream('test.pdf');
-});
+
+//IMPORT EXPORT EXCEL
+Route::get('/examschedules/export', [AdmissionsController::class, 'exportExamScore']);
+Route::post('/examschedules/import', [AdmissionsController::class, 'importExamScores']);
 
 Route::post('verifyaccount', [AccountsController::class, 'verifyAccount']);
 Route::get('/login/google', [SocialAuthController::class, 'redirectToGoogle']);

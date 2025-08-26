@@ -28,8 +28,10 @@ use Throwable;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
-
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ExamSchedulesExport;
+use App\Imports\ExamSchedulesImport;
+use App\Imports\ExamScoresImport;
 
 class AdmissionsController extends Controller
 {
@@ -387,6 +389,7 @@ public function getAllEnrollments(Request $request)
         ], 500);
     }
 }
+
 
 
 
@@ -1026,10 +1029,32 @@ public function inputExamScores(Request $request)
 }
 
 
+public function exportExamScore()
+{
+    $fileName = 'exam_schedules.xlsx';
+
+    // 1. Save to storage
+    Excel::store(new ExamSchedulesExport, $fileName, 'public'); 
+    // 'public' means it goes to storage/app/public/
+
+    // 2. Also download for user
+    return Excel::download(new ExamSchedulesExport, $fileName);
+}
 
 
+public function importExamScores(Request $request)
+{
+    $request->validate([
+        'file' => 'required|mimes:xlsx,xls,csv',
+    ]);
 
-  
+    Excel::import(new ExamSchedulesImport, $request->file('file'));
+
+    return response()->json([
+        'isSuccess' => true,
+        'message'   => 'Exam scores imported successfully!'
+    ]);
+}
 
 
 
