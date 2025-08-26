@@ -511,112 +511,114 @@ class EnrollmentsController extends Controller
 
     //1st step REGISTRAR
     public function approveStudent(Request $request)
-    {
-        $user = Auth::user();
-        try {
-            $validated = $request->validate([
-                'id'   => 'required|integer|exists:exam_schedules,id',
-                'has_form137'  => 'required|boolean',
-                'has_form138'  => 'required|boolean',
-                'has_birth_certificate' => 'required|boolean',
-                'has_good_moral' => 'required|boolean',
-                'has_certificate_of_completion' => 'required|boolean',
-            ]);
+{
+    $user = Auth::user();
+    try {
+        $validated = $request->validate([
+            'id'   => 'required|integer|exists:exam_schedules,id',
+            'has_form137'  => 'required|boolean',
+            'has_form138'  => 'required|boolean',
+            'has_birth_certificate' => 'required|boolean',
+            'has_good_moral' => 'required|boolean',
+            'has_certificate_of_completion' => 'required|boolean',
+        ]);
 
-            // Fetch schedule with applicant and grade level
-            $schedule = exam_schedules::with(['applicant.gradeLevel'])->find($validated['id']);
+        // Fetch schedule with applicant and grade level
+        $schedule = exam_schedules::with(['applicant.gradeLevel'])->find($validated['id']);
 
-            if (!$schedule || !$schedule->applicant) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Exam schedule or applicant not found.',
-                ], 404);
-            }
+        if (!$schedule || !$schedule->applicant) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Exam schedule or applicant not found.',
+            ], 404);
+        }
 
-            $admission = $schedule->applicant;
+        $admission = $schedule->applicant;
 
-            // Prevent duplicate enrollment
-            if (students::where('exam_schedules_id', $schedule->id)->exists()) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'This applicant is already enrolled.',
-                ], 400);
-            }
+        // Prevent duplicate enrollment
+        if (students::where('exam_schedules_id', $schedule->id)->exists()) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'This applicant is already enrolled.',
+            ], 400);
+        }
 
-            // Generate student number + password
-            $lastStudent   = students::latest('id')->first();
-            $nextId        = $lastStudent ? $lastStudent->id + 1 : 1;
-            $studentNumber = 'SNL-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+        // Generate student number + password
+        $lastStudent   = students::latest('id')->first();
+        $nextId        = $lastStudent ? $lastStudent->id + 1 : 1;
+        $studentNumber = 'SNL-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
-            $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
-            $rawPassword        = $studentNumber . $birthdateFormatted;
-            $hashedPassword     = Hash::make($rawPassword);
+        $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
+        $rawPassword        = $studentNumber . $birthdateFormatted;
+        $hashedPassword     = Hash::make($rawPassword);
 
-            // Validate grade_level_id
-            $gradeLevelId = $admission->grade_level_id;
-            if (!DB::table('grade_levels')->where('id', $gradeLevelId)->exists()) {
-                $gradeLevelId = 1; // fallback
-            }
+        // Validate grade_level_id
+        $gradeLevelId = $admission->grade_level_id;
+        if (!DB::table('grade_levels')->where('id', $gradeLevelId)->exists()) {
+            $gradeLevelId = 1; // fallback
+        }
 
-            $sectionId = DB::table('sections')
-                ->where('campus_id', $admission->school_campus_id)
-                ->where('is_archived', 0)
-                ->orderBy('students_size', 'asc')
-                ->value('id');
+        // ✅ Find a section that still has space (students_size limit)
+        $section = DB::table('sections')
+            ->where('campus_id', $admission->school_campus_id)
+            ->where('is_archived', 0)
+            ->get()
+            ->filter(function ($sec) {
+                $currentCount = DB::table('students')
+                    ->where('section_id', $sec->id)
+                    ->count();
+                return $currentCount < $sec->students_size;
+            })
+            ->first();
 
-            if (!$sectionId) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'No available section found for this campus.',
-                ], 400);
-            }
-            if (!$sectionId) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'No available section found for this course/grade level.',
-                ], 400);
-            }
+        if (!$section) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'No available section with space for this campus.',
+            ], 400);
+        }
 
-            // Check if student has complete documents
-            $hasAllDocs = $validated['has_form137']
-                && $validated['has_form138']
-                && $validated['has_good_moral']
-                && $validated['has_certificate_of_completion']
-                && $validated['has_birth_certificate'];
+        // Check if student has complete documents
+        $hasAllDocs = $validated['has_form137']
+            && $validated['has_form138']
+            && $validated['has_good_moral']
+            && $validated['has_certificate_of_completion']
+            && $validated['has_birth_certificate'];
 
-            $enrollmentStatus = $hasAllDocs ? 'Complete Requirements' : 'Incomplete Requirements';
-            $schedule->update([
-                'is_approved' => 1
-            ]);
+        $enrollmentStatus = $hasAllDocs ? 'Complete Requirements' : 'Incomplete Requirements';
+        $schedule->update([
+            'is_approved' => 1
+        ]);
 
-            // Create student record with docs
-            $student = students::create([
-                'exam_schedules_id'             => $schedule->id,
-                'student_number'                => $studentNumber,
-                'password'                      => $hashedPassword,
-                'profile_img'                   => null,
-                'student_status'                => 0,
-                'course_id'                     => $admission->academic_program_id,
-                'section_id'                    => $sectionId,
-                'academic_year_id'              => $admission->academic_year_id,
-                'grade_level_id'                => $gradeLevelId,
-                'units_fee'                     => 0,
-                'tuition_fee'                   => 0,
-                'is_active'                     => 1,
-                'has_form137'                   => $validated['has_form137'],
-                'has_form138'                   => $validated['has_form138'],
-                'has_good_moral'                => $validated['has_good_moral'],
-                'has_certificate_of_completion' => $validated['has_certificate_of_completion'],
-                'has_birth_certificate'         => $validated['has_birth_certificate'],
-                'enrollment_status'             => $enrollmentStatus,
-            ]);
-            // Grade level name
-            $gradeLevelName = DB::table('grade_levels')
-                ->where('id', $gradeLevelId)
-                ->value('grade_level') ?? 'N/A';
+        // Create student record with docs
+        $student = students::create([
+            'exam_schedules_id'             => $schedule->id,
+            'student_number'                => $studentNumber,
+            'password'                      => $hashedPassword,
+            'profile_img'                   => null,
+            'student_status'                => 0,
+            'course_id'                     => $admission->academic_program_id,
+            'section_id'                    => $section->id, // ✅ assigned section
+            'academic_year_id'              => $admission->academic_year_id,
+            'grade_level_id'                => $gradeLevelId,
+            'units_fee'                     => 0,
+            'tuition_fee'                   => 0,
+            'is_active'                     => 1,
+            'has_form137'                   => $validated['has_form137'],
+            'has_form138'                   => $validated['has_form138'],
+            'has_good_moral'                => $validated['has_good_moral'],
+            'has_certificate_of_completion' => $validated['has_certificate_of_completion'],
+            'has_birth_certificate'         => $validated['has_birth_certificate'],
+            'enrollment_status'             => $enrollmentStatus,
+        ]);
 
-            // Send email with credentials
-            $html = '
+        // Grade level name
+        $gradeLevelName = DB::table('grade_levels')
+            ->where('id', $gradeLevelId)
+            ->value('grade_level') ?? 'N/A';
+
+        // Send email with credentials
+        $html = '
         <html>
         <body style="font-family: Arial, sans-serif;">
             <div style="border:1px solid #ccc; padding:20px; max-width:600px; margin:auto;">
@@ -637,35 +639,35 @@ class EnrollmentsController extends Controller
         </html>
         ';
 
-            Mail::send([], [], function ($message) use ($admission, $html) {
-                $message->to($admission->email)
-                    ->subject('Your Enrollment Credentials')
-                    ->setBody($html, 'text/html');
-            });
+        Mail::send([], [], function ($message) use ($admission, $html) {
+            $message->to($admission->email)
+                ->subject('Your Enrollment Credentials')
+                ->setBody($html, 'text/html');
+        });
 
-            return response()->json([
-                'isSuccess'      => true,
-                'message'        => 'Student enrolled successfully. Credentials sent via email.',
-                'student_id'     => $student->id,
-                'student_number' => $studentNumber,
-                'grade_level'    => $gradeLevelName,
-                'section_id'     => $sectionId,
-                'enrollment_status' => $enrollmentStatus,
-                'documents'      => [
-                    'form137'   => $student->has_form137,
-                    'form138'   => $student->has_form138,
-                    'good_moral' => $student->has_good_moral,
-                    'certificate_of_completion' => $student->has_certificate_of_completion,
-                    'birth_certificate' => $student->has_birth_certificate,
-                ]
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'Error: ' . $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'isSuccess'      => true,
+            'message'        => 'Student enrolled successfully. Credentials sent via email.',
+            'student_id'     => $student->id,
+            'student_number' => $studentNumber,
+            'grade_level'    => $gradeLevelName,
+            'section_id'     => $section->id,
+            'enrollment_status' => $enrollmentStatus,
+            'documents'      => [
+                'form137'   => $student->has_form137,
+                'form138'   => $student->has_form138,
+                'good_moral' => $student->has_good_moral,
+                'certificate_of_completion' => $student->has_certificate_of_completion,
+                'birth_certificate' => $student->has_birth_certificate,
+            ]
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Error: ' . $e->getMessage(),
+        ], 500);
     }
+}
 
 
 
@@ -1213,8 +1215,8 @@ class EnrollmentsController extends Controller
 
             $pdfPath = $receiptDir . "/receipt_{$studentNumber}.pdf";
             $latestPayment = $student->payments()->latest()->first();
-            $totalPaid = $student->payments()->sum('paid_amount');
-            $outstandingBalance = $student->tuition_fee; // always the "amount still due"
+$totalPaid = $student->payments()->sum('paid_amount');
+$outstandingBalance = $student->tuition_fee; // always the "amount still due"
 
             // Generate PDF using Blade template
             $pdf = Pdf::loadView('pdf.receipt', [
@@ -1230,11 +1232,11 @@ class EnrollmentsController extends Controller
                 'subjects'      => $subjects,
 
                 // 🔑 Add these so Blade stops breaking
-                'receiptNo'          => $latestPayment->receipt_no ?? 'N/A',
+               'receiptNo'          => $latestPayment->receipt_no ?? 'N/A',
                 'paidAt'             => $latestPayment->paid_at ?? now(),
                 'paidAmount'         => $totalPaid,              // total paid so far
                 'remainingBalance'   => $outstandingBalance,     // still due
-            ]);
+                        ]);
             $pdf->save($pdfPath);
 
             // Send email with PDF attachment
