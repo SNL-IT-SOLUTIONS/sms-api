@@ -18,7 +18,7 @@ use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
 use App\Http\Controllers\GradeLevelsController;
-Use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\StudentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -52,7 +52,7 @@ Route::get('/auth/github/callback', [SocialAuthController::class, 'handleGithubC
 
 Route::post('createuser', [AccountsController::class, 'createUser']);
 Route::post('createadmin', [AccountsController::class, 'createAdminAccount']);
-Route::post('updateuser/{id}',[AccountsController::class, 'updateUser']);
+Route::post('updateuser/{id}', [AccountsController::class, 'updateUser']);
 Route::get('getusertypes', [UserTypesController::class, 'getUserTypes']);
 
 // Login and Logout 
@@ -68,7 +68,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('addcourse', [CoursesController::class, 'addCourse']);
     Route::post('deletecourse/{id}', [SchoolCampusController::class, 'deleteCourse']);
     Route::get('/courses/{id}/subjects', [CoursesController::class, 'getCourseSubjects']);
-
 });
 
 // Subjects Management
@@ -78,7 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('addsubject', [SubjectsController::class, 'addSubject']);
     Route::post('updatesubject/{id}', [SubjectsController::class, 'updateSubject']);
     Route::post('deletesubject/{id}', [SubjectsController::class, 'deleteSubject']);
-    });
+});
 
 //Manage Department
 
@@ -110,10 +109,10 @@ Route::post('sendexamresult', [AdmissionsController::class, 'sendBulkExamResults
 Route::get('getexamscoresummary', [AdmissionsController::class, 'getExamScoreSummary']);
 
 Route::middleware('auth:sanctum')->group(function () {
-Route::post('sendemail', [AdmissionsController::class, 'sendManualAdmissionEmail'])->middleware('auth:sanctum');
-Route::post('acceptadmission/{id}', [AdmissionsController::class, 'acceptapplication'])->middleware('auth:sanctum');
-Route::post('approveadmission/{id}', [AdmissionsController::class, 'approveAdmission'])->middleware('auth:sanctum');
-Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmission'])->middleware('auth:sanctum');
+    Route::post('sendemail', [AdmissionsController::class, 'sendManualAdmissionEmail'])->middleware('auth:sanctum');
+    Route::post('acceptadmission/{id}', [AdmissionsController::class, 'acceptapplication'])->middleware('auth:sanctum');
+    Route::post('approveadmission/{id}', [AdmissionsController::class, 'approveAdmission'])->middleware('auth:sanctum');
+    Route::post('rejectadmission/{id}', [AdmissionsController::class, 'rejectAdmission'])->middleware('auth:sanctum');
 });
 
 
@@ -126,17 +125,16 @@ Route::get('getenrollments', [EnrollmentsController::class, 'getAllEnrollments']
 Route::get('getprocesspayment', [EnrollmentsController::class, 'getProcessPayments']);
 
 Route::middleware('auth:sanctum')->group(function () {
-Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
-Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']); 
-Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
-Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
-Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
-Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
-Route::post('enrollstudent/{id}', [EnrollmentsController::class, 'enrollStudent']);
-Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
-Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
-Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
-
+    Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
+    Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
+    Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
+    Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
+    Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
+    Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
+    Route::post('enrollstudent/{id}', [EnrollmentsController::class, 'enrollStudent']);
+    Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
+    Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
+    Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
 });
 
 //Payments
@@ -153,13 +151,12 @@ Route::get('getmygrades', [StudentsController::class, 'getMyGrades'])->middlewar
 
 
 
-   Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
+Route::get('getgradelevel', [GradeLevelsController::class, 'getgradeLevels']);
 // Year Levels Management
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('creategradelevel', [GradeLevelsController::class, 'creategradeLevels']);
     Route::post('updategradelevel/{id}', [GradeLevelsController::class, 'updategradeLevels']);
     Route::post('deletegradelevel/{id}', [GradeLevelsController::class, 'deletegradeLevels']);
-    
 });
 
 
@@ -175,30 +172,30 @@ Route::post('/assign-schedule', [ScheduleController::class, 'assignSchedule']);
 
 // // School Campus Management
 Route::get('getcampuses', [SchoolCampusController::class, 'getCampuses']);
-Route::middleware('auth:sanctum')->group(function (){ 
-Route::post('addcampus', [SchoolCampusController::class, 'addCampus']);
-Route::post('updatecampus/{id}', [SchoolCampusController::class, 'updateCampus']);
-Route::post('deletecampus/{id}', [SchoolCampusController::class, 'deleteCampus']);
- });
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('addcampus', [SchoolCampusController::class, 'addCampus']);
+    Route::post('updatecampus/{id}', [SchoolCampusController::class, 'updateCampus']);
+    Route::post('deletecampus/{id}', [SchoolCampusController::class, 'deleteCampus']);
+});
 
 
 // Account Management
 Route::middleware('auth:sanctum')->group(function () {
-//     Route::get('getaccounts', [AccountsController::class, 'getAccounts']);
-//     Route::post('addaccount', [AccountsController::class, 'adminCreateAccount']);
-//     Route::get('getprofile', [AccountsController::class, 'getProfile']);
-//     Route::post('changeprofile', [AccountsController::class, 'changeProfile']);
+    //     Route::get('getaccounts', [AccountsController::class, 'getAccounts']);
+    //     Route::post('addaccount', [AccountsController::class, 'adminCreateAccount']);
+    //     Route::get('getprofile', [AccountsController::class, 'getProfile']);
+    //     Route::post('changeprofile', [AccountsController::class, 'changeProfile']);
     Route::post('changepassword', [AccountsController::class, 'changePassword']);
-//     Route::post('deleteaccount', [AccountsController::class, 'deleteAccount']);
-//     Route::get('restoreaccount', [AccountsController::class, 'restoreAccount']);
+    //     Route::post('deleteaccount', [AccountsController::class, 'deleteAccount']);
+    //     Route::get('restoreaccount', [AccountsController::class, 'restoreAccount']);
 });
 
 // // User Types Management
-Route::middleware('auth:sanctum')->group(function (){ 
+Route::middleware('auth:sanctum')->group(function () {
     Route::post('createusertype', [UserTypesController::class, 'createUserType']);
     Route::post('updateusertype/{id}', [UserTypesController::class, 'updateUserType']);
     Route::post('deleteusertype/{id}', [UserTypesController::class, 'deleteUserType']);
-//     Route::post('restoreusertype/{id}', [UserTypesController::class, 'restoreUserType']);
+    //     Route::post('restoreusertype/{id}', [UserTypesController::class, 'restoreUserType']);
 });
 
 
@@ -231,7 +228,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('getschoolyears', [SchoolYearsController::class, 'getSchoolYears']);
     Route::post('deleteschoolyear', [SchoolYearsController::class, 'deleteSchoolYear']);
     Route::post('updateschoolyear/{id}', [SchoolYearsController::class, 'updateSchoolYear']);
-
 });
 
 // // Sections Management
@@ -240,7 +236,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('getsections', [SectionsController::class, 'getSections']);
     Route::post('updatesection/{id}', [SectionsController::class, 'updateSection']);
     Route::post('deletesection/{id}', [SectionsController::class, 'deleteSection']);
-//     Route::post('restoresection/{id}', [SectionsController::class, 'restoreSection']);
+    //     Route::post('restoresection/{id}', [SectionsController::class, 'restoreSection']);
 });
 
 // Campus Buildings Management
@@ -272,10 +268,4 @@ Route::prefix('dropdown')->group(function () {
     Route::get('buildings/{campusId}', [AdmissionsController::class, 'getBuildingsByCampus']);
     Route::get('buildings', [CampusBuildingsController::class, 'getBuildingsDropdown']);
     Route::get('gradelevels', [EnrollmentsController::class, 'getGradeLevelsDropdown']);
-
-
-
-
 });
-
-
