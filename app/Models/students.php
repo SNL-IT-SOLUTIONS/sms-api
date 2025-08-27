@@ -43,7 +43,7 @@ class students extends Model
     public function subjects()
     {
         return $this->belongsToMany(
-            Subjects::class,   // related model
+            subjects::class,   // related model
             'student_subjects', // pivot table
             'student_id',       // FK on pivot for student
             'subject_id'        // FK on pivot for subject
