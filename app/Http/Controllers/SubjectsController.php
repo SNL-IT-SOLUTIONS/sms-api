@@ -59,7 +59,7 @@ class SubjectsController extends Controller
     public function addSubject(Request $request)
     {
         try {
-            $$request->validate([
+            $request->validate([
                 'subject_code' => 'required|string|max:20|unique:subjects,subject_code',
                 'subject_name' => 'required|string|max:255',
                 'units' => 'required|numeric|min:0',

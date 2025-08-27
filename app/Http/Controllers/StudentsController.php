@@ -137,7 +137,7 @@ public function getAssessmentBilling()
 
         // Prepare assessment billing data
         $assessment = [
-            'student_name' => $student->first_name . ' ' . $student->last_name,
+            'student_name' => $student->examSchedule?->admission?->first_name . ' ' . $student->examSchedule?->admission?->last_name,
             'student_number' => $student->student_number,
             'course' => $student->course->course_name ?? null,
             'campus' => $student->examSchedule?->admission?->campus?->campus_name ?? null,
