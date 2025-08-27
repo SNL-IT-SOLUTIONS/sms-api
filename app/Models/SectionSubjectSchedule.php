@@ -16,7 +16,7 @@ class SectionSubjectSchedule extends Model
         'subject_id',
         'day',
         'time',
-        'room',
+        'room_id',
         'teacher_id',
     ];
 
@@ -34,5 +34,9 @@ class SectionSubjectSchedule extends Model
     public function teacher()
     {
         return $this->belongsTo(accounts::class, 'teacher_id');
+    }
+    public function room()
+    {
+        return $this->belongsTo(building_rooms::class, 'room_id', 'id');
     }
 }

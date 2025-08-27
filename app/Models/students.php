@@ -81,6 +81,20 @@ public function campus()
 
 
 
+public function schedules()
+{
+    return $this->hasManyThrough(
+        SectionSubjectSchedule::class, // target
+        sections::class,                // through
+        'id',                          // foreign key on sections
+        'section_id',                  // foreign key on schedules
+        'section_id',                  // local key on students
+        'id'                           // local key on sections
+    )->with(['subject', 'teacher', 'room']);
+}
+
+
+
 
 
 }

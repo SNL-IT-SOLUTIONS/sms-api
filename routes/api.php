@@ -19,6 +19,7 @@ use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
 use App\Http\Controllers\GradeLevelsController;
 Use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\StudentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 
@@ -140,11 +141,13 @@ Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
 
 //Payments
 Route::post('confirmpayment/{id}', [PaymentsController::class, 'confirmPayment']);
-Route::get('getassessmentbill', [PaymentsController::class, 'getAssessmentBilling'])->middleware('auth:sanctum');
 
 
 
 
+//STUDENT PROFILE
+Route::get('getassessmentbill', [StudentsController::class, 'getAssessmentBilling'])->middleware('auth:sanctum');
+Route::get('getmyschedule', [StudentsController::class, 'getMySchedule'])->middleware('auth:sanctum');
 
 
 
