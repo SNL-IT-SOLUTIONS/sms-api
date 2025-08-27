@@ -172,7 +172,7 @@ public function getAssessmentBilling()
 
         return response()->json([
             'isSuccess' => true,
-            'data' => $assessment
+            'bill' => $assessment
         ]);
 
     } catch (\Exception $e) {
@@ -221,7 +221,7 @@ public function getMySchedule()
         return response()->json([
             'isSuccess' => true,
             'message' => 'Student schedule retrieved successfully.',
-            'data' => $formatted
+            'schedules' => $formatted
         ]);
 
     } catch (\Exception $e) {
@@ -232,6 +232,56 @@ public function getMySchedule()
         ], 500);
     }
 }
+
+
+public function getMyGrades()
+{
+    try {
+        $student = auth()->user();
+
+        if (!$student) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Unauthorized.'
+            ], 401);
+        }
+
+        // Load student subjects with pivot data (grades)
+        $student->load('subjects');
+
+        if ($student->subjects->isEmpty()) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'No grades found for this student.'
+            ]);
+        }
+
+        // Format response
+        $grades = $student->subjects->map(function ($sub) {
+            return [
+                'subject_code'   => $sub->subject_code,
+                'subject_name'   => $sub->subject_name,
+                'units'          => $sub->units,
+                'final_rating'   => $sub->pivot->final_rating ?? null,
+                'remarks'        => $sub->pivot->remarks ?? null,
+            ];
+        });
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Student grades retrieved successfully.',
+            'grades' => $grades
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve grades.',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
 
 
 

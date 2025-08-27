@@ -40,16 +40,17 @@ class students extends Model
         'password',
     ];
 
-public function subjects()
-{
-    return $this->belongsToMany(
-        subjects::class, // Subject model
-        'student_subjects',         // Pivot table
-        'student_id',               // Foreign key on pivot for this model
-        'subject_id'                // Foreign key on pivot for related model
-    )->withPivot('school_year_id') // include pivot fields if needed
-     ->withTimestamps();
-}
+    public function subjects()
+    {
+        return $this->belongsToMany(
+            Subjects::class,   // related model
+            'student_subjects', // pivot table
+            'student_id',       // FK on pivot for student
+            'subject_id'        // FK on pivot for subject
+        )
+        ->withPivot(['school_year_id',  'final_rating', 'remarks'])
+        ->withTimestamps();
+    }
     public function admission()
     {
         return $this->belongsTo(admissions::class, 'admission_id');
@@ -92,6 +93,7 @@ public function schedules()
         'id'                           // local key on sections
     )->with(['subject', 'teacher', 'room']);
 }
+
 
 
 
