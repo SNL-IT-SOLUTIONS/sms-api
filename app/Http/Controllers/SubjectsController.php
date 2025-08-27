@@ -12,7 +12,7 @@ class SubjectsController extends Controller
     public function getSubjects(Request $request)
     {
         try {
-            $subjects = subjects::with('gradeLevel')
+            $subjects = subjects::with(['gradeLevel', 'prerequisites'])
                 ->where('is_archived', 0)
                 ->paginate(5);
 
@@ -24,7 +24,14 @@ class SubjectsController extends Controller
                     'units' => $subject->units,
                     'grade_level_id' => $subject->grade_level_id,
                     'grade_level_name' => $subject->gradeLevel ? $subject->gradeLevel->grade_level : null,
-                    'subject_type' => $subject->subject_type, // <-- added
+                    'subject_type' => $subject->subject_type,
+                    'prerequisites' => $subject->prerequisites->map(function ($pre) {
+                        return [
+                            'id' => $pre->id,
+                            'subject_code' => $pre->subject_code,
+                            'subject_name' => $pre->subject_name,
+                        ];
+                    }),
                 ];
             });
 
@@ -38,7 +45,6 @@ class SubjectsController extends Controller
                     'last_page' => $subjects->lastPage(),
                 ],
             ], 200);
-
         } catch (Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
@@ -51,12 +57,14 @@ class SubjectsController extends Controller
     public function addSubject(Request $request)
     {
         try {
-            $request->validate([
+            $$request->validate([
                 'subject_code' => 'required|string|max:20|unique:subjects,subject_code',
                 'subject_name' => 'required|string|max:255',
                 'units' => 'required|numeric|min:0',
                 'grade_level_id' => 'required|exists:grade_levels,id',
-                'subject_type' => 'required|string', // <-- added validation
+                'subject_type' => 'required|string',
+                'prerequisites' => 'array',   // optional
+                'prerequisites.*' => 'exists:subjects,id',
             ]);
 
             $subject = subjects::create([
@@ -64,8 +72,13 @@ class SubjectsController extends Controller
                 'subject_name' => $request->subject_name,
                 'units' => $request->units,
                 'grade_level_id' => $request->grade_level_id,
-                'subject_type' => $request->subject_type, // <-- added
+                'subject_type' => $request->subject_type,
             ]);
+
+            if ($request->has('prerequisites')) {
+                $subject->prerequisites()->sync($request->prerequisites);
+            }
+
 
             return response()->json([
                 'isSuccess' => true,
@@ -82,49 +95,55 @@ class SubjectsController extends Controller
     }
 
     public function updateSubject(Request $request, $id)
-{
-    try {
-        $request->validate([
-            'subject_code' => 'sometimes|string|max:20|unique:subjects,subject_code,' . $id,
-            'subject_name' => 'sometimes|string|max:255',
-            'units' => 'sometimes|numeric|min:0',
-            'grade_level_id' => 'sometimes|exists:grade_levels,id',
-            'subject_type' => 'sometimes',
-        ]);
+    {
+        try {
+            $request->validate([
+                'subject_code' => 'sometimes|string|max:20|unique:subjects,subject_code,' . $id,
+                'subject_name' => 'sometimes|string|max:255',
+                'units' => 'sometimes|numeric|min:0',
+                'grade_level_id' => 'sometimes|exists:grade_levels,id',
+                'subject_type' => 'sometimes',
+                'prerequisites' => 'array',
+                'prerequisites.*' => 'exists:subjects,id',
+            ]);
 
-        $subject = subjects::find($id);
+            $subject = subjects::find($id);
 
-        if (!$subject) {
+            if (!$subject) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Subject not found.'
+                ]);
+            }
+
+            $updateData = $request->only([
+                'subject_code',
+                'subject_name',
+                'units',
+                'grade_level_id',
+                'subject_type',
+            ]);
+
+            $subject->update($updateData);
+
+            // Handle prerequisites
+            if ($request->has('prerequisites')) {
+                $subject->prerequisites()->sync($request->prerequisites);
+            }
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Subject updated successfully.',
+                'subject' => $subject
+            ]);
+        } catch (Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Subject not found.'
+                'message' => 'Failed to update subject.',
+                'error' => $e->getMessage()
             ]);
         }
-
-        // Only update the fields provided in the request
-        $updateData = $request->only([
-            'subject_code',
-            'subject_name',
-            'units',
-            'grade_level_id',
-            'subject_type',
-        ]);
-
-        $subject->update($updateData);
-
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Subject updated successfully.',
-            'subject' => $subject
-        ]);
-    } catch (Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to update subject.',
-            'error' => $e->getMessage()
-        ]);
     }
-}
 
 
     public function deleteSubject($id)

@@ -33,5 +33,9 @@ public function students()
     return $this->belongsTo(curriculums::class);
 }
 
+public function prerequisites()
+{
+    return $this->belongsToMany(Subject::class, 'subject_prerequisites', 'subject_id', 'prerequisite_id');
+}
 
 }
