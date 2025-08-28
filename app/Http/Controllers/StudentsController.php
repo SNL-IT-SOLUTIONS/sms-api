@@ -184,6 +184,62 @@ public function getAssessmentBilling()
 }
 
 
+public function transactionHistory()
+{
+    try {
+        // Get logged-in student
+        $student = auth()->user();
+
+        if (!$student) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Unauthorized.'
+            ], 401);
+        }
+
+        // Fetch all payments for this student
+        $payments = payments::where('student_id', $student->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        if ($payments->isEmpty()) {
+            return response()->json([
+                'isSuccess' => true,
+                'transactions' => [],
+                'message' => 'No transactions found.'
+            ]);
+        }
+
+        // Map payments into a clean response format
+        $transactions = $payments->map(function ($p) {
+            return [
+                'transaction_id'   => $p->id,
+                'receipt_no'       => $p->receipt_no,
+                'amount'           => number_format($p->amount, 2),
+                'paid_amount'      => number_format($p->paid_amount, 2),
+                'remaining_balance'=> number_format($p->remaining_balance, 2),
+                'payment_method'   => ucfirst($p->payment_method),
+                'status'           => ucfirst($p->status),
+                'remarks'          => $p->remarks,
+                'paid_at'          => $p->paid_at ? $p->paid_at->format('Y-m-d H:i:s') : null,
+                'created_at'       => $p->created_at->format('Y-m-d H:i:s'),
+            ];
+        });
+
+        return response()->json([
+            'isSuccess' => true,
+            'transactions' => $transactions
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => $e->getMessage()
+        ], 500);
+    }
+}
+
+
 public function getMySchedule()
 {
     try {

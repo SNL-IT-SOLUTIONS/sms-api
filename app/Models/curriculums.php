@@ -25,4 +25,8 @@ public function course()
     return $this->belongsTo(courses::class);
 }
 
+public function students()
+{
+    return $this->hasMany(students::class, 'curriculum_id');
+}
 }

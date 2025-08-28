@@ -81,6 +81,12 @@ public function campus()
     return $this->belongsTo(school_campus::class, 'school_campus_id');
 }
 
+// Students.php
+public function curriculum()
+{
+    return $this->belongsTo(curriculums::class, 'curriculum_id');
+}
+
 
 
 public function schedules()
