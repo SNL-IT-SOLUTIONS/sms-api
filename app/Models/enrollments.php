@@ -13,6 +13,7 @@ class Student extends Model
     protected $table = 'students'; // ✅ matches your table
 
     protected $fillable = [
+        'total_amount',
         'curriculum_id',
         'exam_schedules_id',
         'student_number',

@@ -712,7 +712,7 @@ class EnrollmentsController extends Controller
 
 
 
-    public function enrollStudent(Request $request)
+   public function enrollStudent(Request $request)
 {
     $studentIds = $request->input('student_ids'); // expects array of IDs
     $results = [];
@@ -755,10 +755,10 @@ class EnrollmentsController extends Controller
                 continue;
             }
 
-        $curriculum = DB::table('curriculums')
-        ->where('course_id', $student->course_id)
-        ->orderBy('created_at', 'desc') // latest by created date
-        ->first();
+            $curriculum = DB::table('curriculums')
+                ->where('course_id', $student->course_id)
+                ->orderBy('created_at', 'desc')
+                ->first();
             if (!$curriculum) {
                 $results[] = [
                     'student_id' => $id,
@@ -806,23 +806,27 @@ class EnrollmentsController extends Controller
             $miscFee    = 2000;
             $unitsFee   = $totalUnits * $unitRate;
             $tuitionFee = $unitsFee + $miscFee;
+            $totalAmount = $tuitionFee; // new total_amount field
 
             $student->update([
-                'curriculum_id' => $curriculum->id, // ✅ assign curriculum
-                'units_fee'   => $unitsFee,
-                'misc_fee'    => $miscFee,
-                'tuition_fee' => $tuitionFee,
-                'is_enrolled' => 1,
+                'curriculum_id' => $curriculum->id,
+                'units_fee'     => $unitsFee,
+                'misc_fee'      => $miscFee,
+                'tuition_fee'   => $tuitionFee,
+                'total_amount'  => $totalAmount, // store total_amount
+                'is_enrolled'   => 1,
             ]);
 
             $results[] = [
-                'student_id' => $id,
-                'status' => 'success',
-                'total_units' => $totalUnits,
-                'units_fee' => $unitsFee,
-                'misc_fee' => $miscFee,
-                'tuition_fee' => $tuitionFee,
+                'student_id'   => $id,
+                'status'       => 'success',
+                'total_units'  => $totalUnits,
+                'units_fee'    => $unitsFee,
+                'misc_fee'     => $miscFee,
+                'tuition_fee'  => $tuitionFee,
+                'total_amount' => $totalAmount,
             ];
+
         } catch (\Exception $e) {
             $results[] = [
                 'student_id' => $id,
@@ -838,6 +842,7 @@ class EnrollmentsController extends Controller
         'results' => $results,
     ]);
 }
+
 
 
 
