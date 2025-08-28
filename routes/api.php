@@ -149,6 +149,7 @@ Route::get('getassessmentbill', [StudentsController::class, 'getAssessmentBillin
 Route::get('getmyschedule', [StudentsController::class, 'getMySchedule'])->middleware('auth:sanctum');
 Route::get('getmygrades', [StudentsController::class, 'getMyGrades'])->middleware('auth:sanctum');
 Route::get('transactionhistory', [StudentsController::class, 'transactionHistory'])->middleware('auth:sanctum');
+Route::post('/payments/webhook', [StudentsController::class, 'handleWebhook']);
 
 
 

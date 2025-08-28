@@ -14,7 +14,9 @@
         "laravel/sanctum": "^2.11",
         "laravel/socialite": "^5.21",
         "laravel/tinker": "^2.5",
-        "maatwebsite/excel": "3.1.50"
+        "luigel/laravel-paymongo": "^2.5",
+        "maatwebsite/excel": "3.1.50",
+        "paymongo/paymongo-php": "^0.0.0"
     },
     "require-dev": {
         "facade/ignition": "^2.5",

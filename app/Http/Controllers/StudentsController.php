@@ -9,6 +9,7 @@ use App\Models\courses;
 use App\Models\campuses;
 use App\Models\subjects;
 use App\Models\payments;
+use Luigel\Paymongo\Facades\Paymongo;
 
 
 use Illuminate\Http\Request;
@@ -337,6 +338,69 @@ public function getMyGrades()
         ], 500);
     }
 }
+
+
+//PAYMENT
+    public function payOnline(Request $request)
+    {
+        $student = auth()->user();
+        $amount = $request->amount * 100; // PayMongo uses centavos
+
+      $checkout = Paymongo::checkout()->create([
+    'line_items' => [[
+        'name' => 'Tuition Payment',
+        'amount' => $amount,
+        'currency' => 'PHP',
+        'quantity' => 1,
+    ]],
+    'payment_method_types' => ['gcash', 'card'],
+    'success_url' => url('/payment/success'),
+    'cancel_url'  => url('/payment/cancel'),
+    'description' => "Payment for student #{$student->student_number}",
+    'metadata' => [
+        'student_id' => $student->id, // 💡 no regex needed later
+    ]
+]);
+        return response()->json([
+            'isSuccess' => true,
+            'checkout_url' => $checkout->checkout_url
+        ]);
+    }
+
+
+ public function handleWebhook(Request $request)
+{
+    $data = $request->all();
+
+    if (
+        isset($data['data']['attributes']['status']) &&
+        $data['data']['attributes']['status'] === 'paid'
+    ) {
+        $attributes = $data['data']['attributes'];
+
+        // ✅ Get student from metadata
+        $studentId = $attributes['metadata']['student_id'] ?? null;
+
+        if ($studentId) {
+            payments::create([
+                'student_id'       => $studentId,
+                'amount'           => $attributes['amount'] / 100, // total transaction amount
+                'paid_amount'      => $attributes['amount'] / 100, // full paid for now
+                'remaining_balance'=> 0, // or calculate if you’re tracking balance
+                'payment_method'   => $attributes['payment_method_used'] ?? 'unknown',
+                'status'           => 'success',
+                'receipt_no'       => 'RCPT-' . strtoupper(uniqid()),
+                'remarks'          => 'Online Payment via PayMongo',
+                'paid_at'          => now(),
+                'reference_no'     => $attributes['id'], // from PayMongo
+                'received_by'      => 'System' // since auto from webhook
+            ]);
+        }
+    }
+
+    return response()->json(['ok' => true]);
+}
+
 
 
 
