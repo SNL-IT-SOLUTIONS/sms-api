@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class payments extends Model
 {
     use HasFactory;
-     protected $table = 'payments';
 
-    // Fillable fields for mass assignment
+    protected $table = 'payments';
+
     protected $fillable = [
         'student_id',
         'amount',
@@ -25,7 +25,6 @@ class payments extends Model
         'receipt_no'
     ];
 
-    // Casts for convenience
     protected $casts = [
         'amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
@@ -33,13 +32,49 @@ class payments extends Model
     ];
 
 
-    /**
-     * Payment belongs to a student
-     */
-   public function student()
+    public function student()
+    {
+        return $this->belongsTo(students::class, 'student_id');
+    }
+
+        public function admission()
+    {
+        return $this->belongsTo(admissions::class, 'admission_id');
+    }
+
+    public function examSchedule()
+    {
+        return $this->belongsTo(exam_schedules::class, 'exam_schedules_id');
+    }
+
+    public function course()
+    {
+        return $this->belongsTo(courses::class, 'course_id');
+    }
+
+    public function section()
+    {
+        return $this->belongsTo(sections::class, 'section_id'); 
+    }
+public function payments()
 {
-    return $this->belongsTo(students::class, 'student_id'); // again, must match the column
+    return $this->hasMany(payments::class, 'student_id'); // must match the column in payments table
 }
+
+public function campus()
+{
+    return $this->belongsTo(school_campus::class, 'school_campus_id');
 }
+
+// Students.php
+public function curriculum()
+{
+    return $this->belongsTo(curriculums::class, 'curriculum_id');
+}
+
+
+  
+}
+
 
 

@@ -5,8 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\payments;
 use App\Models\students;
 use Barryvdh\DomPDF\Facade\Pdf; // Assuming you have a PDF facade set up
-
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+
 
 class PaymentsController extends Controller
 {
@@ -74,5 +75,125 @@ class PaymentsController extends Controller
         ], 500);
     }
 }
+
+    // public function createIntent(Request $request)
+    // {
+    //     $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+    //         ->post('https://api.paymongo.com/v1/payment_intents', [
+    //             'data' => [
+    //                 'attributes' => [
+    //                     'amount' => $request->amount, // e.g. 10000 = ₱100
+    //                     'payment_method_allowed' => ['card'],
+    //                     'currency' => 'PHP',
+    //                 ]
+    //             ]
+    //         ]);
+
+    //     return $response->json();
+    // }
+
+
+public function testPayMongoPayment(Request $request)
+{
+    $student = auth()->user();
+    $amount = intval($request->amount * 100); // PayMongo expects integer centavos
+
+    // 1️⃣ Create Payment Intent
+    $intentResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+        ->post('https://api.paymongo.com/v1/payment_intents', [
+            'data' => [
+                'attributes' => [
+                    'amount' => $amount,
+                    'currency' => 'PHP',
+                    'payment_method_allowed' => ['card'],
+                    'description' => "Payment for student #{$student->student_number}",
+                    'metadata' => [
+                        'student_id' => (string) $student->id
+                    ]
+                ]
+            ]
+        ]);
+
+    $paymentIntent = $intentResponse->json();
+
+    // ✅ Check if Payment Intent creation failed
+    if (!isset($paymentIntent['data'])) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Payment Intent creation failed',
+            'response' => $paymentIntent
+        ], 400);
+    }
+
+    $paymentIntentId = $paymentIntent['data']['id'];
+
+   $billingName = $student->examSchedule->admission?->first_name . ' ' . $student->examSchedule->admission?->last_name;
+$billingEmail = $student->examSchedule->admission?->email;
+
+$paymentMethodResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+    ->post('https://api.paymongo.com/v1/payment_methods', [
+        'data' => [
+            'attributes' => [
+                'type' => 'card',
+                'details' => [
+                    'card_number' => '4343434343434345', // PayMongo test card
+                    'exp_month' => 12,
+                    'exp_year' => 25,
+                    'cvc' => '123'
+                ],
+                'billing' => [
+                    'name' => $billingName,
+                    'email' => $billingEmail // ✅ required
+                ]
+            ]
+        ]
+    ]);
+
+    $paymentMethod = $paymentMethodResponse->json();
+
+    if (!isset($paymentMethod['data'])) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Payment Method creation failed',
+            'response' => $paymentMethod
+        ], 400);
+    }
+
+    $paymentMethodId = $paymentMethod['data']['id'];
+
+    // 3️⃣ Attach Payment Method to Payment Intent
+    $attachResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+        ->post("https://api.paymongo.com/v1/payment_intents/{$paymentIntentId}/attach", [
+            'data' => [
+                'attributes' => [
+                    'payment_method' => $paymentMethodId
+                ]
+            ]
+        ]);
+
+    $attachedIntent = $attachResponse->json();
+
+    // 4️⃣ Record payment in DB (simulate successful payment)
+    payments::create([
+        'student_id'       => $student->id,
+        'amount'           => $amount / 100,
+        'paid_amount'      => $amount / 100,
+        'remaining_balance'=> 0,
+        'payment_method'   => 'card',
+        'status'           => 'success',
+        'receipt_no'       => 'RCPT-' . strtoupper(uniqid()),
+        'remarks'          => 'Test Online Payment via PayMongo',
+        'paid_at'          => now(),
+        'reference_no'     => $paymentIntentId,
+        'received_by'      => 'System'
+    ]);
+
+    return response()->json([
+        'isSuccess' => true,
+        'payment_intent' => $attachedIntent
+    ]);
+}
+
+
 
 }
