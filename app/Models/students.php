@@ -14,6 +14,7 @@ class students extends Model
      protected $table = 'students';
 
    protected $fillable = [
+    'curriculum_id',
     'exam_schedules_id',
     'student_number',
     'password',

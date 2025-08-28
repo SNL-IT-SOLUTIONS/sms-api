@@ -469,43 +469,49 @@ class EnrollmentsController extends Controller
 
 
 
-    public function getStudentCurriculum($studentId)
-    {
-        try {
-            $student = students::with([
-                'enrollment.section.curriculum.subjects'
-            ])->find($studentId);
+   public function getStudentCurriculums($id)
+{
+    try {
+        $student = students::find($id);
 
-            if (!$student) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Student not found.'
-                ]);
-            }
-
-            $curriculumSubjects = optional($student->enrollment->section->curriculum)->subjects ?? collect([]);
-
-            return response()->json([
-                'isSuccess' => true,
-                'message' => 'Curriculum retrieved successfully.',
-                'student_number' => $student->student_number,
-                'curriculum_subjects' => $curriculumSubjects->map(function ($subject) {
-                    return [
-                        'id' => $subject->id,
-                        'subject_code' => $subject->subject_code,
-                        'subject_name' => $subject->subject_name,
-                        'units' => $subject->units
-                    ];
-                })
-            ]);
-        } catch (\Exception $e) {
+        if (!$student) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve curriculum.',
-                'error' => $e->getMessage()
-            ]);
+                'message' => 'Student not found.'
+            ], 404);
         }
+
+        $curriculums = DB::table('curriculums')
+            ->join('courses', 'curriculums.course_id', '=', 'courses.id')
+            ->where('curriculums.course_id', $student->course_id) // align with student's course
+            ->select(
+                'curriculums.id',
+                'curriculums.curriculum_name',
+                'courses.course_name'
+            )
+            ->get();
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Curriculums retrieved successfully.',
+            'student_number' => $student->student_number,
+            'course' => $student->course_id,
+            'curriculums' => $curriculums->map(function ($c) {
+                return [
+                    'id'   => $c->id,
+                    'name' => $c->curriculum_name . ' (' . $c->course_name . ')'
+                ];
+            })
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message' => 'Failed to retrieve curriculums.',
+            'error' => $e->getMessage()
+        ]);
     }
+}
+
 
 
 
@@ -706,7 +712,7 @@ class EnrollmentsController extends Controller
 
 
 
-    public function enrollStudents(Request $request)
+    public function enrollStudent(Request $request)
 {
     $studentIds = $request->input('student_ids'); // expects array of IDs
     $results = [];
@@ -749,7 +755,10 @@ class EnrollmentsController extends Controller
                 continue;
             }
 
-            $curriculum = DB::table('curriculums')->where('course_id', $student->course_id)->first();
+        $curriculum = DB::table('curriculums')
+        ->where('course_id', $student->course_id)
+        ->orderBy('created_at', 'desc') // latest by created date
+        ->first();
             if (!$curriculum) {
                 $results[] = [
                     'student_id' => $id,
@@ -799,6 +808,7 @@ class EnrollmentsController extends Controller
             $tuitionFee = $unitsFee + $miscFee;
 
             $student->update([
+                'curriculum_id' => $curriculum->id, // ✅ assign curriculum
                 'units_fee'   => $unitsFee,
                 'misc_fee'    => $miscFee,
                 'tuition_fee' => $tuitionFee,
@@ -1097,10 +1107,13 @@ class EnrollmentsController extends Controller
                 $admission    = $examSchedule?->applicant;
                 $courseId     = $student->course_id;
 
-                // 📚 Curriculum & Grouped Subjects
-                $curriculum   = DB::table('curriculums')
-                    ->where('course_id', $courseId)
+          // 📚 Curriculum & Grouped Subjects
+            $curriculum = null;
+            if ($student->curriculum_id) {
+                $curriculum = DB::table('curriculums')
+                    ->where('id', $student->curriculum_id)
                     ->first();
+            }
 
                 $groupedSubjects = [];
                 $totalUnits      = 0;

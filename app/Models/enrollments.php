@@ -13,6 +13,7 @@ class Student extends Model
     protected $table = 'students'; // ✅ matches your table
 
     protected $fillable = [
+        'curriculum_id',
         'exam_schedules_id',
         'student_number',
         'password',
@@ -33,6 +34,8 @@ class Student extends Model
         'has_birth_certificate',
         'academic_year_id',
         'grade_level_id',
+        'created_at',
+        'updated_at',
     ];
 
     // 🔗 Relationships

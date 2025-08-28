@@ -131,10 +131,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
     Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
     Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
-    Route::post('enrollstudent/{id}', [EnrollmentsController::class, 'enrollStudent']);
+    Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
     Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
     Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
     Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
+    Route::get('getstudentcurriculums/{id}', [EnrollmentsController::class, 'getStudentCurriculums']);
 });
 
 //Payments
