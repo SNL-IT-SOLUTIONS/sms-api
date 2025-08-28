@@ -220,18 +220,18 @@ public function getAllPayments(Request $request)
         $query = payments::with('student.admission')->orderBy('created_at', 'desc');
 
         // Optional search by student name, student_id, receipt_no, or status
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('student.admission', function($q2) use ($search) {
-                    $q2->where('first_name', 'like', "%$search%")
-                       ->orWhere('last_name', 'like', "%$search%");
-                })
-                ->orWhere('student_id', $search)
-                ->orWhere('receipt_no', 'like', "%$search%")
-                ->orWhere('status', $search);
-            });
-        }
+      if ($request->has('search')) {
+    $search = $request->search;
+    $query->where(function($q) use ($search) {
+        $q->whereHas('student.examSchedule.admission', function($q2) use ($search) {
+            $q2->where('first_name', 'like', "%$search%")
+               ->orWhere('last_name', 'like', "%$search%");
+        })
+        ->orWhere('student_id', $search)
+        ->orWhere('receipt_no', 'like', "%$search%")
+        ->orWhere('status', $search);
+    });
+}
 
         $payments = $query->paginate($perPage, ['*'], 'page', $page);
 
