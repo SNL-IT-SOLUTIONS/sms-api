@@ -1204,6 +1204,10 @@ class EnrollmentsController extends Controller
     }
 
 
+    
+
+
+
 
     public function sendReceipt(Request $request, $id)
     {

@@ -140,8 +140,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //Payments
 Route::post('confirmpayment/{id}', [PaymentsController::class, 'confirmPayment']);
-
 Route::post('/paymongo/create-intent', [PaymentsController::class, 'testPayMongoPayment'])->middleware('auth:sanctum');
+Route::get('getpayments', [PaymentsController::class, 'getAllPayments']);
 
 
 //STUDENT PROFILE
