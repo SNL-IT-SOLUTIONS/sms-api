@@ -76,10 +76,11 @@
 
     <h2>Payment Details</h2>
     @php
+        $tuitionFeeNum = (float) str_replace(',', '', $tuitionFee);
         $miscFeeNum = (float) str_replace(',', '', $miscFee);
         $unitsFeeNum = (float) str_replace(',', '', $unitsFee);
-        $totalFee = $miscFeeNum + $unitsFeeNum;
-        $tuitionFeeNum = (float) str_replace(',', '', $tuitionFee);
+        $totalFee = $tuitionFeeNum + $miscFeeNum + $unitsFeeNum;
+
         $paidAmountNum = (float) str_replace(',', '', $paidAmount);
         $remainingBalanceNum = (float) str_replace(',', '', $remainingBalance);
     @endphp
@@ -87,6 +88,10 @@
         <tr>
             <th>Description</th>
             <th>Amount (₱)</th>
+        </tr>
+        <tr>
+            <td>Tuition Fee</td>
+            <td>{{ number_format($tuitionFeeNum, 2) }}</td>
         </tr>
         <tr>
             <td>Miscellaneous Fee</td>
@@ -97,8 +102,8 @@
             <td>{{ number_format($unitsFeeNum, 2) }}</td>
         </tr>
         <tr>
-            <td>Total Fee</td>
-            <td>{{ number_format($totalFee, 2) }}</td>
+            <td><b>Total Fee</b></td>
+            <td><b>{{ number_format($totalFee, 2) }}</b></td>
         </tr>
         <tr>
             <td><b>Paid Amount</b></td>
