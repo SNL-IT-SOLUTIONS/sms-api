@@ -1177,6 +1177,7 @@ public function enrollStudent(Request $request)
                     'is_active'      => $student->is_active,
                     'misc_fee'       => $student->misc_fee,
                     'units_fee'      => $student->units_fee,
+                    'total_amount'   => $student->total_amount,
                     'exam' => [
                         'exam_id'     => $examSchedule?->id,
                         'exam_date'   => $examSchedule?->exam_date,
