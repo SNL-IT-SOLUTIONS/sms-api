@@ -18,17 +18,17 @@ class PaymentsController extends Controller
   public function confirmPayment(Request $request, $studentId)
 {
     try {
-        // ✅ Validate input
+        //  Validate input
         $validated = $request->validate([
             'amount'         => 'required|numeric|min:1',
             'payment_method' => 'nullable|string|in:cash,card,gcash,bank_transfer', // customize allowed methods
             'remarks'        => 'nullable|string|max:255',
         ]);
 
-        // ✅ Fetch student safely
+        //  Fetch student safely
         $student = students::findOrFail($studentId);
 
-        // ✅ Ensure student still has a balance
+        //  Ensure student still has a balance
         $totalDue = (float) $student->total_amount;
         if ($totalDue <= 0) {
             return response()->json([
@@ -37,14 +37,14 @@ class PaymentsController extends Controller
             ], 400);
         }
 
-        // ✅ Cap payment to total due (no overpaying)
+        //  Cap payment to total due (no overpaying)
         $paidAmount = min($validated['amount'], $totalDue);
 
-        // ✅ Calculate outstanding balance
+        //  Calculate outstanding balance
         $outstandingBalance = $totalDue - $paidAmount;
         $paymentStatus = ($outstandingBalance <= 0) ? 'paid' : 'partial';
 
-        // ✅ Generate receipt number (atomic to avoid duplicate on concurrent calls)
+        //  Generate receipt number (atomic to avoid duplicate on concurrent calls)
         $receiptNo = 'RCPT-' . str_pad(
             $student->payments()->lockForUpdate()->count() + 1, 
             6, 
@@ -52,7 +52,7 @@ class PaymentsController extends Controller
             STR_PAD_LEFT
         );
 
-        // ✅ Create payment record
+        //  Create payment record
         $payment = payments::create([
             'student_id'        => $student->id,
             'amount'            => $totalDue,   // full due before payment
@@ -66,13 +66,13 @@ class PaymentsController extends Controller
             'remaining_balance' => $outstandingBalance,
         ]);
 
-        // ✅ Update student record
+        //  Update student record
         $student->update([
             'total_amount'   => $outstandingBalance,
             'payment_status' => $paymentStatus,
         ]);
 
-        // ✅ Response
+        //  Response
         return response()->json([
             'isSuccess'         => true,
             'message'           => 'Payment confirmed and receipt generated.',

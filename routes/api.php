@@ -166,6 +166,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //Assign Schedule
 Route::post('/assign-schedule', [ScheduleController::class, 'assignSchedule']);
+Route::get('/getschedules', [ScheduleController::class, 'getSchedule']);
+Route::post('/updateschedule/{id}', [ScheduleController::class, 'updateSchedule']);
+Route::post('/deleteschedule/{id}', [ScheduleController::class, 'deleteSchedule']);
+
 
 
 
@@ -271,4 +275,5 @@ Route::prefix('dropdown')->group(function () {
     Route::get('buildings/{campusId}', [AdmissionsController::class, 'getBuildingsByCampus']);
     Route::get('buildings', [CampusBuildingsController::class, 'getBuildingsDropdown']);
     Route::get('gradelevels', [EnrollmentsController::class, 'getGradeLevelsDropdown']);
+    Route::get('faculties', [ScheduleController::class, 'getFacultyDropdown']);
 });
