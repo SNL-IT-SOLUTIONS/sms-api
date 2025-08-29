@@ -683,7 +683,7 @@ public function sendExamination(Request $request)
                     'required',
                     'exists:building_rooms,id',
                     function ($attribute, $value, $fail) use ($request) {
-                        $room = \App\Models\building_rooms::find($value);
+                        $room = building_rooms::find($value);
                         if (!$room || $room->building_id != $request->building_id) {
                             $fail('The selected room does not belong to the selected building.');
                         }
@@ -743,6 +743,7 @@ public function sendExamination(Request $request)
                         'exam_date' => $examDate,
                         'academic_year' => $admission->school_years->school_year,
                         'exam_sent' => $wasAlreadySent,
+                        
                     ]
                 );
 

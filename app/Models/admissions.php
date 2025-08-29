@@ -13,6 +13,7 @@ class Admissions extends Model
 
     protected $fillable = [
         'lrn',
+        'sent_exam_schedule',
         'applicant_number',
         'academic_year_id',
         'grade_level_id',
