@@ -207,8 +207,8 @@ class EnrollmentsController extends Controller
         'has_birth_certificate' => $schedule->has_birth_certificate ?? null,
 
         // Admission Info (guarded)
-         'course'            => optional($admission->academic_program)->course_name ?? null,
-         'course_code'     => optional($admission->academic_program)->course_code,
+         'course'          => optional($admission->academic_program)->course_name ?? null,
+         'course_code'     => optional($admission->course)->course_code ?? null,
         'campus_name'     => optional(optional($admission)->campus)->campus_name,
         'admission_id'    => $admission->id ?? null,
         'first_name'      => $admission->first_name ?? null,
