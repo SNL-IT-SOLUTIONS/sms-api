@@ -84,7 +84,7 @@ class ScheduleController extends Controller
                 'subject_id' => 'sometimes|exists:subjects,id',
                 'day' => 'sometimes|string|max:20',
                 'time' => 'sometimes|string|max:50',
-                'room_id' => 'nullable|exists:building_rooms,id',
+                'room_id' => 'n ullable|exists:building_rooms,id',
                 'teacher_id' => 'nullable|exists:accounts,id',
             ]);
 

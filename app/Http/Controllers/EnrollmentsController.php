@@ -86,11 +86,11 @@ class EnrollmentsController extends Controller
                     'room_name'         => optional($schedule->room)->room_name,
                     'building_name'     => optional($schedule->building)->building_name,
                     'campus_name'       => optional($schedule->campus)->campus_name,
-                      'course'            => optional($admission->academic_program)->course_name ?? null,
+                    'course'            => optional($admission->academic_program)->course_name ?? null,
 
                     // Full Admission Details
                     'admission_id'      => $admission->id ?? null,
-                  
+
                     'first_name'        => $admission->first_name ?? null,
                     'middle_name'       => $admission->middle_name ?? null,
                     'last_name'         => $admission->last_name ?? null,
@@ -185,74 +185,74 @@ class EnrollmentsController extends Controller
 
             $schedules = $query->paginate($perPage, ['*'], 'page', $page);
 
-           $data = $schedules->map(function ($schedule) {
-    $admission = $schedule->applicant;
+            $data = $schedules->map(function ($schedule) {
+                $admission = $schedule->applicant;
 
-    return [
-        // Exam Schedule Info
-        'id'              => $schedule->id,
-        'test_permit_no'  => $schedule->test_permit_no,
-        'exam_date'       => $schedule->exam_date,
-        'exam_time_from'  => $schedule->exam_time_from,
-        'exam_time_to'    => $schedule->exam_time_to,
-        'exam_score'      => $schedule->exam_score,
-        'exam_status'     => $schedule->exam_status,
-        'is_approved'     => $schedule->is_approved,
-        'room_name'       => optional($schedule->room)->room_name,
-        'building_name'   => optional($schedule->building)->building_name,
-        'has_form137'     => $schedule->has_form137 ?? null,
-        'has_form138'     => $schedule->has_form138 ?? null,
-        'has_good_moral'  => $schedule->has_good_moral ?? null,
-        'has_certificate_of_completion' => $schedule->has_certificate_of_completion ?? null,
-        'has_birth_certificate' => $schedule->has_birth_certificate ?? null,
+                return [
+                    // Exam Schedule Info
+                    'id'              => $schedule->id,
+                    'test_permit_no'  => $schedule->test_permit_no,
+                    'exam_date'       => $schedule->exam_date,
+                    'exam_time_from'  => $schedule->exam_time_from,
+                    'exam_time_to'    => $schedule->exam_time_to,
+                    'exam_score'      => $schedule->exam_score,
+                    'exam_status'     => $schedule->exam_status,
+                    'is_approved'     => $schedule->is_approved,
+                    'room_name'       => optional($schedule->room)->room_name,
+                    'building_name'   => optional($schedule->building)->building_name,
+                    'has_form137'     => $schedule->has_form137 ?? null,
+                    'has_form138'     => $schedule->has_form138 ?? null,
+                    'has_good_moral'  => $schedule->has_good_moral ?? null,
+                    'has_certificate_of_completion' => $schedule->has_certificate_of_completion ?? null,
+                    'has_birth_certificate' => $schedule->has_birth_certificate ?? null,
 
-        // Admission Info (guarded)
-         'course'          => optional($admission->academic_program)->course_name ?? null,
-         'course_code'     => optional($admission->course)->course_code ?? null,
-        'campus_name'     => optional(optional($admission)->campus)->campus_name,
-        'admission_id'    => $admission->id ?? null,
-        'first_name'      => $admission->first_name ?? null,
-        'middle_name'     => $admission->middle_name ?? null,
-        'last_name'       => $admission->last_name ?? null,
-        'suffix'          => $admission->suffix ?? null,
-        'full_name'       => trim(($admission->first_name ?? '') . ' ' . ($admission->middle_name ?? '') . ' ' . ($admission->last_name ?? '') . ' ' . ($admission->suffix ?? '')),
-        'gender'          => $admission->gender ?? null,
-        'birthdate'       => $admission->birthdate ?? null,
-        'birthplace'      => $admission->birthplace ?? null,
-        'civil_status'    => $admission->civil_status ?? null,
-        'email'           => $admission->email ?? null,
-        'contact_number'  => $admission->contact_number ?? null,
-        'telephone_number' => $admission->telephone_number ?? null,
-        'street_address'  => $admission->street_address ?? null,
-        'province'        => $admission->province ?? null,
-        'city'            => $admission->city ?? null,
-        'barangay'        => $admission->barangay ?? null,
-        'nationality'     => $admission->nationality ?? null,
-        'religion'        => $admission->religion ?? null,
-        'ethnic_affiliation' => $admission->ethnic_affiliation ?? null,
-        'is_4ps_member'   => $admission->is_4ps_member ?? null,
-        'is_insurance_member' => $admission->is_insurance_member ?? null,
-        'is_vaccinated'   => $admission->is_vaccinated ?? null,
-        'is_indigenous'   => $admission->is_indigenous ?? null,
-        'application_type' => $admission->application_type ?? null,
-        'lrn'             => $admission->lrn ?? null,
-        'last_school_attended' => $admission->last_school_attended ?? null,
-        'remarks'         => $admission->remarks ?? null,
-        'grade_level'     => $admission->grade_level_id ?? null,
-        'guardian_name'   => $admission->guardian_name ?? null,
-        'guardian_contact' => $admission->guardian_contact ?? null,
-        'mother_name'     => $admission->mother_name ?? null,
-        'mother_contact'  => $admission->mother_contact ?? null,
-        'father_name'     => $admission->father_name ?? null,
-        'father_contact'  => $admission->father_contact ?? null,
-        'blood_type'      => $admission->blood_type ?? null,
-        'good_moral'      => $admission && $admission->good_moral ? asset($admission->good_moral) : null,
-        'form_137'        => $admission && $admission->form_137 ? asset($admission->form_137) : null,
-        'form_138'        => $admission && $admission->form_138 ? asset($admission->form_138) : null,
-        'birth_certificate' => $admission && $admission->birth_certificate ? asset($admission->birth_certificate) : null,
-        'certificate_of_completion' => $admission && $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
-    ];
-});
+                    // Admission Info (guarded)
+                    'course'          => optional($admission->academic_program)->course_name ?? null,
+                    'course_code'     => optional($admission->course)->course_code ?? null,
+                    'campus_name'     => optional(optional($admission)->campus)->campus_name,
+                    'admission_id'    => $admission->id ?? null,
+                    'first_name'      => $admission->first_name ?? null,
+                    'middle_name'     => $admission->middle_name ?? null,
+                    'last_name'       => $admission->last_name ?? null,
+                    'suffix'          => $admission->suffix ?? null,
+                    'full_name'       => trim(($admission->first_name ?? '') . ' ' . ($admission->middle_name ?? '') . ' ' . ($admission->last_name ?? '') . ' ' . ($admission->suffix ?? '')),
+                    'gender'          => $admission->gender ?? null,
+                    'birthdate'       => $admission->birthdate ?? null,
+                    'birthplace'      => $admission->birthplace ?? null,
+                    'civil_status'    => $admission->civil_status ?? null,
+                    'email'           => $admission->email ?? null,
+                    'contact_number'  => $admission->contact_number ?? null,
+                    'telephone_number' => $admission->telephone_number ?? null,
+                    'street_address'  => $admission->street_address ?? null,
+                    'province'        => $admission->province ?? null,
+                    'city'            => $admission->city ?? null,
+                    'barangay'        => $admission->barangay ?? null,
+                    'nationality'     => $admission->nationality ?? null,
+                    'religion'        => $admission->religion ?? null,
+                    'ethnic_affiliation' => $admission->ethnic_affiliation ?? null,
+                    'is_4ps_member'   => $admission->is_4ps_member ?? null,
+                    'is_insurance_member' => $admission->is_insurance_member ?? null,
+                    'is_vaccinated'   => $admission->is_vaccinated ?? null,
+                    'is_indigenous'   => $admission->is_indigenous ?? null,
+                    'application_type' => $admission->application_type ?? null,
+                    'lrn'             => $admission->lrn ?? null,
+                    'last_school_attended' => $admission->last_school_attended ?? null,
+                    'remarks'         => $admission->remarks ?? null,
+                    'grade_level'     => $admission->grade_level_id ?? null,
+                    'guardian_name'   => $admission->guardian_name ?? null,
+                    'guardian_contact' => $admission->guardian_contact ?? null,
+                    'mother_name'     => $admission->mother_name ?? null,
+                    'mother_contact'  => $admission->mother_contact ?? null,
+                    'father_name'     => $admission->father_name ?? null,
+                    'father_contact'  => $admission->father_contact ?? null,
+                    'blood_type'      => $admission->blood_type ?? null,
+                    'good_moral'      => $admission && $admission->good_moral ? asset($admission->good_moral) : null,
+                    'form_137'        => $admission && $admission->form_137 ? asset($admission->form_137) : null,
+                    'form_138'        => $admission && $admission->form_138 ? asset($admission->form_138) : null,
+                    'birth_certificate' => $admission && $admission->birth_certificate ? asset($admission->birth_certificate) : null,
+                    'certificate_of_completion' => $admission && $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
+                ];
+            });
             return response()->json([
                 'isSuccess' => true,
                 'message'   => 'List of students who passed but not yet approved.',
@@ -714,149 +714,149 @@ class EnrollmentsController extends Controller
 
 
 
-public function enrollStudent(Request $request)
-{
-    $studentIds = $request->input('student_ids'); // expects array of IDs
-    $results = [];
+    public function enrollStudent(Request $request)
+    {
+        $studentIds = $request->input('student_ids'); // expects array of IDs
+        $results = [];
 
-    if (!is_array($studentIds) || empty($studentIds)) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => 'Please provide an array of student IDs.',
-        ], 400);
-    }
-
-    foreach ($studentIds as $id) {
-        try {
-            $student = students::find($id);
-            if (!$student) {
-                $results[] = [
-                    'student_id' => $id,
-                    'status'     => 'failed',
-                    'message'    => 'Student not found.'
-                ];
-                continue;
-            }
-
-            if (!$student->grade_level_id) {
-                $results[] = [
-                    'student_id' => $id,
-                    'status'     => 'failed',
-                    'message'    => 'Student does not have a grade level assigned.'
-                ];
-                continue;
-            }
-
-            $gradeLevel = DB::table('grade_levels')->where('id', $student->grade_level_id)->first();
-            if (!$gradeLevel) {
-                $results[] = [
-                    'student_id' => $id,
-                    'status'     => 'failed',
-                    'message'    => 'Grade level not found.'
-                ];
-                continue;
-            }
-
-            $curriculum = DB::table('curriculums')
-                ->where('course_id', $student->course_id)
-                ->orderBy('created_at', 'desc')
-                ->first();
-            if (!$curriculum) {
-                $results[] = [
-                    'student_id' => $id,
-                    'status'     => 'failed',
-                    'message'    => 'No curriculum assigned for this course.'
-                ];
-                continue;
-            }
-
-            $subjects = DB::table('curriculum_subject')
-                ->join('subjects', 'curriculum_subject.subject_id', '=', 'subjects.id')
-                ->where('curriculum_subject.curriculum_id', $curriculum->id)
-                ->where('subjects.grade_level_id', $gradeLevel->id)
-                ->select('subjects.*')
-                ->get();
-
-            if ($subjects->isEmpty()) {
-                $results[] = [
-                    'student_id' => $id,
-                    'status'     => 'failed',
-                    'message'    => 'No subjects found for this grade level in the curriculum.'
-                ];
-                continue;
-            }
-
-            // Remove previous subjects
-            DB::table('student_subjects')->where('student_id', $student->id)->delete();
-
-            $now        = now();
-            $insertData = [];
-            foreach ($subjects as $subject) {
-                $insertData[] = [
-                    'student_id'     => $student->id,
-                    'subject_id'     => $subject->id,
-                    'school_year_id' => $gradeLevel->school_year_id,
-                    'created_at'     => $now,
-                    'updated_at'     => $now,
-                ];
-            }
-            DB::table('student_subjects')->insert($insertData);
-
-            // Recalculate fees
-            $totalUnits  = $subjects->sum('units');
-            $unitRate    = 200;
-            $unitsFee    = $totalUnits * $unitRate;  
-            $miscFee     = 2000;  
-            $tuitionFee  = $student->tuition_fee ?? 0; // keep existing tuition if set
-            $totalAmount = $tuitionFee + $miscFee + $unitsFee;
-
-            // Determine enrollment_status
-            $hasAllRequirements = $student->has_form137 
-                                && $student->has_form138 
-                                && $student->has_good_moral 
-                                && $student->has_birth_certificate 
-                                && $student->has_certificate_of_completion;
-
-            $enrollmentStatus = $hasAllRequirements ? 'Officially Enrolled' : 'Unofficial Enrolled';
-
-            // Update student record
-            $student->update([
-                'curriculum_id'     => $curriculum->id,
-                'units_fee'         => $unitsFee,
-                'misc_fee'          => $miscFee,
-                'tuition_fee'       => $tuitionFee,
-                'total_amount'      => $totalAmount,
-                'is_enrolled'       => 1,
-                'enrollment_status' => $enrollmentStatus,
-                'payment_status'    => 'pending',
-            ]);
-
-            $results[] = [
-                'student_id'       => $id,
-                'status'           => 'success',
-                'total_units'      => $totalUnits,
-                'units_fee'        => $unitsFee,
-                'misc_fee'         => $miscFee,
-                'tuition_fee'      => $tuitionFee,
-                'total_amount'     => $totalAmount,
-                'enrollment_status'=> $enrollmentStatus,
-                'payment_status'   => 'pending',
-            ];
-        } catch (\Exception $e) {
-            $results[] = [
-                'student_id' => $id,
-                'status'     => 'failed',
-                'message'    => $e->getMessage()
-            ];
+        if (!is_array($studentIds) || empty($studentIds)) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Please provide an array of student IDs.',
+            ], 400);
         }
-    }
 
-    return response()->json([
-        'isSuccess' => true,
-        'message'   => 'Bulk enrollment process completed.',
-        'results'   => $results,
-    ]);
-}
+        foreach ($studentIds as $id) {
+            try {
+                $student = students::find($id);
+                if (!$student) {
+                    $results[] = [
+                        'student_id' => $id,
+                        'status'     => 'failed',
+                        'message'    => 'Student not found.'
+                    ];
+                    continue;
+                }
+
+                if (!$student->grade_level_id) {
+                    $results[] = [
+                        'student_id' => $id,
+                        'status'     => 'failed',
+                        'message'    => 'Student does not have a grade level assigned.'
+                    ];
+                    continue;
+                }
+
+                $gradeLevel = DB::table('grade_levels')->where('id', $student->grade_level_id)->first();
+                if (!$gradeLevel) {
+                    $results[] = [
+                        'student_id' => $id,
+                        'status'     => 'failed',
+                        'message'    => 'Grade level not found.'
+                    ];
+                    continue;
+                }
+
+                $curriculum = DB::table('curriculums')
+                    ->where('course_id', $student->course_id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                if (!$curriculum) {
+                    $results[] = [
+                        'student_id' => $id,
+                        'status'     => 'failed',
+                        'message'    => 'No curriculum assigned for this course.'
+                    ];
+                    continue;
+                }
+
+                $subjects = DB::table('curriculum_subject')
+                    ->join('subjects', 'curriculum_subject.subject_id', '=', 'subjects.id')
+                    ->where('curriculum_subject.curriculum_id', $curriculum->id)
+                    ->where('subjects.grade_level_id', $gradeLevel->id)
+                    ->select('subjects.*')
+                    ->get();
+
+                if ($subjects->isEmpty()) {
+                    $results[] = [
+                        'student_id' => $id,
+                        'status'     => 'failed',
+                        'message'    => 'No subjects found for this grade level in the curriculum.'
+                    ];
+                    continue;
+                }
+
+                // Remove previous subjects
+                DB::table('student_subjects')->where('student_id', $student->id)->delete();
+
+                $now        = now();
+                $insertData = [];
+                foreach ($subjects as $subject) {
+                    $insertData[] = [
+                        'student_id'     => $student->id,
+                        'subject_id'     => $subject->id,
+                        'school_year_id' => $gradeLevel->school_year_id,
+                        'created_at'     => $now,
+                        'updated_at'     => $now,
+                    ];
+                }
+                DB::table('student_subjects')->insert($insertData);
+
+                // Recalculate fees
+                $totalUnits  = $subjects->sum('units');
+                $unitRate    = 200;
+                $unitsFee    = $totalUnits * $unitRate;
+                $miscFee     = 2000;
+                $tuitionFee  = $student->tuition_fee ?? 0; // keep existing tuition if set
+                $totalAmount = $tuitionFee + $miscFee + $unitsFee;
+
+                // Determine enrollment_status
+                $hasAllRequirements = $student->has_form137
+                    && $student->has_form138
+                    && $student->has_good_moral
+                    && $student->has_birth_certificate
+                    && $student->has_certificate_of_completion;
+
+                $enrollmentStatus = $hasAllRequirements ? 'Officially Enrolled' : 'Unofficial Enrolled';
+
+                // Update student record
+                $student->update([
+                    'curriculum_id'     => $curriculum->id,
+                    'units_fee'         => $unitsFee,
+                    'misc_fee'          => $miscFee,
+                    'tuition_fee'       => $tuitionFee,
+                    'total_amount'      => $totalAmount,
+                    'is_enrolled'       => 1,
+                    'enrollment_status' => $enrollmentStatus,
+                    'payment_status'    => 'pending',
+                ]);
+
+                $results[] = [
+                    'student_id'       => $id,
+                    'status'           => 'success',
+                    'total_units'      => $totalUnits,
+                    'units_fee'        => $unitsFee,
+                    'misc_fee'         => $miscFee,
+                    'tuition_fee'      => $tuitionFee,
+                    'total_amount'     => $totalAmount,
+                    'enrollment_status' => $enrollmentStatus,
+                    'payment_status'   => 'pending',
+                ];
+            } catch (\Exception $e) {
+                $results[] = [
+                    'student_id' => $id,
+                    'status'     => 'failed',
+                    'message'    => $e->getMessage()
+                ];
+            }
+        }
+
+        return response()->json([
+            'isSuccess' => true,
+            'message'   => 'Bulk enrollment process completed.',
+            'results'   => $results,
+        ]);
+    }
 
 
 
@@ -1066,271 +1066,271 @@ public function enrollStudent(Request $request)
     // }
 
 
-  public function getProcessPayments(Request $request)
-{
-    try {
-        $perPage = $request->get('per_page', 5);
-        $page    = $request->get('page', 1);
+    public function getProcessPayments(Request $request)
+    {
+        try {
+            $perPage = $request->get('per_page', 5);
+            $page    = $request->get('page', 1);
 
-        // Base query with relationships
-        $query = students::with([
-            'examSchedule.applicant.gradeLevel',
-            'examSchedule.applicant.course',
-            'examSchedule.applicant.campus',
-            'section',
-            'payments' // ✅ make sure relation exists
-        ])
-        ->orderBy('created_at', 'desc')
-        ->where('is_enrolled', 1);
+            // Base query with relationships
+            $query = students::with([
+                'examSchedule.applicant.gradeLevel',
+                'examSchedule.applicant.course',
+                'examSchedule.applicant.campus',
+                'section',
+                'payments' // ✅ make sure relation exists
+            ])
+                ->orderBy('created_at', 'desc')
+                ->where('is_enrolled', 1);
 
-        // 🔎 Search
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('student_number', 'like', "%$search%")
-                    ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
-                        $q2->where('first_name', 'like', "%$search%")
-                            ->orWhere('last_name', 'like', "%$search%");
-                    });
-            });
-        }
-
-        // 🎯 Filters
-        if ($request->has('campus')) {
-            $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
-                $q->where('campus_name', $request->campus);
-            });
-        }
-        if ($request->has('course')) {
-            $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
-                $q->where('course_name', $request->course);
-            });
-        }
-        if ($request->has('section')) {
-            $query->whereHas('section', function ($q) use ($request) {
-                $q->where('section_name', $request->section);
-            });
-        }
-        if ($request->has('status')) {
-            $query->where('enrollment_status', $request->status);
-        }
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->is_active);
-        }
-
-        // 📄 Paginate
-        $students = $query->paginate($perPage, ['*'], 'page', $page);
-
-        $results = [];
-
-        foreach ($students as $student) {
-            $examSchedule = $student->examSchedule;
-            $admission    = $examSchedule?->applicant;
-
-            // 📚 Curriculum & Grouped Subjects
-            $curriculum = null;
-            if ($student->curriculum_id) {
-                $curriculum = DB::table('curriculums')
-                    ->where('id', $student->curriculum_id)
-                    ->first();
+            // 🔎 Search
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('student_number', 'like', "%$search%")
+                        ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
+                            $q2->where('first_name', 'like', "%$search%")
+                                ->orWhere('last_name', 'like', "%$search%");
+                        });
+                });
             }
 
-            $groupedSubjects = [];
-            $totalUnits      = 0;
+            // 🎯 Filters
+            if ($request->has('campus')) {
+                $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
+                    $q->where('campus_name', $request->campus);
+                });
+            }
+            if ($request->has('course')) {
+                $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
+                    $q->where('course_name', $request->course);
+                });
+            }
+            if ($request->has('section')) {
+                $query->whereHas('section', function ($q) use ($request) {
+                    $q->where('section_name', $request->section);
+                });
+            }
+            if ($request->has('status')) {
+                $query->where('enrollment_status', $request->status);
+            }
+            if ($request->has('is_active')) {
+                $query->where('is_active', $request->is_active);
+            }
 
-            if ($curriculum) {
-                $subjects = DB::table('student_subjects as ss')
-                    ->join('subjects as s', 'ss.subject_id', '=', 's.id')
-                    ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
-                    ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id') // ✅ semester
-                    ->where('ss.student_id', $student->id)
-                    ->where('cs.curriculum_id', $curriculum->id)
-                    ->select(
-                        's.id as subject_id',
-                        's.subject_name',
-                        's.units',
-                        's.grade_level_id',
-                        'sy.semester'
-                    )
-                    ->get();
+            // 📄 Paginate
+            $students = $query->paginate($perPage, ['*'], 'page', $page);
 
-                foreach ($subjects as $subj) {
-                    $key = "Level {$subj->grade_level_id} - {$subj->semester}";
+            $results = [];
 
-                    $groupedSubjects[$key][] = [
-                        'subject_id'   => $subj->subject_id,
-                        'subject_name' => $subj->subject_name,
-                        'units'        => $subj->units,
-                    ];
+            foreach ($students as $student) {
+                $examSchedule = $student->examSchedule;
+                $admission    = $examSchedule?->applicant;
 
-                    $totalUnits += $subj->units;
+                // 📚 Curriculum & Grouped Subjects
+                $curriculum = null;
+                if ($student->curriculum_id) {
+                    $curriculum = DB::table('curriculums')
+                        ->where('id', $student->curriculum_id)
+                        ->first();
                 }
+
+                $groupedSubjects = [];
+                $totalUnits      = 0;
+
+                if ($curriculum) {
+                    $subjects = DB::table('student_subjects as ss')
+                        ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                        ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
+                        ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id') // ✅ semester
+                        ->where('ss.student_id', $student->id)
+                        ->where('cs.curriculum_id', $curriculum->id)
+                        ->select(
+                            's.id as subject_id',
+                            's.subject_name',
+                            's.units',
+                            's.grade_level_id',
+                            'sy.semester'
+                        )
+                        ->get();
+
+                    foreach ($subjects as $subj) {
+                        $key = "Level {$subj->grade_level_id} - {$subj->semester}";
+
+                        $groupedSubjects[$key][] = [
+                            'subject_id'   => $subj->subject_id,
+                            'subject_name' => $subj->subject_name,
+                            'units'        => $subj->units,
+                        ];
+
+                        $totalUnits += $subj->units;
+                    }
+                }
+
+                // 💰 Compute Outstanding Balance
+                $totalPaid = $student->payments->sum('paid_amount');
+                $outstandingBalance = max($student->total_amount - $totalPaid, 0);
+
+                $results[] = [
+                    'id'                 => $student->id,
+                    'student_number'     => $student->student_number,
+                    'status'             => $student->enrollment_status,
+                    'payment_status'     => $student->payment_status,
+                    'grade_level'        => $admission?->gradeLevel?->grade_level,
+                    'course'             => $admission?->course?->course_name,
+                    'campus'             => $admission?->campus?->campus_name,
+                    'tuition_fee'        => $student->tuition_fee,
+                    'is_active'          => $student->is_active,
+                    'misc_fee'           => $student->misc_fee,
+                    'units_fee'          => $student->units_fee,
+                    'total_amount'       => $student->total_amount,
+                    'total_paid'         => $totalPaid,
+                    'outstanding_balance' => $outstandingBalance, // ✅ added
+                    'exam' => [
+                        'exam_id'     => $examSchedule?->id,
+                        'exam_date'   => $examSchedule?->exam_date,
+                        'exam_status' => $examSchedule?->exam_status,
+                        'exam_score'  => $examSchedule?->exam_score,
+                    ],
+                    'applicant' => [
+                        'applicant_id' => $admission?->id,
+                        'first_name'   => $admission?->first_name,
+                        'last_name'    => $admission?->last_name,
+                        'email'        => $admission?->email,
+                        'contact'      => $admission?->contact_number,
+                    ],
+                    'section' => [
+                        'section_id'   => $student->section?->id,
+                        'section_name' => $student->section?->section_name,
+                    ],
+                    'curriculum' => $curriculum ? [
+                        'id'          => $curriculum->id,
+                        'name'        => $curriculum->curriculum_name,
+                        'description' => $curriculum->curriculum_description,
+                    ] : null,
+                    'subjects_by_semester' => $groupedSubjects,
+                    'total_units'          => $totalUnits,
+                ];
             }
 
-            // 💰 Compute Outstanding Balance
-            $totalPaid = $student->payments->sum('paid_amount');
-            $outstandingBalance = max($student->total_amount - $totalPaid, 0);
-
-            $results[] = [
-                'id'                 => $student->id,
-                'student_number'     => $student->student_number,
-                'status'             => $student->enrollment_status,
-                'payment_status'     => $student->payment_status,
-                'grade_level'        => $admission?->gradeLevel?->grade_level,
-                'course'             => $admission?->course?->course_name,
-                'campus'             => $admission?->campus?->campus_name,
-                'tuition_fee'        => $student->tuition_fee,
-                'is_active'          => $student->is_active,
-                'misc_fee'           => $student->misc_fee,
-                'units_fee'          => $student->units_fee,
-                'total_amount'       => $student->total_amount,
-                'total_paid'         => $totalPaid,
-                'outstanding_balance'=> $outstandingBalance, // ✅ added
-                'exam' => [
-                    'exam_id'     => $examSchedule?->id,
-                    'exam_date'   => $examSchedule?->exam_date,
-                    'exam_status' => $examSchedule?->exam_status,
-                    'exam_score'  => $examSchedule?->exam_score,
+            return response()->json([
+                'isSuccess'  => true,
+                'data'       => $results,
+                'pagination' => [
+                    'total'        => $students->total(),
+                    'per_page'     => $students->perPage(),
+                    'current_page' => $students->currentPage(),
+                    'last_page'    => $students->lastPage(),
                 ],
-                'applicant' => [
-                    'applicant_id' => $admission?->id,
-                    'first_name'   => $admission?->first_name,
-                    'last_name'    => $admission?->last_name,
-                    'email'        => $admission?->email,
-                    'contact'      => $admission?->contact_number,
-                ],
-                'section' => [
-                    'section_id'   => $student->section?->id,
-                    'section_name' => $student->section?->section_name,
-                ],
-                'curriculum' => $curriculum ? [
-                    'id'          => $curriculum->id,
-                    'name'        => $curriculum->curriculum_name,
-                    'description' => $curriculum->curriculum_description,
-                ] : null,
-                'subjects_by_semester' => $groupedSubjects,
-                'total_units'          => $totalUnits,
-            ];
-        }
-
-        return response()->json([
-            'isSuccess'  => true,
-            'data'       => $results,
-            'pagination' => [
-                'total'        => $students->total(),
-                'per_page'     => $students->perPage(),
-                'current_page' => $students->currentPage(),
-                'last_page'    => $students->lastPage(),
-            ],
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => 'Error: ' . $e->getMessage(),
-        ], 500);
-    }
-}
-
-
-
-
-
-
-
-
-   public function sendReceipt(Request $request, $id)
-{
-    try {
-        auth()->user();
-
-        // Get student with relations
-        $student = students::with([
-            'examSchedule.applicant.course',
-            'examSchedule.applicant.campus',
-            'payments'
-        ])->findOrFail($id);
-
-        $studentNumber = $student->student_number;
-        $courseName    = $student->examSchedule?->applicant?->course?->course_name ?? '—';
-        $campusName    = $student->examSchedule?->applicant?->campus?->campus_name ?? '—';
-        $firstName     = $student->examSchedule?->applicant?->first_name ?? '';
-        $lastName      = $student->examSchedule?->applicant?->last_name ?? '';
-        $email         = $student->examSchedule?->applicant?->email;
-
-        if (!$email) {
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message'   => 'No email found for this student.',
-            ], 422);
+                'message'   => 'Error: ' . $e->getMessage(),
+            ], 500);
         }
-
-        // Fees
-        $tuitionFee = (float) $student->tuition_fee;
-        $miscFee    = (float) $student->misc_fee;
-        $unitsFee   = (float) $student->units_fee;
-
-        $totalFee   = $tuitionFee + $miscFee + $unitsFee;
-        $totalUnits = (int) ($student->subjects()->sum('units') ?? 0);
-
-        // Payments
-        $latestPayment       = $student->payments()->latest()->first();
-        $totalPaid           = $student->payments->sum('paid_amount');
-        $outstandingBalance  = max($totalFee - $totalPaid, 0);
-
-        $subjects = $student->subjects()->get(['subject_code', 'subject_name', 'units']);
-
-        // Ensure receipts folder exists
-        $receiptDir = storage_path('app/receipts');
-        if (!file_exists($receiptDir)) {
-            mkdir($receiptDir, 0777, true);
-        }
-
-        $pdfPath = $receiptDir . "/receipt_{$studentNumber}.pdf";
-
-        // Generate PDF
-        $pdf = Pdf::loadView('pdf.receipt', [
-            'studentNumber'      => $studentNumber,
-            'courseName'         => $courseName,
-            'campusName'         => $campusName,
-            'tuitionFee'         => number_format($tuitionFee, 2),
-            'miscFee'            => number_format($miscFee, 2),
-            'unitsFee'           => number_format($unitsFee, 2),
-            'totalUnits'         => $totalUnits,
-            'firstName'          => $firstName,
-            'lastName'           => $lastName,
-            'subjects'           => $subjects,
-
-            // 🔑 Payment details
-            'receiptNo'          => $latestPayment->receipt_no ?? 'N/A',
-            'paidAt'             => $latestPayment->paid_at ?? now(),
-            'paidAmount'         => number_format($totalPaid, 2),
-            'remainingBalance'   => number_format($outstandingBalance, 2),
-        ]);
-        $pdf->save($pdfPath);
-
-        // Send email with PDF attachment
-        Mail::send([], [], function ($message) use ($email, $studentNumber, $pdfPath) {
-            $message->to($email)
-                ->subject("Statement of Account - {$studentNumber}")
-                ->attach($pdfPath, [
-                    'as'   => "Statement_{$studentNumber}.pdf",
-                    'mime' => 'application/pdf',
-                ])
-                ->setBody('Please see attached Statement of Account (PDF).', 'text/html');
-        });
-
-        return response()->json([
-            'isSuccess' => true,
-            'message'   => 'Receipt generated and emailed successfully.',
-            'pdf_url'   => url("storage/receipts/receipt_{$studentNumber}.pdf")
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => 'Error: ' . $e->getMessage(),
-        ], 500);
     }
-}
+
+
+
+
+
+
+
+
+    public function sendReceipt(Request $request, $id)
+    {
+        try {
+            auth()->user();
+
+            // Get student with relations
+            $student = students::with([
+                'examSchedule.applicant.course',
+                'examSchedule.applicant.campus',
+                'payments'
+            ])->findOrFail($id);
+
+            $studentNumber = $student->student_number;
+            $courseName    = $student->examSchedule?->applicant?->course?->course_name ?? '—';
+            $campusName    = $student->examSchedule?->applicant?->campus?->campus_name ?? '—';
+            $firstName     = $student->examSchedule?->applicant?->first_name ?? '';
+            $lastName      = $student->examSchedule?->applicant?->last_name ?? '';
+            $email         = $student->examSchedule?->applicant?->email;
+
+            if (!$email) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No email found for this student.',
+                ], 422);
+            }
+
+            // Fees
+            $tuitionFee = (float) $student->tuition_fee;
+            $miscFee    = (float) $student->misc_fee;
+            $unitsFee   = (float) $student->units_fee;
+
+            $totalFee   = $tuitionFee + $miscFee + $unitsFee;
+            $totalUnits = (int) ($student->subjects()->sum('units') ?? 0);
+
+            // Payments
+            $latestPayment       = $student->payments()->latest()->first();
+            $totalPaid           = $student->payments->sum('paid_amount');
+            $outstandingBalance  = max($totalFee - $totalPaid, 0);
+
+            $subjects = $student->subjects()->get(['subject_code', 'subject_name', 'units']);
+
+            // Ensure receipts folder exists
+            $receiptDir = storage_path('app/receipts');
+            if (!file_exists($receiptDir)) {
+                mkdir($receiptDir, 0777, true);
+            }
+
+            $pdfPath = $receiptDir . "/receipt_{$studentNumber}.pdf";
+
+            // Generate PDF
+            $pdf = Pdf::loadView('pdf.receipt', [
+                'studentNumber'      => $studentNumber,
+                'courseName'         => $courseName,
+                'campusName'         => $campusName,
+                'tuitionFee'         => number_format($tuitionFee, 2),
+                'miscFee'            => number_format($miscFee, 2),
+                'unitsFee'           => number_format($unitsFee, 2),
+                'totalUnits'         => $totalUnits,
+                'firstName'          => $firstName,
+                'lastName'           => $lastName,
+                'subjects'           => $subjects,
+
+                // 🔑 Payment details
+                'receiptNo'          => $latestPayment->receipt_no ?? 'N/A',
+                'paidAt'             => $latestPayment->paid_at ?? now(),
+                'paidAmount'         => number_format($totalPaid, 2),
+                'remainingBalance'   => number_format($outstandingBalance, 2),
+            ]);
+            $pdf->save($pdfPath);
+
+            // Send email with PDF attachment
+            Mail::send([], [], function ($message) use ($email, $studentNumber, $pdfPath) {
+                $message->to($email)
+                    ->subject("Statement of Account - {$studentNumber}")
+                    ->attach($pdfPath, [
+                        'as'   => "Statement_{$studentNumber}.pdf",
+                        'mime' => 'application/pdf',
+                    ])
+                    ->setBody('Please see attached Statement of Account (PDF).', 'text/html');
+            });
+
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Receipt generated and emailed successfully.',
+                'pdf_url'   => url("storage/receipts/receipt_{$studentNumber}.pdf")
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 
 
 
