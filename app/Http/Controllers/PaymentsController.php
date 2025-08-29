@@ -27,8 +27,15 @@ class PaymentsController extends Controller
             ], 422);
         }
 
-        // Current tuition due before payment
-        $totalDue = $student->tuition_fee;
+        // Current total due (units + misc + tuition)
+        $totalDue = $student->total_amount;
+
+        if ($totalDue <= 0) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'No outstanding balance. Student is already fully paid.'
+            ], 400);
+        }
 
         // Prevent overpayment
         $paidAmount = min($paidAmount, $totalDue);
@@ -42,19 +49,19 @@ class PaymentsController extends Controller
         // Create payment record
         $payment = payments::create([
             'student_id'        => $student->id,
-            'amount'            => $totalDue,           // tuition before payment
+            'amount'            => $totalDue,           // total before payment
             'paid_amount'       => $paidAmount,         // amount actually paid
-            'payment_method'    => 'cash',
+            'payment_method'    => $request->input('payment_method', 'cash'),
             'status'            => $paymentStatus,
             'receipt_no'        => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
             'remarks'           => $request->input('remarks', 'Payment'),
             'paid_at'           => now(),
             'received_by'       => auth()->id(),
-            'remaining_balance' => $outstandingBalance  // 👈 outstanding balance stored in DB
+            'remaining_balance' => $outstandingBalance
         ]);
 
         // Update student record
-        $student->tuition_fee = $outstandingBalance;
+        $student->total_amount   = $outstandingBalance;
         $student->payment_status = $paymentStatus;
         $student->save();
 
@@ -216,49 +223,54 @@ public function getAllPayments(Request $request)
         $perPage = $request->get('per_page', 5); 
         $page    = $request->get('page', 1);
 
-        // Load payments with student -> admission relationship
-        $query = payments::with('student.admission')->orderBy('created_at', 'desc');
+        // Load payments with student + admission relationship
+        $query = payments::with(['student.examSchedule.admission'])
+            ->orderBy('created_at', 'desc');
 
         // Optional search by student name, student_id, receipt_no, or status
-      if ($request->has('search')) {
-    $search = $request->search;
-    $query->where(function($q) use ($search) {
-        $q->whereHas('student.examSchedule.admission', function($q2) use ($search) {
-            $q2->where('first_name', 'like', "%$search%")
-               ->orWhere('last_name', 'like', "%$search%");
-        })
-        ->orWhere('student_id', $search)
-        ->orWhere('receipt_no', 'like', "%$search%")
-        ->orWhere('status', $search);
-    });
-}
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->whereHas('student.examSchedule.admission', function($q2) use ($search) {
+                        $q2->where('first_name', 'like', "%$search%")
+                           ->orWhere('last_name', 'like', "%$search%");
+                    })
+                    ->orWhere('student_id', $search)
+                    ->orWhere('receipt_no', 'like', "%$search%")
+                    ->orWhere('status', 'like', "%$search%");
+            });
+        }
 
         $payments = $query->paginate($perPage, ['*'], 'page', $page);
 
-        // Format results with student name
-      $data = $payments->map(function($payment) {
-    $student = $payment->student;
-    $examSchedule = $student->examSchedule ?? null;
-    $admission = $examSchedule?->admission ?? null;
-    
-    $studentName = $admission ? ($admission->first_name . ' ' . $admission->last_name) : 'N/A';
+        // Format results
+        $data = $payments->map(function($payment) {
+            $student = $payment->student;
+            $examSchedule = $student->examSchedule ?? null;
+            $admission = $examSchedule?->admission ?? null;
+            
+            $studentName = $admission 
+                ? "{$admission->first_name} {$admission->last_name}" 
+                : 'N/A';
 
-    return [
-        'id'                 => $payment->id,
-        'student_id'         => $payment->student_id,
-        'student_name'       => $studentName,
-        'amount'             => $payment->amount,
-        'paid_amount'        => $payment->paid_amount,
-        'remaining_balance'  => $payment->remaining_balance,
-        'payment_method'     => $payment->payment_method,
-        'status'             => $payment->status,
-        'reference_no'       => $payment->reference_no,
-        'remarks'            => $payment->remarks,
-        'receipt_no'         => $payment->receipt_no,
-        'paid_at'            => $payment->paid_at,
-        'received_by'        => $payment->received_by,
-    ];
-});
+            return [
+                'id'                 => $payment->id,
+                'student_id'         => $payment->student_id,
+                'student_name'       => $studentName,
+                'amount_billed'      => $payment->amount,             // billed before payment
+                'paid_amount'        => $payment->paid_amount,        // paid in this transaction
+                'remaining_balance'  => $payment->remaining_balance,  // balance after this payment
+                'latest_balance'     => $student->total_amount,       // 👈 always current balance
+                'payment_method'     => $payment->payment_method,
+                'status'             => $payment->status,
+                'reference_no'       => $payment->reference_no,
+                'remarks'            => $payment->remarks,
+                'receipt_no'         => $payment->receipt_no,
+                'paid_at'            => $payment->paid_at,
+                'received_by'        => $payment->received_by,
+            ];
+        });
+
         return response()->json([
             'isSuccess' => true,
             'data'      => $data,
