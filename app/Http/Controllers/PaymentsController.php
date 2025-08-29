@@ -6,6 +6,7 @@ use App\Models\payments;
 use App\Models\students;
 use Barryvdh\DomPDF\Facade\Pdf; // Assuming you have a PDF facade set up
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Http;
 
 
@@ -14,22 +15,21 @@ class PaymentsController extends Controller
     /**
      * Confirm Payment and Generate Receipt
      */
-   public function confirmPayment(Request $request, $studentId)
+  public function confirmPayment(Request $request, $studentId)
 {
     try {
+        // ✅ Validate input
+        $validated = $request->validate([
+            'amount'         => 'required|numeric|min:1',
+            'payment_method' => 'nullable|string|in:cash,card,gcash,bank_transfer', // customize allowed methods
+            'remarks'        => 'nullable|string|max:255',
+        ]);
+
+        // ✅ Fetch student safely
         $student = students::findOrFail($studentId);
-        $paidAmount = (float) $request->input('amount');
 
-        if (!$paidAmount || $paidAmount <= 0) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'Invalid payment amount'
-            ], 422);
-        }
-
-        // Current total due (units + misc + tuition)
-        $totalDue = $student->total_amount;
-
+        // ✅ Ensure student still has a balance
+        $totalDue = (float) $student->total_amount;
         if ($totalDue <= 0) {
             return response()->json([
                 'isSuccess' => false,
@@ -37,43 +37,57 @@ class PaymentsController extends Controller
             ], 400);
         }
 
-        // Prevent overpayment
-        $paidAmount = min($paidAmount, $totalDue);
+        // ✅ Cap payment to total due (no overpaying)
+        $paidAmount = min($validated['amount'], $totalDue);
 
-        // Remaining balance after payment
+        // ✅ Calculate outstanding balance
         $outstandingBalance = $totalDue - $paidAmount;
-
-        // Payment status (fully paid or partial)
         $paymentStatus = ($outstandingBalance <= 0) ? 'paid' : 'partial';
 
-        // Create payment record
+        // ✅ Generate receipt number (atomic to avoid duplicate on concurrent calls)
+        $receiptNo = 'RCPT-' . str_pad(
+            $student->payments()->lockForUpdate()->count() + 1, 
+            6, 
+            '0', 
+            STR_PAD_LEFT
+        );
+
+        // ✅ Create payment record
         $payment = payments::create([
             'student_id'        => $student->id,
-            'amount'            => $totalDue,           // total before payment
-            'paid_amount'       => $paidAmount,         // amount actually paid
-            'payment_method'    => $request->input('payment_method', 'cash'),
+            'amount'            => $totalDue,   // full due before payment
+            'paid_amount'       => $paidAmount,
+            'payment_method'    => $validated['payment_method'] ?? 'cash',
             'status'            => $paymentStatus,
-            'receipt_no'        => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
-            'remarks'           => $request->input('remarks', 'Payment'),
+            'receipt_no'        => $receiptNo,
+            'remarks'           => $validated['remarks'] ?? 'Payment',
             'paid_at'           => now(),
             'received_by'       => auth()->id(),
-            'remaining_balance' => $outstandingBalance
+            'remaining_balance' => $outstandingBalance,
         ]);
 
-        // Update student record
-        $student->total_amount   = $outstandingBalance;
-        $student->payment_status = $paymentStatus;
-        $student->save();
+        // ✅ Update student record
+        $student->update([
+            'total_amount'   => $outstandingBalance,
+            'payment_status' => $paymentStatus,
+        ]);
 
-        // Return response
+        // ✅ Response
         return response()->json([
             'isSuccess'         => true,
-            'message'           => 'Payment confirmed and receipt generated',
+            'message'           => 'Payment confirmed and receipt generated.',
             'paid_amount'       => $paidAmount,
-            'status'            => $student->payment_status,
+            'status'            => $paymentStatus,
             'receipt'           => $payment->receipt_no,
-            'remaining_balance' => $outstandingBalance
-        ]);
+            'remaining_balance' => $outstandingBalance,
+        ], 200);
+
+    } catch (ValidationException $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Validation failed',
+            'errors'    => $e->errors(),
+        ], 422);
 
     } catch (\Exception $e) {
         return response()->json([

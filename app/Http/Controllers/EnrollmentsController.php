@@ -1064,164 +1064,171 @@ public function enrollStudent(Request $request)
     // }
 
 
-    public function getProcessPayments(Request $request)
-    {
-        try {
-            $perPage = $request->get('per_page', 5);
-            $page    = $request->get('page', 1);
+  public function getProcessPayments(Request $request)
+{
+    try {
+        $perPage = $request->get('per_page', 5);
+        $page    = $request->get('page', 1);
 
-            // Base query with relationships
-            $query = students::with([
-                'examSchedule.applicant.gradeLevel',
-                'examSchedule.applicant.course',
-                'examSchedule.applicant.campus',
-                'examSchedule.applicant.campus',
-                'section'
-            ])->orderBy('created_at', 'desc')
-                ->where('is_enrolled', 1);
+        // Base query with relationships
+        $query = students::with([
+            'examSchedule.applicant.gradeLevel',
+            'examSchedule.applicant.course',
+            'examSchedule.applicant.campus',
+            'section',
+            'payments' // ✅ make sure relation exists
+        ])
+        ->orderBy('created_at', 'desc')
+        ->where('is_enrolled', 1);
 
-
-            // 🔎 Search
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('student_number', 'like', "%$search%")
-                        ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
-                            $q2->where('first_name', 'like', "%$search%")
-                                ->orWhere('last_name', 'like', "%$search%");
-                        });
-                });
-            }
-
-            // 🎯 Filters
-            if ($request->has('campus')) {
-                $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
-                    $q->where('campus_name', $request->campus);
-                });
-            }
-            if ($request->has('course')) {
-                $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
-                    $q->where('course_name', $request->course);
-                });
-            }
-            if ($request->has('section')) {
-                $query->whereHas('section', function ($q) use ($request) {
-                    $q->where('section_name', $request->section);
-                });
-            }
-            if ($request->has('status')) {
-                $query->where('enrollment_status', $request->status);
-            }
-            if ($request->has('is_active')) {
-                $query->where('is_active', $request->is_active);
-            }
-
-            // 📄 Paginate
-            $students = $query->paginate($perPage, ['*'], 'page', $page);
-
-            $results = [];
-
-            foreach ($students as $student) {
-                $examSchedule = $student->examSchedule;
-                $admission    = $examSchedule?->applicant;
-                $courseId     = $student->course_id;
-
-                // 📚 Curriculum & Grouped Subjects
-                $curriculum = null;
-                if ($student->curriculum_id) {
-                    $curriculum = DB::table('curriculums')
-                        ->where('id', $student->curriculum_id)
-                        ->first();
-                }
-
-                $groupedSubjects = [];
-                $totalUnits      = 0;
-
-                if ($curriculum) {
-                    $subjects = DB::table('student_subjects as ss')
-                        ->join('subjects as s', 'ss.subject_id', '=', 's.id')
-                        ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
-                        ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id') // ✅ get semester
-                        ->where('ss.student_id', $student->id)
-                        ->where('cs.curriculum_id', $curriculum->id)
-                        ->select(
-                            's.id as subject_id',
-                            's.subject_name',
-                            's.units',
-                            's.grade_level_id',
-                            'sy.semester' // ✅ comes from school_years now
-                        )
-                        ->get();
-
-                    foreach ($subjects as $subj) {
-                        $key = "Level {$subj->grade_level_id} - {$subj->semester}";
-
-                        $groupedSubjects[$key][] = [
-                            'subject_id'   => $subj->subject_id,
-                            'subject_name' => $subj->subject_name,
-                            'units'        => $subj->units,
-                        ];
-
-                        $totalUnits += $subj->units;
-                    }
-                }
-                $results[] = [
-                    'id'             => $student->id,
-                    'student_number' => $student->student_number,
-                    'status'         => $student->enrollment_status,
-                    'payment_status' => $student->payment_status,
-                    'grade_level'    => $admission?->gradeLevel?->grade_level,
-                    'course'         => $admission?->course?->course_name,
-                    'campus'         => $admission?->campus?->campus_name,
-                    'tuition_fee'    => $student->tuition_fee,
-                    'is_active'      => $student->is_active,
-                    'misc_fee'       => $student->misc_fee,
-                    'units_fee'      => $student->units_fee,
-                    'total_amount'   => $student->total_amount,
-                    'exam' => [
-                        'exam_id'     => $examSchedule?->id,
-                        'exam_date'   => $examSchedule?->exam_date,
-                        'exam_status' => $examSchedule?->exam_status,
-                        'exam_score'  => $examSchedule?->exam_score,
-                    ],
-                    'applicant' => [
-                        'applicant_id' => $admission?->id,
-                        'first_name'   => $admission?->first_name,
-                        'last_name'    => $admission?->last_name,
-                        'email'        => $admission?->email,
-                        'contact'      => $admission?->contact_number,
-                    ],
-                    'section' => [
-                        'section_id'   => $student->section?->id,
-                        'section_name' => $student->section?->section_name,
-                    ],
-                    'curriculum' => $curriculum ? [
-                        'id'          => $curriculum->id,
-                        'name'        => $curriculum->curriculum_name,
-                        'description' => $curriculum->curriculum_description,
-                    ] : null,
-                    'subjects_by_semester' => $groupedSubjects,
-                    'total_units'          => $totalUnits,
-                ];
-            }
-
-            return response()->json([
-                'isSuccess'  => true,
-                'data'       => $results,
-                'pagination' => [
-                    'total'        => $students->total(),
-                    'per_page'     => $students->perPage(),
-                    'current_page' => $students->currentPage(),
-                    'last_page'    => $students->lastPage(),
-                ],
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'Error: ' . $e->getMessage(),
-            ], 500);
+        // 🔎 Search
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('student_number', 'like', "%$search%")
+                    ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
+                        $q2->where('first_name', 'like', "%$search%")
+                            ->orWhere('last_name', 'like', "%$search%");
+                    });
+            });
         }
+
+        // 🎯 Filters
+        if ($request->has('campus')) {
+            $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
+                $q->where('campus_name', $request->campus);
+            });
+        }
+        if ($request->has('course')) {
+            $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
+                $q->where('course_name', $request->course);
+            });
+        }
+        if ($request->has('section')) {
+            $query->whereHas('section', function ($q) use ($request) {
+                $q->where('section_name', $request->section);
+            });
+        }
+        if ($request->has('status')) {
+            $query->where('enrollment_status', $request->status);
+        }
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->is_active);
+        }
+
+        // 📄 Paginate
+        $students = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $results = [];
+
+        foreach ($students as $student) {
+            $examSchedule = $student->examSchedule;
+            $admission    = $examSchedule?->applicant;
+
+            // 📚 Curriculum & Grouped Subjects
+            $curriculum = null;
+            if ($student->curriculum_id) {
+                $curriculum = DB::table('curriculums')
+                    ->where('id', $student->curriculum_id)
+                    ->first();
+            }
+
+            $groupedSubjects = [];
+            $totalUnits      = 0;
+
+            if ($curriculum) {
+                $subjects = DB::table('student_subjects as ss')
+                    ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                    ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
+                    ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id') // ✅ semester
+                    ->where('ss.student_id', $student->id)
+                    ->where('cs.curriculum_id', $curriculum->id)
+                    ->select(
+                        's.id as subject_id',
+                        's.subject_name',
+                        's.units',
+                        's.grade_level_id',
+                        'sy.semester'
+                    )
+                    ->get();
+
+                foreach ($subjects as $subj) {
+                    $key = "Level {$subj->grade_level_id} - {$subj->semester}";
+
+                    $groupedSubjects[$key][] = [
+                        'subject_id'   => $subj->subject_id,
+                        'subject_name' => $subj->subject_name,
+                        'units'        => $subj->units,
+                    ];
+
+                    $totalUnits += $subj->units;
+                }
+            }
+
+            // 💰 Compute Outstanding Balance
+            $totalPaid = $student->payments->sum('paid_amount');
+            $outstandingBalance = max($student->total_amount - $totalPaid, 0);
+
+            $results[] = [
+                'id'                 => $student->id,
+                'student_number'     => $student->student_number,
+                'status'             => $student->enrollment_status,
+                'payment_status'     => $student->payment_status,
+                'grade_level'        => $admission?->gradeLevel?->grade_level,
+                'course'             => $admission?->course?->course_name,
+                'campus'             => $admission?->campus?->campus_name,
+                'tuition_fee'        => $student->tuition_fee,
+                'is_active'          => $student->is_active,
+                'misc_fee'           => $student->misc_fee,
+                'units_fee'          => $student->units_fee,
+                'total_amount'       => $student->total_amount,
+                'total_paid'         => $totalPaid,
+                'outstanding_balance'=> $outstandingBalance, // ✅ added
+                'exam' => [
+                    'exam_id'     => $examSchedule?->id,
+                    'exam_date'   => $examSchedule?->exam_date,
+                    'exam_status' => $examSchedule?->exam_status,
+                    'exam_score'  => $examSchedule?->exam_score,
+                ],
+                'applicant' => [
+                    'applicant_id' => $admission?->id,
+                    'first_name'   => $admission?->first_name,
+                    'last_name'    => $admission?->last_name,
+                    'email'        => $admission?->email,
+                    'contact'      => $admission?->contact_number,
+                ],
+                'section' => [
+                    'section_id'   => $student->section?->id,
+                    'section_name' => $student->section?->section_name,
+                ],
+                'curriculum' => $curriculum ? [
+                    'id'          => $curriculum->id,
+                    'name'        => $curriculum->curriculum_name,
+                    'description' => $curriculum->curriculum_description,
+                ] : null,
+                'subjects_by_semester' => $groupedSubjects,
+                'total_units'          => $totalUnits,
+            ];
+        }
+
+        return response()->json([
+            'isSuccess'  => true,
+            'data'       => $results,
+            'pagination' => [
+                'total'        => $students->total(),
+                'per_page'     => $students->perPage(),
+                'current_page' => $students->currentPage(),
+                'last_page'    => $students->lastPage(),
+            ],
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'isSuccess' => false,
+            'message'   => 'Error: ' . $e->getMessage(),
+        ], 500);
     }
+}
+
 
 
 
