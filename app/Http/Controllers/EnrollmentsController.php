@@ -469,162 +469,162 @@ class EnrollmentsController extends Controller
 
 
 
-   public function getStudentCurriculums($id)
-{
-    try {
-        $student = students::find($id);
+    public function getStudentCurriculums($id)
+    {
+        try {
+            $student = students::find($id);
 
-        if (!$student) {
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Student not found.'
+                ], 404);
+            }
+
+            $curriculums = DB::table('curriculums')
+                ->join('courses', 'curriculums.course_id', '=', 'courses.id')
+                ->where('curriculums.course_id', $student->course_id) // align with student's course
+                ->select(
+                    'curriculums.id',
+                    'curriculums.curriculum_name',
+                    'courses.course_name'
+                )
+                ->get();
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Curriculums retrieved successfully.',
+                'student_number' => $student->student_number,
+                'course' => $student->course_id,
+                'curriculums' => $curriculums->map(function ($c) {
+                    return [
+                        'id'   => $c->id,
+                        'name' => $c->curriculum_name . ' (' . $c->course_name . ')'
+                    ];
+                })
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Student not found.'
-            ], 404);
+                'message' => 'Failed to retrieve curriculums.',
+                'error' => $e->getMessage()
+            ]);
         }
-
-        $curriculums = DB::table('curriculums')
-            ->join('courses', 'curriculums.course_id', '=', 'courses.id')
-            ->where('curriculums.course_id', $student->course_id) // align with student's course
-            ->select(
-                'curriculums.id',
-                'curriculums.curriculum_name',
-                'courses.course_name'
-            )
-            ->get();
-
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Curriculums retrieved successfully.',
-            'student_number' => $student->student_number,
-            'course' => $student->course_id,
-            'curriculums' => $curriculums->map(function ($c) {
-                return [
-                    'id'   => $c->id,
-                    'name' => $c->curriculum_name . ' (' . $c->course_name . ')'
-                ];
-            })
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to retrieve curriculums.',
-            'error' => $e->getMessage()
-        ]);
     }
-}
 
 
 
 
     //1st step REGISTRAR
     public function approveStudent(Request $request)
-{
-    $user = Auth::user();
-    try {
-        $validated = $request->validate([
-            'id'   => 'required|integer|exists:exam_schedules,id',
-            'has_form137'  => 'required|boolean',
-            'has_form138'  => 'required|boolean',
-            'has_birth_certificate' => 'required|boolean',
-            'has_good_moral' => 'required|boolean',
-            'has_certificate_of_completion' => 'required|boolean',
-        ]);
+    {
+        $user = Auth::user();
+        try {
+            $validated = $request->validate([
+                'id'   => 'required|integer|exists:exam_schedules,id',
+                'has_form137'  => 'required|boolean',
+                'has_form138'  => 'required|boolean',
+                'has_birth_certificate' => 'required|boolean',
+                'has_good_moral' => 'required|boolean',
+                'has_certificate_of_completion' => 'required|boolean',
+            ]);
 
-        // Fetch schedule with applicant and grade level
-        $schedule = exam_schedules::with(['applicant.gradeLevel'])->find($validated['id']);
+            // Fetch schedule with applicant and grade level
+            $schedule = exam_schedules::with(['applicant.gradeLevel'])->find($validated['id']);
 
-        if (!$schedule || !$schedule->applicant) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'Exam schedule or applicant not found.',
-            ], 404);
-        }
+            if (!$schedule || !$schedule->applicant) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Exam schedule or applicant not found.',
+                ], 404);
+            }
 
-        $admission = $schedule->applicant;
+            $admission = $schedule->applicant;
 
-        // Prevent duplicate enrollment
-        if (students::where('exam_schedules_id', $schedule->id)->exists()) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'This applicant is already enrolled.',
-            ], 400);
-        }
+            // Prevent duplicate enrollment
+            if (students::where('exam_schedules_id', $schedule->id)->exists()) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'This applicant is already enrolled.',
+                ], 400);
+            }
 
-        // Generate student number + password
-        $lastStudent   = students::latest('id')->first();
-        $nextId        = $lastStudent ? $lastStudent->id + 1 : 1;
-        $studentNumber = 'SNL-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+            // Generate student number + password
+            $lastStudent   = students::latest('id')->first();
+            $nextId        = $lastStudent ? $lastStudent->id + 1 : 1;
+            $studentNumber = 'SNL-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
-        $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
-        $rawPassword        = $studentNumber . $birthdateFormatted;
-        $hashedPassword     = Hash::make($rawPassword);
+            $birthdateFormatted = Carbon::parse($admission->birthdate)->format('Ymd');
+            $rawPassword        = $studentNumber . $birthdateFormatted;
+            $hashedPassword     = Hash::make($rawPassword);
 
-        // Validate grade_level_id
-        $gradeLevelId = $admission->grade_level_id;
-        if (!DB::table('grade_levels')->where('id', $gradeLevelId)->exists()) {
-            $gradeLevelId = 1; // fallback
-        }
+            // Validate grade_level_id
+            $gradeLevelId = $admission->grade_level_id;
+            if (!DB::table('grade_levels')->where('id', $gradeLevelId)->exists()) {
+                $gradeLevelId = 1; // fallback
+            }
 
-        // ✅ Find a section that still has space (students_size limit)
-        $section = DB::table('sections')
-            ->where('campus_id', $admission->school_campus_id)
-            ->where('is_archived', 0)
-            ->get()
-            ->filter(function ($sec) {
-                $currentCount = DB::table('students')
-                    ->where('section_id', $sec->id)
-                    ->count();
-                return $currentCount < $sec->students_size;
-            })
-            ->first();
+            // ✅ Find a section that still has space (students_size limit)
+            $section = DB::table('sections')
+                ->where('campus_id', $admission->school_campus_id)
+                ->where('is_archived', 0)
+                ->get()
+                ->filter(function ($sec) {
+                    $currentCount = DB::table('students')
+                        ->where('section_id', $sec->id)
+                        ->count();
+                    return $currentCount < $sec->students_size;
+                })
+                ->first();
 
-        if (!$section) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'No available section with space for this campus.',
-            ], 400);
-        }
+            if (!$section) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No available section with space for this campus.',
+                ], 400);
+            }
 
-        // Check if student has complete documents
-        $hasAllDocs = $validated['has_form137']
-            && $validated['has_form138']
-            && $validated['has_good_moral']
-            && $validated['has_certificate_of_completion']
-            && $validated['has_birth_certificate'];
+            // Check if student has complete documents
+            $hasAllDocs = $validated['has_form137']
+                && $validated['has_form138']
+                && $validated['has_good_moral']
+                && $validated['has_certificate_of_completion']
+                && $validated['has_birth_certificate'];
 
-        $enrollmentStatus = $hasAllDocs ? 'Complete Requirements' : 'Incomplete Requirements';
-        $schedule->update([
-            'is_approved' => 1
-        ]);
+            $enrollmentStatus = $hasAllDocs ? 'Complete Requirements' : 'Incomplete Requirements';
+            $schedule->update([
+                'is_approved' => 1
+            ]);
 
-        // Create student record with docs
-        $student = students::create([
-            'exam_schedules_id'             => $schedule->id,
-            'student_number'                => $studentNumber,
-            'password'                      => $hashedPassword,
-            'profile_img'                   => null,
-            'student_status'                => 0,
-            'course_id'                     => $admission->academic_program_id,
-            'section_id'                    => $section->id, // ✅ assigned section
-            'academic_year_id'              => $admission->academic_year_id,
-            'grade_level_id'                => $gradeLevelId,
-            'units_fee'                     => 0,
-            'tuition_fee'                   => 0,
-            'is_active'                     => 1,
-            'has_form137'                   => $validated['has_form137'],
-            'has_form138'                   => $validated['has_form138'],
-            'has_good_moral'                => $validated['has_good_moral'],
-            'has_certificate_of_completion' => $validated['has_certificate_of_completion'],
-            'has_birth_certificate'         => $validated['has_birth_certificate'],
-            'enrollment_status'             => $enrollmentStatus,
-        ]);
+            // Create student record with docs
+            $student = students::create([
+                'exam_schedules_id'             => $schedule->id,
+                'student_number'                => $studentNumber,
+                'password'                      => $hashedPassword,
+                'profile_img'                   => null,
+                'student_status'                => 0,
+                'course_id'                     => $admission->academic_program_id,
+                'section_id'                    => $section->id, // ✅ assigned section
+                'academic_year_id'              => $admission->academic_year_id,
+                'grade_level_id'                => $gradeLevelId,
+                'units_fee'                     => 0,
+                'tuition_fee'                   => 0,
+                'is_active'                     => 1,
+                'has_form137'                   => $validated['has_form137'],
+                'has_form138'                   => $validated['has_form138'],
+                'has_good_moral'                => $validated['has_good_moral'],
+                'has_certificate_of_completion' => $validated['has_certificate_of_completion'],
+                'has_birth_certificate'         => $validated['has_birth_certificate'],
+                'enrollment_status'             => $enrollmentStatus,
+            ]);
 
-        // Grade level name
-        $gradeLevelName = DB::table('grade_levels')
-            ->where('id', $gradeLevelId)
-            ->value('grade_level') ?? 'N/A';
+            // Grade level name
+            $gradeLevelName = DB::table('grade_levels')
+                ->where('id', $gradeLevelId)
+                ->value('grade_level') ?? 'N/A';
 
-        // Send email with credentials
-        $html = '
+            // Send email with credentials
+            $html = '
         <html>
         <body style="font-family: Arial, sans-serif;">
             <div style="border:1px solid #ccc; padding:20px; max-width:600px; margin:auto;">
@@ -645,35 +645,35 @@ class EnrollmentsController extends Controller
         </html>
         ';
 
-        Mail::send([], [], function ($message) use ($admission, $html) {
-            $message->to($admission->email)
-                ->subject('Your Enrollment Credentials')
-                ->setBody($html, 'text/html');
-        });
+            Mail::send([], [], function ($message) use ($admission, $html) {
+                $message->to($admission->email)
+                    ->subject('Your Enrollment Credentials')
+                    ->setBody($html, 'text/html');
+            });
 
-        return response()->json([
-            'isSuccess'      => true,
-            'message'        => 'Student enrolled successfully. Credentials sent via email.',
-            'student_id'     => $student->id,
-            'student_number' => $studentNumber,
-            'grade_level'    => $gradeLevelName,
-            'section_id'     => $section->id,
-            'enrollment_status' => $enrollmentStatus,
-            'documents'      => [
-                'form137'   => $student->has_form137,
-                'form138'   => $student->has_form138,
-                'good_moral' => $student->has_good_moral,
-                'certificate_of_completion' => $student->has_certificate_of_completion,
-                'birth_certificate' => $student->has_birth_certificate,
-            ]
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => 'Error: ' . $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'isSuccess'      => true,
+                'message'        => 'Student enrolled successfully. Credentials sent via email.',
+                'student_id'     => $student->id,
+                'student_number' => $studentNumber,
+                'grade_level'    => $gradeLevelName,
+                'section_id'     => $section->id,
+                'enrollment_status' => $enrollmentStatus,
+                'documents'      => [
+                    'form137'   => $student->has_form137,
+                    'form138'   => $student->has_form138,
+                    'good_moral' => $student->has_good_moral,
+                    'certificate_of_completion' => $student->has_certificate_of_completion,
+                    'birth_certificate' => $student->has_birth_certificate,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
 
@@ -712,7 +712,7 @@ class EnrollmentsController extends Controller
 
 
 
-   public function enrollStudent(Request $request)
+public function enrollStudent(Request $request)
 {
     $studentIds = $request->input('student_ids'); // expects array of IDs
     $results = [];
@@ -720,7 +720,7 @@ class EnrollmentsController extends Controller
     if (!is_array($studentIds) || empty($studentIds)) {
         return response()->json([
             'isSuccess' => false,
-            'message' => 'Please provide an array of student IDs.',
+            'message'   => 'Please provide an array of student IDs.',
         ], 400);
     }
 
@@ -730,8 +730,8 @@ class EnrollmentsController extends Controller
             if (!$student) {
                 $results[] = [
                     'student_id' => $id,
-                    'status' => 'failed',
-                    'message' => 'Student not found.'
+                    'status'     => 'failed',
+                    'message'    => 'Student not found.'
                 ];
                 continue;
             }
@@ -739,8 +739,8 @@ class EnrollmentsController extends Controller
             if (!$student->grade_level_id) {
                 $results[] = [
                     'student_id' => $id,
-                    'status' => 'failed',
-                    'message' => 'Student does not have a grade level assigned.'
+                    'status'     => 'failed',
+                    'message'    => 'Student does not have a grade level assigned.'
                 ];
                 continue;
             }
@@ -749,8 +749,8 @@ class EnrollmentsController extends Controller
             if (!$gradeLevel) {
                 $results[] = [
                     'student_id' => $id,
-                    'status' => 'failed',
-                    'message' => 'Grade level not found.'
+                    'status'     => 'failed',
+                    'message'    => 'Grade level not found.'
                 ];
                 continue;
             }
@@ -762,8 +762,8 @@ class EnrollmentsController extends Controller
             if (!$curriculum) {
                 $results[] = [
                     'student_id' => $id,
-                    'status' => 'failed',
-                    'message' => 'No curriculum assigned for this course.'
+                    'status'     => 'failed',
+                    'message'    => 'No curriculum assigned for this course.'
                 ];
                 continue;
             }
@@ -778,8 +778,8 @@ class EnrollmentsController extends Controller
             if ($subjects->isEmpty()) {
                 $results[] = [
                     'student_id' => $id,
-                    'status' => 'failed',
-                    'message' => 'No subjects found for this grade level in the curriculum.'
+                    'status'     => 'failed',
+                    'message'    => 'No subjects found for this grade level in the curriculum.'
                 ];
                 continue;
             }
@@ -787,61 +787,75 @@ class EnrollmentsController extends Controller
             // Remove previous subjects
             DB::table('student_subjects')->where('student_id', $student->id)->delete();
 
-            $now = now();
+            $now        = now();
             $insertData = [];
             foreach ($subjects as $subject) {
                 $insertData[] = [
-                    'student_id' => $student->id,
-                    'subject_id' => $subject->id,
+                    'student_id'     => $student->id,
+                    'subject_id'     => $subject->id,
                     'school_year_id' => $gradeLevel->school_year_id,
-                    'created_at' => $now,
-                    'updated_at' => $now,
+                    'created_at'     => $now,
+                    'updated_at'     => $now,
                 ];
             }
             DB::table('student_subjects')->insert($insertData);
 
             // Recalculate fees
-            $totalUnits = $subjects->sum('units');
-            $unitRate   = 200;
-            $miscFee    = 2000;
-            $unitsFee   = $totalUnits * $unitRate;
-            $tuitionFee = $unitsFee + $miscFee;
-            $totalAmount = $tuitionFee; // new total_amount field
+            $totalUnits  = $subjects->sum('units');
+            $unitRate    = 200;
+            $unitsFee    = $totalUnits * $unitRate;  
+            $miscFee     = 2000;  
+            $tuitionFee  = $student->tuition_fee ?? 0; // keep existing tuition if set
+            $totalAmount = $tuitionFee + $miscFee + $unitsFee;
 
+            // Determine enrollment_status
+            $hasAllRequirements = $student->has_form137 
+                                && $student->has_form138 
+                                && $student->has_good_moral 
+                                && $student->has_birth_certificate 
+                                && $student->has_certificate_of_completion;
+
+            $enrollmentStatus = $hasAllRequirements ? 'Officially Enrolled' : 'Unofficial Enrolled';
+
+            // Update student record
             $student->update([
-                'curriculum_id' => $curriculum->id,
-                'units_fee'     => $unitsFee,
-                'misc_fee'      => $miscFee,
-                'tuition_fee'   => $tuitionFee,
-                'total_amount'  => $totalAmount, // store total_amount
-                'is_enrolled'   => 1,
+                'curriculum_id'     => $curriculum->id,
+                'units_fee'         => $unitsFee,
+                'misc_fee'          => $miscFee,
+                'tuition_fee'       => $tuitionFee,
+                'total_amount'      => $totalAmount,
+                'is_enrolled'       => 1,
+                'enrollment_status' => $enrollmentStatus,
+                'payment_status'    => 'pending',
             ]);
 
             $results[] = [
-                'student_id'   => $id,
-                'status'       => 'success',
-                'total_units'  => $totalUnits,
-                'units_fee'    => $unitsFee,
-                'misc_fee'     => $miscFee,
-                'tuition_fee'  => $tuitionFee,
-                'total_amount' => $totalAmount,
+                'student_id'       => $id,
+                'status'           => 'success',
+                'total_units'      => $totalUnits,
+                'units_fee'        => $unitsFee,
+                'misc_fee'         => $miscFee,
+                'tuition_fee'      => $tuitionFee,
+                'total_amount'     => $totalAmount,
+                'enrollment_status'=> $enrollmentStatus,
+                'payment_status'   => 'pending',
             ];
-
         } catch (\Exception $e) {
             $results[] = [
                 'student_id' => $id,
-                'status' => 'failed',
-                'message' => $e->getMessage()
+                'status'     => 'failed',
+                'message'    => $e->getMessage()
             ];
         }
     }
 
     return response()->json([
         'isSuccess' => true,
-        'message' => 'Bulk enrollment process completed.',
-        'results' => $results,
+        'message'   => 'Bulk enrollment process completed.',
+        'results'   => $results,
     ]);
 }
+
 
 
 
@@ -1112,13 +1126,13 @@ class EnrollmentsController extends Controller
                 $admission    = $examSchedule?->applicant;
                 $courseId     = $student->course_id;
 
-          // 📚 Curriculum & Grouped Subjects
-            $curriculum = null;
-            if ($student->curriculum_id) {
-                $curriculum = DB::table('curriculums')
-                    ->where('id', $student->curriculum_id)
-                    ->first();
-            }
+                // 📚 Curriculum & Grouped Subjects
+                $curriculum = null;
+                if ($student->curriculum_id) {
+                    $curriculum = DB::table('curriculums')
+                        ->where('id', $student->curriculum_id)
+                        ->first();
+                }
 
                 $groupedSubjects = [];
                 $totalUnits      = 0;
@@ -1209,7 +1223,7 @@ class EnrollmentsController extends Controller
     }
 
 
-    
+
 
 
 
@@ -1251,8 +1265,8 @@ class EnrollmentsController extends Controller
 
             $pdfPath = $receiptDir . "/receipt_{$studentNumber}.pdf";
             $latestPayment = $student->payments()->latest()->first();
-$totalPaid = $student->payments()->sum('paid_amount');
-$outstandingBalance = $student->tuition_fee; // always the "amount still due"
+            $totalPaid = $student->payments()->sum('paid_amount');
+            $outstandingBalance = $student->tuition_fee; // always the "amount still due"
 
             // Generate PDF using Blade template
             $pdf = Pdf::loadView('pdf.receipt', [
@@ -1268,11 +1282,11 @@ $outstandingBalance = $student->tuition_fee; // always the "amount still due"
                 'subjects'      => $subjects,
 
                 // 🔑 Add these so Blade stops breaking
-               'receiptNo'          => $latestPayment->receipt_no ?? 'N/A',
+                'receiptNo'          => $latestPayment->receipt_no ?? 'N/A',
                 'paidAt'             => $latestPayment->paid_at ?? now(),
                 'paidAmount'         => $totalPaid,              // total paid so far
                 'remainingBalance'   => $outstandingBalance,     // still due
-                        ]);
+            ]);
             $pdf->save($pdfPath);
 
             // Send email with PDF attachment
@@ -1306,157 +1320,157 @@ $outstandingBalance = $student->tuition_fee; // always the "amount still due"
 
 
 
-   public function getAllEnrollments(Request $request)
-{
-    try {
-        $perPage = $request->get('per_page', 5);
-        $page    = $request->get('page', 1);
+    public function getAllEnrollments(Request $request)
+    {
+        try {
+            $perPage = $request->get('per_page', 5);
+            $page    = $request->get('page', 1);
 
-        // Base query with relationships
-        $query = students::with([
-            'examSchedule.applicant.gradeLevel',
-            'examSchedule.applicant.course',
-            'examSchedule.applicant.campus',
-            'section',
-            'curriculum' // ✅ assuming you made a relation: Student -> Curriculum
-        ])
-        ->orderBy('created_at', 'desc')
-        ->where('is_enrolled', 0);
+            // Base query with relationships
+            $query = students::with([
+                'examSchedule.applicant.gradeLevel',
+                'examSchedule.applicant.course',
+                'examSchedule.applicant.campus',
+                'section',
+                'curriculum' // ✅ assuming you made a relation: Student -> Curriculum
+            ])
+                ->orderBy('created_at', 'desc')
+                ->where('is_enrolled', 0);
 
-        // 🔎 Search
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('student_number', 'like', "%$search%")
-                    ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
-                        $q2->where('first_name', 'like', "%$search%")
-                            ->orWhere('last_name', 'like', "%$search%");
-                    });
-            });
-        }
-
-        // 🎯 Filters
-        if ($request->has('campus')) {
-            $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
-                $q->where('campus_name', $request->campus);
-            });
-        }
-        if ($request->has('course')) {
-            $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
-                $q->where('course_name', $request->course);
-            });
-        }
-        if ($request->has('section')) {
-            $query->whereHas('section', function ($q) use ($request) {
-                $q->where('section_name', $request->section);
-            });
-        }
-        if ($request->has('status')) {
-            $query->where('enrollment_status', $request->status);
-        }
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->is_active);
-        }
-
-        // 📄 Paginate
-        $students = $query->paginate($perPage, ['*'], 'page', $page);
-
-        $results = [];
-
-        foreach ($students as $student) {
-            $examSchedule = $student->examSchedule;
-            $admission    = $examSchedule?->applicant;
-            $curriculum   = $student->curriculum; // ✅ direct from relation now
-
-            $groupedSubjects = [];
-            $totalUnits      = 0;
-
-            if ($curriculum) {
-                $subjects = DB::table('student_subjects as ss')
-                    ->join('subjects as s', 'ss.subject_id', '=', 's.id')
-                    ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
-                    ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
-                    ->where('ss.student_id', $student->id)
-                    ->where('cs.curriculum_id', $curriculum->id)
-                    ->select(
-                        's.id as subject_id',
-                        's.subject_name',
-                        's.units',
-                        's.grade_level_id',
-                        'sy.semester'
-                    )
-                    ->get();
-
-                foreach ($subjects as $subj) {
-                    $key = "Grade {$subj->grade_level_id} - {$subj->semester}";
-
-                    $groupedSubjects[$key][] = [
-                        'subject_id'   => $subj->subject_id,
-                        'subject_name' => $subj->subject_name,
-                        'units'        => $subj->units,
-                    ];
-
-                    $totalUnits += $subj->units;
-                }
+            // 🔎 Search
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('student_number', 'like', "%$search%")
+                        ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
+                            $q2->where('first_name', 'like', "%$search%")
+                                ->orWhere('last_name', 'like', "%$search%");
+                        });
+                });
             }
 
-            // 📝 Final Student Data
-            $results[] = [
-                'id'             => $student->id,
-                'student_number' => $student->student_number,
-                'status'         => $student->enrollment_status,
-                'payment_status' => $student->payment_status,
-                'grade_level'    => $admission?->gradeLevel?->grade_level,
-                'course'         => $admission?->course?->course_name,
-                'campus'         => $admission?->campus?->campus_name,
-                'tuition_fee'    => $student->tuition_fee,
-                'is_active'      => $student->is_active,
-                'misc_fee'       => $student->misc_fee,
-                'units_fee'      => $student->units_fee,
-                'exam' => [
-                    'exam_id'     => $examSchedule?->id,
-                    'exam_date'   => $examSchedule?->exam_date,
-                    'exam_status' => $examSchedule?->exam_status,
-                    'exam_score'  => $examSchedule?->exam_score,
-                ],
-                'applicant' => [
-                    'applicant_id' => $admission?->id,
-                    'first_name'   => $admission?->first_name,
-                    'last_name'    => $admission?->last_name,
-                    'email'        => $admission?->email,
-                    'contact'      => $admission?->contact_number,
-                ],
-                'section' => [
-                    'section_id'   => $student->section?->id,
-                    'section_name' => $student->section?->section_name,
-                ],
-                'curriculum' => $curriculum ? [
-                    'id'          => $curriculum->id,
-                    'name'        => $curriculum->curriculum_name,
-                    'description' => $curriculum->curriculum_description,
-                ] : null,
-                'subjects_by_semester' => $groupedSubjects,
-                'total_units'          => $totalUnits,
-            ];
-        }
+            // 🎯 Filters
+            if ($request->has('campus')) {
+                $query->whereHas('examSchedule.applicant.campus', function ($q) use ($request) {
+                    $q->where('campus_name', $request->campus);
+                });
+            }
+            if ($request->has('course')) {
+                $query->whereHas('examSchedule.applicant.course', function ($q) use ($request) {
+                    $q->where('course_name', $request->course);
+                });
+            }
+            if ($request->has('section')) {
+                $query->whereHas('section', function ($q) use ($request) {
+                    $q->where('section_name', $request->section);
+                });
+            }
+            if ($request->has('status')) {
+                $query->where('enrollment_status', $request->status);
+            }
+            if ($request->has('is_active')) {
+                $query->where('is_active', $request->is_active);
+            }
 
-        return response()->json([
-            'isSuccess'  => true,
-            'data'       => $results,
-            'pagination' => [
-                'total'        => $students->total(),
-                'per_page'     => $students->perPage(),
-                'current_page' => $students->currentPage(),
-                'last_page'    => $students->lastPage(),
-            ],
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => 'Error: ' . $e->getMessage(),
-        ], 500);
+            // 📄 Paginate
+            $students = $query->paginate($perPage, ['*'], 'page', $page);
+
+            $results = [];
+
+            foreach ($students as $student) {
+                $examSchedule = $student->examSchedule;
+                $admission    = $examSchedule?->applicant;
+                $curriculum   = $student->curriculum; // ✅ direct from relation now
+
+                $groupedSubjects = [];
+                $totalUnits      = 0;
+
+                if ($curriculum) {
+                    $subjects = DB::table('student_subjects as ss')
+                        ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                        ->join('curriculum_subject as cs', 'cs.subject_id', '=', 's.id')
+                        ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
+                        ->where('ss.student_id', $student->id)
+                        ->where('cs.curriculum_id', $curriculum->id)
+                        ->select(
+                            's.id as subject_id',
+                            's.subject_name',
+                            's.units',
+                            's.grade_level_id',
+                            'sy.semester'
+                        )
+                        ->get();
+
+                    foreach ($subjects as $subj) {
+                        $key = "Grade {$subj->grade_level_id} - {$subj->semester}";
+
+                        $groupedSubjects[$key][] = [
+                            'subject_id'   => $subj->subject_id,
+                            'subject_name' => $subj->subject_name,
+                            'units'        => $subj->units,
+                        ];
+
+                        $totalUnits += $subj->units;
+                    }
+                }
+
+                // 📝 Final Student Data
+                $results[] = [
+                    'id'             => $student->id,
+                    'student_number' => $student->student_number,
+                    'status'         => $student->enrollment_status,
+                    'payment_status' => $student->payment_status,
+                    'grade_level'    => $admission?->gradeLevel?->grade_level,
+                    'course'         => $admission?->course?->course_name,
+                    'campus'         => $admission?->campus?->campus_name,
+                    'tuition_fee'    => $student->tuition_fee,
+                    'is_active'      => $student->is_active,
+                    'misc_fee'       => $student->misc_fee,
+                    'units_fee'      => $student->units_fee,
+                    'exam' => [
+                        'exam_id'     => $examSchedule?->id,
+                        'exam_date'   => $examSchedule?->exam_date,
+                        'exam_status' => $examSchedule?->exam_status,
+                        'exam_score'  => $examSchedule?->exam_score,
+                    ],
+                    'applicant' => [
+                        'applicant_id' => $admission?->id,
+                        'first_name'   => $admission?->first_name,
+                        'last_name'    => $admission?->last_name,
+                        'email'        => $admission?->email,
+                        'contact'      => $admission?->contact_number,
+                    ],
+                    'section' => [
+                        'section_id'   => $student->section?->id,
+                        'section_name' => $student->section?->section_name,
+                    ],
+                    'curriculum' => $curriculum ? [
+                        'id'          => $curriculum->id,
+                        'name'        => $curriculum->curriculum_name,
+                        'description' => $curriculum->curriculum_description,
+                    ] : null,
+                    'subjects_by_semester' => $groupedSubjects,
+                    'total_units'          => $totalUnits,
+                ];
+            }
+
+            return response()->json([
+                'isSuccess'  => true,
+                'data'       => $results,
+                'pagination' => [
+                    'total'        => $students->total(),
+                    'per_page'     => $students->perPage(),
+                    'current_page' => $students->currentPage(),
+                    'last_page'    => $students->lastPage(),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
 

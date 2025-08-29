@@ -103,6 +103,7 @@ class AdmissionsController extends Controller
     try {
     $query = admissions::with(['academic_program', 'schoolCampus', 'school_years'])
         ->where('is_archived', '0')
+        ->where('sent_exam_schedule', '0')
         ->orderBy('created_at', 'desc'); 
 
         // Search by keyword
@@ -178,6 +179,7 @@ class AdmissionsController extends Controller
         'lrn' => $admission->lrn,
         'last_school_attended' => $admission->last_school_attended,
         'remarks' => $admission->remarks,
+        'sent_exam_schedule'=> $admission->sent_exam_schedule,
         
         // Files as full URLs
      'good_moral' => $admission->good_moral ? asset($admission->good_moral) : null,
@@ -771,6 +773,8 @@ public function sendExamination(Request $request)
                     });
 
                     exam_schedules::where('admission_id', $admission->id)->update(['exam_sent' => true]);
+
+                    $admission->update(['sent_exam_schedule' => 1]);
 
                     $results[] = [
                         'admission_id' => $id,

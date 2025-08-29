@@ -36,6 +36,7 @@ class students extends Model
     'enrollment_status',
     'is_enrolled',
     'is_active',
+    'total_amount',
 ];
       protected $hidden = [
         'password',
