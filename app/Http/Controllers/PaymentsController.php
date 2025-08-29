@@ -257,10 +257,10 @@ public function getAllPayments(Request $request)
                 'id'                 => $payment->id,
                 'student_id'         => $payment->student_id,
                 'student_name'       => $studentName,
-                'amount_billed'      => $payment->amount,             // billed before payment
-                'paid_amount'        => $payment->paid_amount,        // paid in this transaction
-                'remaining_balance'  => $payment->remaining_balance,  // balance after this payment
-                'latest_balance'     => $student->total_amount,       // 👈 always current balance
+                'amount_billed'      => $payment->amount,             
+                'paid_amount'        => $payment->paid_amount,        
+                'remaining_balance'  => $payment->remaining_balance,  
+                'latest_balance'     => $student->total_amount,       
                 'payment_method'     => $payment->payment_method,
                 'status'             => $payment->status,
                 'reference_no'       => $payment->reference_no,
