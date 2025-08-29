@@ -1198,7 +1198,7 @@ public function getUniqueSchoolYearsDropdown()
 {
     try {
         $data = school_years::selectRaw("id, CONCAT(TRIM(school_year), ' ', TRIM(semester)) as academic_year")
-            ->orderBy('created_at','school_year', 'desc')
+            ->orderBy('created_at','desc','school_year', 'desc')
             ->get();
 
         return response()->json([
