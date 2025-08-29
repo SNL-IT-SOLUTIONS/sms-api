@@ -93,17 +93,17 @@ public function testPayMongoPayment(Request $request)
         if (!$paidAmount || $paidAmount <= 0) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Invalid payment amount'
+                'message'   => 'Invalid payment amount'
             ], 422);
         }
 
-        // Cap payment to remaining tuition
-        $totalDue = $student->tuition_fee;
+        // Cap payment to remaining balance (from total_amount now 👇)
+        $totalDue = $student->total_amount;
         $paidAmount = min($paidAmount, $totalDue);
         $remainingBalance = $totalDue - $paidAmount;
         $paymentStatus = ($remainingBalance <= 0) ? 'paid' : 'partial';
 
-        // Create PayMongo payment intent
+        // Create PayMongo Payment Intent
         $amountCentavos = intval($paidAmount * 100);
         $intentResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
             ->post('https://api.paymongo.com/v1/payment_intents', [
@@ -121,19 +121,19 @@ public function testPayMongoPayment(Request $request)
             ]);
 
         $paymentIntent = $intentResponse->json();
-
         if (!isset($paymentIntent['data'])) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Payment Intent creation failed',
-                'response' => $paymentIntent
+                'message'   => 'Payment Intent creation failed',
+                'response'  => $paymentIntent
             ], 400);
         }
 
         $paymentIntentId = $paymentIntent['data']['id'];
 
         // Create Payment Method (Test Card)
-        $billingName = $student->examSchedule->admission?->first_name . ' ' . $student->examSchedule->admission?->last_name;
+        $billingName = $student->examSchedule->admission?->first_name . ' ' .
+                       $student->examSchedule->admission?->last_name;
         $billingEmail = $student->examSchedule->admission?->email;
 
         $paymentMethodResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
@@ -144,11 +144,11 @@ public function testPayMongoPayment(Request $request)
                         'details' => [
                             'card_number' => '4343434343434345',
                             'exp_month' => 12,
-                            'exp_year' => 25,
-                            'cvc' => '123'
+                            'exp_year'  => 25,
+                            'cvc'       => '123'
                         ],
                         'billing' => [
-                            'name' => $billingName,
+                            'name'  => $billingName,
                             'email' => $billingEmail
                         ]
                     ]
@@ -156,18 +156,17 @@ public function testPayMongoPayment(Request $request)
             ]);
 
         $paymentMethod = $paymentMethodResponse->json();
-
         if (!isset($paymentMethod['data'])) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Payment Method creation failed',
-                'response' => $paymentMethod
+                'message'   => 'Payment Method creation failed',
+                'response'  => $paymentMethod
             ], 400);
         }
 
         $paymentMethodId = $paymentMethod['data']['id'];
 
-        // Attach Payment Method to Payment Intent
+        // Attach Payment Method to Intent
         $attachResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
             ->post("https://api.paymongo.com/v1/payment_intents/{$paymentIntentId}/attach", [
                 'data' => [
@@ -181,21 +180,21 @@ public function testPayMongoPayment(Request $request)
 
         // Record payment in DB
         $payment = payments::create([
-            'student_id'       => $student->id,
-            'amount'           => $totalDue,
-            'paid_amount'      => $paidAmount,
-            'remaining_balance'=> $remainingBalance,
-            'payment_method'   => 'card',
-            'status'           => $paymentStatus,
-            'receipt_no'       => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
-            'remarks'          => 'PayMongo',
-            'paid_at'          => now(),
-            'reference_no'     => $paymentIntentId,
-            'received_by'      => 'system'
+            'student_id'        => $student->id,
+            'amount'            => $totalDue,           // balance before this payment
+            'paid_amount'       => $paidAmount,         // amount paid now
+            'remaining_balance' => $remainingBalance,   // balance after payment
+            'payment_method'    => 'card',
+            'status'            => $paymentStatus,
+            'receipt_no'        => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
+            'remarks'           => 'PayMongo',
+            'paid_at'           => now(),
+            'reference_no'      => $paymentIntentId,
+            'received_by'       => 'system'
         ]);
 
         // Update student record
-        $student->tuition_fee = $remainingBalance;
+        $student->total_amount   = $remainingBalance;  // 👈 update balance
         $student->payment_status = $paymentStatus;
         $student->save();
 
@@ -212,10 +211,11 @@ public function testPayMongoPayment(Request $request)
     } catch (\Exception $e) {
         return response()->json([
             'isSuccess' => false,
-            'message' => 'Error: ' . $e->getMessage()
+            'message'   => 'Error: ' . $e->getMessage()
         ], 500);
     }
 }
+
 
 public function getAllPayments(Request $request)
 {
