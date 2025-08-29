@@ -16,6 +16,7 @@ class Student extends Model
         'total_amount',
         'curriculum_id',
         'exam_schedules_id',
+        'course_code',
         'student_number',
         'password',
         'profile_img',
