@@ -37,194 +37,196 @@ class AdmissionsController extends Controller
 {
 
 
-   public function getExamSchedules(Request $request)
-{
-    $perPage = (int) $request->input('per_page', 10);
-    $page = (int) $request->input('page', 1);
+    public function getExamSchedules(Request $request)
+    {
+        auth()->user(); // Ensure the user is authenticated
 
-    $query = exam_schedules::with(['applicant', 'campus', 'building', 'room']);
+        $perPage = (int) $request->input('per_page', 10);
+        $page = (int) $request->input('page', 1);
 
-    // Search filter (by applicant or schedule fields)
-    if ($search = $request->input('search')) {
-        $query->whereHas('applicant', function ($q) use ($search) {
-            $q->where('first_name', 'like', "%{$search}%")
-              ->orWhere('last_name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%");
-        });
-    }
+        $query = exam_schedules::with(['applicant', 'campus', 'building', 'room']);
 
-    // Order by created_at (latest first)
-    $paginated = $query->orderBy('created_at', 'desc')
-        ->paginate($perPage, ['*'], 'page', $page);
-
-    // Transform into flat table rows
-    $examInfo = $paginated->getCollection()->map(function ($schedule) {
-        return [
-            'schedule_id' => $schedule->id,
-            'campus_id' => $schedule->campus->id ?? null,
-            'campus_name' => $schedule->campus->campus_name ?? null,
-            'building_id' => $schedule->building->id ?? null,
-            'building_name' => $schedule->building->building_name ?? null,
-            'room_id' => $schedule->room->id ?? null,
-            'room_name' => $schedule->room->room_name ?? null,
-            'admission_id' => $schedule->applicant->admission_id ?? null,
-            'test_permit_no' => $schedule->applicant->test_permit_no ?? null,
-            'first_name' => $schedule->applicant->first_name ?? null,
-            'last_name' => $schedule->applicant->last_name ?? null,
-            'email' => $schedule->applicant->email ?? null,
-            'contact_number' => $schedule->applicant->contact_number ?? null,
-            'exam_date' => $schedule->exam_date,
-            'exam_time_from' => $schedule->exam_time_from,
-            'exam_time_to' => $schedule->exam_time_to,
-            'exam_score' => $schedule->exam_score,
-            'exam_status' => $schedule->exam_status,
-            'academic_program_id' => $schedule->academic_program_id,
-            'course_name' => $schedule->course_name,
-            'created_at' => $schedule->created_at,
-        ];
-    });
-
-    return response()->json([
-        'isSuccess' => true,
-        'message' => 'Exam schedules list ordered by creation date.',
-        'exam_info' => $examInfo,
-        'meta' => [
-            'current_page' => $paginated->currentPage(),
-            'per_page' => $paginated->perPage(),
-            'total' => $paginated->total(),
-            'last_page' => $paginated->lastPage(),
-        ]
-    ]);
-}
-
-
-    public function getAdmissions(Request $request)
-{
-    try {
-    $query = admissions::with(['academic_program', 'schoolCampus', 'school_years'])
-        ->where('is_archived', '0')
-        ->where('sent_exam_schedule', '0')
-        ->orderBy('created_at', 'desc'); 
-
-        // Search by keyword
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('academic_year', 'like', "%$search%")
-                    ->orWhere('first_name', 'like', "%$search%")
-                    ->orWhere('last_name', 'like', "%$search%");
+        // Search filter (by applicant or schedule fields)
+        if ($search = $request->input('search')) {
+            $query->whereHas('applicant', function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        // Filters
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
+        // Order by created_at (latest first)
+        $paginated = $query->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
 
-        if ($request->has('school_campus')) {
-            $query->where('school_campus', $request->school_campus);
-        }
-
-        if ($request->has('academic_program')) {
-            $query->where('academic_program', $request->academic_program);
-        }
-
-        if ($request->has('school_year')) {
-        $query->whereHas('school_years', function ($q) use ($request) {
-            $q->where('school_year', $request->school_year);
+        // Transform into flat table rows
+        $examInfo = $paginated->getCollection()->map(function ($schedule) {
+            return [
+                'schedule_id' => $schedule->id,
+                'campus_id' => $schedule->campus->id ?? null,
+                'campus_name' => $schedule->campus->campus_name ?? null,
+                'building_id' => $schedule->building->id ?? null,
+                'building_name' => $schedule->building->building_name ?? null,
+                'room_id' => $schedule->room->id ?? null,
+                'room_name' => $schedule->room->room_name ?? null,
+                'admission_id' => $schedule->applicant->admission_id ?? null,
+                'test_permit_no' => $schedule->applicant->test_permit_no ?? null,
+                'first_name' => $schedule->applicant->first_name ?? null,
+                'last_name' => $schedule->applicant->last_name ?? null,
+                'email' => $schedule->applicant->email ?? null,
+                'contact_number' => $schedule->applicant->contact_number ?? null,
+                'exam_date' => $schedule->exam_date,
+                'exam_time_from' => $schedule->exam_time_from,
+                'exam_time_to' => $schedule->exam_time_to,
+                'exam_score' => $schedule->exam_score,
+                'exam_status' => $schedule->exam_status,
+                'academic_program_id' => $schedule->academic_program_id,
+                'course_name' => $schedule->course_name,
+                'created_at' => $schedule->created_at,
+            ];
         });
-         }
-
-        if ($request->has('semester')) {
-            $query->whereHas('school_years', function ($q) use ($request) {
-                $q->where('semester', $request->semester);
-            });
-        }
-
-        $admissions = $query->paginate(10);
-
-       $admissionsData = $admissions->map(function ($admission) {
-        $storagePath = 'storage/';
-
-    return [
-        'id' => $admission->id,
-        'test_permit_no' => $admission->test_permit_no,
-        'applicant_number' => $admission->applicant_number,
-        'status' => $admission->status,
-        'first_name' => $admission->first_name,
-        'middle_name' => $admission->middle_name,
-        'last_name' => $admission->last_name,
-        'suffix' => $admission->suffix,
-        'full_name' => trim($admission->first_name . ' ' . $admission->middle_name . ' ' . $admission->last_name . ' ' . $admission->suffix),
-        'gender' => $admission->gender,
-        'birthdate' => $admission->birthdate,
-        'birthplace' => $admission->birthplace,
-        'civil_status' => $admission->civil_status,
-        'email' => $admission->email,
-        'grade_level' => $admission->grade_level_id,
-        'contact_number' => $admission->contact_number,
-        'telephone_number' => $admission->telephone_number,
-        'street_address' => $admission->street_address,
-        'province' => $admission->province,
-        'city' => $admission->city,
-        'barangay' => $admission->barangay,
-        'nationality' => $admission->nationality,
-        'religion' => $admission->religion,
-        'ethnic_affiliation' => $admission->ethnic_affiliation,
-        'is_4ps_member' => $admission->is_4ps_member,
-        'is_insurance_member' => $admission->is_insurance_member,
-        'is_vaccinated' => $admission->is_vaccinated,
-        'is_indigenous' => $admission->is_indigenous,
-        'application_type' => $admission->application_type,
-        'lrn' => $admission->lrn,
-        'last_school_attended' => $admission->last_school_attended,
-        'remarks' => $admission->remarks,
-        'sent_exam_schedule'=> $admission->sent_exam_schedule,
-        
-        // Files as full URLs
-     'good_moral' => $admission->good_moral ? asset($admission->good_moral) : null,
-    'form_137' => $admission->form_137 ? asset($admission->form_137) : null,
-    'form_138' => $admission->form_138 ? asset($admission->form_138) : null,
-    'birth_certificate' => $admission->birth_certificate ? asset($admission->birth_certificate) : null,
-    'certificate_of_completion' => $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
-
-
-        'grade_level' => $admission->grade_level_id,
-        'guardian_name' => $admission->guardian_name,
-        'guardian_contact' => $admission->guardian_contact,
-        'mother_name' => $admission->mother_name,
-        'mother_contact' => $admission->mother_contact,
-        'father_name' => $admission->father_name,
-        'father_contact' => $admission->father_contact,
-        'blood_type' => $admission->blood_type,
-
-        // Related Names
-        'academic_program' => optional($admission->academic_program)->course_name,
-        'school_campus' => optional($admission->schoolCampus)->campus_name,
-       'academic_year'   => optional($admission->school_years)
-    ? optional($admission->school_years)->school_year .' '. optional($admission->school_years)->semester
-    : null,
-    ];
-});
 
         return response()->json([
             'isSuccess' => true,
-            'admissions' => $admissionsData,
-            'pagination' => [
-                'current_page' => $admissions->currentPage(),
-                'per_page' => $admissions->perPage(),
-                'total' => $admissions->total(),
-                'last_page' => $admissions->lastPage(),
-            ],
+            'message' => 'Exam schedules list ordered by creation date.',
+            'exam_info' => $examInfo,
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+                'last_page' => $paginated->lastPage(),
+            ]
         ]);
-    } catch (Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to retrieve admissions.',
-            'error' => $e->getMessage(),
-        ], 500);
     }
-}
+
+
+    public function getAdmissions(Request $request)
+    {
+        try {
+            $query = admissions::with(['academic_program', 'schoolCampus', 'school_years'])
+                ->where('is_archived', '0')
+                ->where('sent_exam_schedule', '0')
+                ->orderBy('created_at', 'desc');
+
+            // Search by keyword
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('academic_year', 'like', "%$search%")
+                        ->orWhere('first_name', 'like', "%$search%")
+                        ->orWhere('last_name', 'like', "%$search%");
+                });
+            }
+
+            // Filters
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->has('school_campus')) {
+                $query->where('school_campus', $request->school_campus);
+            }
+
+            if ($request->has('academic_program')) {
+                $query->where('academic_program', $request->academic_program);
+            }
+
+            if ($request->has('school_year')) {
+                $query->whereHas('school_years', function ($q) use ($request) {
+                    $q->where('school_year', $request->school_year);
+                });
+            }
+
+            if ($request->has('semester')) {
+                $query->whereHas('school_years', function ($q) use ($request) {
+                    $q->where('semester', $request->semester);
+                });
+            }
+
+            $admissions = $query->paginate(10);
+
+            $admissionsData = $admissions->map(function ($admission) {
+                $storagePath = 'storage/';
+
+                return [
+                    'id' => $admission->id,
+                    'test_permit_no' => $admission->test_permit_no,
+                    'applicant_number' => $admission->applicant_number,
+                    'status' => $admission->status,
+                    'first_name' => $admission->first_name,
+                    'middle_name' => $admission->middle_name,
+                    'last_name' => $admission->last_name,
+                    'suffix' => $admission->suffix,
+                    'full_name' => trim($admission->first_name . ' ' . $admission->middle_name . ' ' . $admission->last_name . ' ' . $admission->suffix),
+                    'gender' => $admission->gender,
+                    'birthdate' => $admission->birthdate,
+                    'birthplace' => $admission->birthplace,
+                    'civil_status' => $admission->civil_status,
+                    'email' => $admission->email,
+                    'grade_level' => $admission->grade_level_id,
+                    'contact_number' => $admission->contact_number,
+                    'telephone_number' => $admission->telephone_number,
+                    'street_address' => $admission->street_address,
+                    'province' => $admission->province,
+                    'city' => $admission->city,
+                    'barangay' => $admission->barangay,
+                    'nationality' => $admission->nationality,
+                    'religion' => $admission->religion,
+                    'ethnic_affiliation' => $admission->ethnic_affiliation,
+                    'is_4ps_member' => $admission->is_4ps_member,
+                    'is_insurance_member' => $admission->is_insurance_member,
+                    'is_vaccinated' => $admission->is_vaccinated,
+                    'is_indigenous' => $admission->is_indigenous,
+                    'application_type' => $admission->application_type,
+                    'lrn' => $admission->lrn,
+                    'last_school_attended' => $admission->last_school_attended,
+                    'remarks' => $admission->remarks,
+                    'sent_exam_schedule' => $admission->sent_exam_schedule,
+
+                    // Files as full URLs
+                    'good_moral' => $admission->good_moral ? asset($admission->good_moral) : null,
+                    'form_137' => $admission->form_137 ? asset($admission->form_137) : null,
+                    'form_138' => $admission->form_138 ? asset($admission->form_138) : null,
+                    'birth_certificate' => $admission->birth_certificate ? asset($admission->birth_certificate) : null,
+                    'certificate_of_completion' => $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
+
+
+                    'grade_level' => $admission->grade_level_id,
+                    'guardian_name' => $admission->guardian_name,
+                    'guardian_contact' => $admission->guardian_contact,
+                    'mother_name' => $admission->mother_name,
+                    'mother_contact' => $admission->mother_contact,
+                    'father_name' => $admission->father_name,
+                    'father_contact' => $admission->father_contact,
+                    'blood_type' => $admission->blood_type,
+
+                    // Related Names
+                    'academic_program' => optional($admission->academic_program)->course_name,
+                    'school_campus' => optional($admission->schoolCampus)->campus_name,
+                    'academic_year'   => optional($admission->school_years)
+                        ? optional($admission->school_years)->school_year . ' ' . optional($admission->school_years)->semester
+                        : null,
+                ];
+            });
+
+            return response()->json([
+                'isSuccess' => true,
+                'admissions' => $admissionsData,
+                'pagination' => [
+                    'current_page' => $admissions->currentPage(),
+                    'per_page' => $admissions->perPage(),
+                    'total' => $admissions->total(),
+                    'last_page' => $admissions->lastPage(),
+                ],
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to retrieve admissions.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
 
 
@@ -256,141 +258,141 @@ class AdmissionsController extends Controller
         }
     }
 
- 
-public function getAllEnrollments(Request $request)
-{
-    try {
-        $perPage = $request->get('per_page', 10);
 
-        // Base query
-        $query = students::with([
-            'examSchedule.applicant.gradeLevel',
-            'examSchedule.applicant.course',
-            'examSchedule.applicant.campus',
-            'section'
-        ]);
+    public function getAllEnrollments(Request $request)
+    {
+        try {
+            $perPage = $request->get('per_page', 10);
 
-        // Search by keyword (student number or applicant name)
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('student_number', 'like', "%{$search}%")
-                  ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
-                      $q2->where('first_name', 'like', "%{$search}%")
-                         ->orWhere('last_name', 'like', "%{$search}%");
-                  });
-            });
-        }
+            // Base query
+            $query = students::with([
+                'examSchedule.applicant.gradeLevel',
+                'examSchedule.applicant.course',
+                'examSchedule.applicant.campus',
+                'section'
+            ]);
 
-        // Filters
-        if ($request->has('campus')) {
-            $campus = $request->campus;
-            $query->whereHas('examSchedule.applicant.campus', function ($q) use ($campus) {
-                $q->where('campus_name', $campus);
-            });
-        }
-
-        if ($request->has('course')) {
-            $course = $request->course;
-            $query->whereHas('examSchedule.applicant.course', function ($q) use ($course) {
-                $q->where('course_name', $course);
-            });
-        }
-
-        if ($request->has('section')) {
-            $section = $request->section;
-            $query->whereHas('section', function ($q) use ($section) {
-                $q->where('section_name', $section);
-            });
-        }
-
-        // Paginate
-        $students = $query->paginate($perPage);
-
-        // Map results
-        $enrollments = $students->map(function ($student) {
-            $examSchedule = $student->examSchedule;
-            $admission    = $examSchedule?->applicant;
-            $courseId     = $student->course_id;
-
-            // Get curriculum & subjects
-            $curriculum = DB::table('curriculums')->where('course_id', $courseId)->first();
-            $subjects = [];
-            $totalUnits = 0;
-
-            if ($curriculum) {
-                $currSubjects = DB::table('curriculum_subject as cs')
-                    ->join('subjects as s', 'cs.subject_id', '=', 's.id')
-                    ->where('cs.curriculum_id', $curriculum->id)
-                    ->select('s.id as subject_id', 's.subject_name', 's.units')
-                    ->get();
-
-                foreach ($currSubjects as $subj) {
-                    $subjects[] = [
-                        'subject_id' => $subj->subject_id,
-                        'subject_name' => $subj->subject_name,
-                        'units' => $subj->units,
-                    ];
-                    $totalUnits += $subj->units;
-                }
+            // Search by keyword (student number or applicant name)
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('student_number', 'like', "%{$search}%")
+                        ->orWhereHas('examSchedule.applicant', function ($q2) use ($search) {
+                            $q2->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
             }
 
-            return [
-                'id' => $student->id,
-                'student_number' => $student->student_number,
-                'status' => $student->enrollment_status,
-                'payment_status' => $student->payment_status,
-                'grade_level' => $admission?->gradeLevel?->grade_level,
-                'course' => $admission?->course?->course_name,
-                'campus' => $admission?->campus?->campus_name,
-                'tuition_fee' => $student->tuition_fee,
-                'misc_fee' => $student->misc_fee,
-                'units_fee' => $student->units_fee,
-                'exam' => [
-                    'exam_id' => $examSchedule?->id,
-                    'exam_date' => $examSchedule?->exam_date,
-                    'exam_status' => $examSchedule?->exam_status,
-                    'exam_score' => $examSchedule?->exam_score,
-                ],
-                'applicant' => [
-                    'applicant_id' => $admission?->id,
-                    'first_name' => $admission?->first_name,
-                    'last_name' => $admission?->last_name,
-                    'email' => $admission?->email,
-                    'contact' => $admission?->contact_number,
-                ],
-                'section' => [
-                    'section_id' => $student->section?->id,
-                    'section_name' => $student->section?->section_name,
-                ],
-                'curriculum' => $curriculum ? [
-                    'id' => $curriculum->id,
-                    'name' => $curriculum->curriculum_name,
-                    'description' => $curriculum->curriculum_description,
-                ] : null,
-                'subjects' => $subjects,
-                'total_units' => $totalUnits,
-            ];
-        });
+            // Filters
+            if ($request->has('campus')) {
+                $campus = $request->campus;
+                $query->whereHas('examSchedule.applicant.campus', function ($q) use ($campus) {
+                    $q->where('campus_name', $campus);
+                });
+            }
 
-        return response()->json([
-            'isSuccess' => true,
-            'data' => $enrollments,
-            'pagination' => [
-                'current_page' => $students->currentPage(),
-                'per_page' => $students->perPage(),
-                'total' => $students->total(),
-                'last_page' => $students->lastPage(),
-            ],
-        ]);
-    } catch (Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to retrieve enrollments.',
-            'error' => $e->getMessage(),
-        ], 500);
+            if ($request->has('course')) {
+                $course = $request->course;
+                $query->whereHas('examSchedule.applicant.course', function ($q) use ($course) {
+                    $q->where('course_name', $course);
+                });
+            }
+
+            if ($request->has('section')) {
+                $section = $request->section;
+                $query->whereHas('section', function ($q) use ($section) {
+                    $q->where('section_name', $section);
+                });
+            }
+
+            // Paginate
+            $students = $query->paginate($perPage);
+
+            // Map results
+            $enrollments = $students->map(function ($student) {
+                $examSchedule = $student->examSchedule;
+                $admission    = $examSchedule?->applicant;
+                $courseId     = $student->course_id;
+
+                // Get curriculum & subjects
+                $curriculum = DB::table('curriculums')->where('course_id', $courseId)->first();
+                $subjects = [];
+                $totalUnits = 0;
+
+                if ($curriculum) {
+                    $currSubjects = DB::table('curriculum_subject as cs')
+                        ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+                        ->where('cs.curriculum_id', $curriculum->id)
+                        ->select('s.id as subject_id', 's.subject_name', 's.units')
+                        ->get();
+
+                    foreach ($currSubjects as $subj) {
+                        $subjects[] = [
+                            'subject_id' => $subj->subject_id,
+                            'subject_name' => $subj->subject_name,
+                            'units' => $subj->units,
+                        ];
+                        $totalUnits += $subj->units;
+                    }
+                }
+
+                return [
+                    'id' => $student->id,
+                    'student_number' => $student->student_number,
+                    'status' => $student->enrollment_status,
+                    'payment_status' => $student->payment_status,
+                    'grade_level' => $admission?->gradeLevel?->grade_level,
+                    'course' => $admission?->course?->course_name,
+                    'campus' => $admission?->campus?->campus_name,
+                    'tuition_fee' => $student->tuition_fee,
+                    'misc_fee' => $student->misc_fee,
+                    'units_fee' => $student->units_fee,
+                    'exam' => [
+                        'exam_id' => $examSchedule?->id,
+                        'exam_date' => $examSchedule?->exam_date,
+                        'exam_status' => $examSchedule?->exam_status,
+                        'exam_score' => $examSchedule?->exam_score,
+                    ],
+                    'applicant' => [
+                        'applicant_id' => $admission?->id,
+                        'first_name' => $admission?->first_name,
+                        'last_name' => $admission?->last_name,
+                        'email' => $admission?->email,
+                        'contact' => $admission?->contact_number,
+                    ],
+                    'section' => [
+                        'section_id' => $student->section?->id,
+                        'section_name' => $student->section?->section_name,
+                    ],
+                    'curriculum' => $curriculum ? [
+                        'id' => $curriculum->id,
+                        'name' => $curriculum->curriculum_name,
+                        'description' => $curriculum->curriculum_description,
+                    ] : null,
+                    'subjects' => $subjects,
+                    'total_units' => $totalUnits,
+                ];
+            });
+
+            return response()->json([
+                'isSuccess' => true,
+                'data' => $enrollments,
+                'pagination' => [
+                    'current_page' => $students->currentPage(),
+                    'per_page' => $students->perPage(),
+                    'total' => $students->total(),
+                    'last_page' => $students->lastPage(),
+                ],
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to retrieve enrollments.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
 
@@ -403,7 +405,7 @@ public function getAllEnrollments(Request $request)
     {
         try {
             $validated = $request->validate([
-                'lrn'=> 'required|numeric',
+                'lrn' => 'required|numeric',
                 'surname' => 'required|string|max:50',
                 'given_name' => 'required|string|max:50',
                 'middle_name' => 'nullable|string|max:50',
@@ -414,7 +416,7 @@ public function getAllEnrollments(Request $request)
                 'place_of_birth' => 'required|string|max:100',
                 'gender' => 'required|string|max:10',
                 'civil_status' => 'required|string|max:20',
-                'blood_type'=> 'required|string',
+                'blood_type' => 'required|string',
 
                 'street_address' => 'required|string|max:255',
                 'province' => 'required|string|max:100',
@@ -464,7 +466,7 @@ public function getAllEnrollments(Request $request)
             $programName = courses::find($validated['academic_program_id'])->course_name;
 
 
-           $applicantNumber = 'APLN-' . now()->format('y') . str_pad(rand(100, 999), 2, '0', STR_PAD_LEFT);
+            $applicantNumber = 'APLN-' . now()->format('y') . str_pad(rand(100, 999), 2, '0', STR_PAD_LEFT);
 
             $admission = admissions::create([
                 'account_id' => null,
@@ -475,7 +477,7 @@ public function getAllEnrollments(Request $request)
                 'school_campus_id' => $validated['school_campus_id'],
                 'application_type' => $validated['application_type'],
                 'academic_program_id' => $validated['academic_program_id'],
-                
+
                 'lrn' => $validated['lrn'],
                 'first_name' => $validated['given_name'],
                 'middle_name' => $validated['middle_name'] ?? '',
@@ -491,7 +493,7 @@ public function getAllEnrollments(Request $request)
                 'province' => $validated['province'],
                 'city' => $validated['city'],
                 'barangay' => $validated['barangay'],
-                'blood_type' =>$validated['blood_type'],
+                'blood_type' => $validated['blood_type'],
 
                 'nationality' => $validated['nationality'],
                 'religion' => $validated['religion'],
@@ -606,38 +608,38 @@ public function getAllEnrollments(Request $request)
 
 
 
-    
-   public function acceptapplication(Request $request, $id)
-{
-    try {
-        $user = Auth::user();
-        if (!$user) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Unauthorized.',
-            ], 401);
-        }
 
-        $admission = admissions::findOrFail($id);
+    public function acceptapplication(Request $request, $id)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Unauthorized.',
+                ], 401);
+            }
 
-        // Check if already approved
-        if ($admission->status === 'approved') {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'This application has already been approved.',
-            ]);
-        }
+            $admission = admissions::findOrFail($id);
 
-        $admission->status = 'approved';
-        $admission->save();
+            // Check if already approved
+            if ($admission->status === 'approved') {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'This application has already been approved.',
+                ]);
+            }
 
-        $firstName = $admission->given_name ?? 'Applicant';
-        $lastName = $admission->surname ?? '';
-        $email = $admission->email;
+            $admission->status = 'approved';
+            $admission->save();
 
-        // Send confirmation email only if not previously approved
-        if ($email) {
-            Mail::html("
+            $firstName = $admission->given_name ?? 'Applicant';
+            $lastName = $admission->surname ?? '';
+            $email = $admission->email;
+
+            // Send confirmation email only if not previously approved
+            if ($email) {
+                Mail::html("
                 <div style='font-family: Arial, sans-serif; max-width: 700px; margin: auto;'>
                     <h2>SNL University</h2>
                     <p>Dear Mr./Ms. {$lastName}, {$firstName},</p>
@@ -651,108 +653,108 @@ public function getAllEnrollments(Request $request)
                     <p>Follow and regularly check the SNL Admissions and Orientation Services Facebook Page for further announcements. For inquiries, you may call us at 09******* local 1087 or email us at <a href='mailto:*******@***.com'>admissions@****.****.***</a>.</p>
                 </div>
             ", function ($message) use ($email) {
-                $message->to($email)->subject('SNL Application Confirmation');
-            });
-        }
+                    $message->to($email)->subject('SNL Application Confirmation');
+                });
+            }
 
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Application accepted and email sent.',
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Error: ' . $e->getMessage(),
-        ]);
-    }
-}
-
-
-public function sendExamination(Request $request)
-{
-    try {
-        try {
-            $request->validate([
-                'admission_ids' => 'required|array',
-                'admission_ids.*' => 'exists:admissions,id',
-                'exam_date' => 'required|date',
-                'exam_time_from' => 'required|date_format:H:i',
-                'exam_time_to' => 'required|date_format:H:i|after:exam_time_from',
-                'building_id' => 'required|exists:campus_buildings,id',
-                'room_id' => [
-                    'required',
-                    'exists:building_rooms,id',
-                    function ($attribute, $value, $fail) use ($request) {
-                        $room = building_rooms::find($value);
-                        if (!$room || $room->building_id != $request->building_id) {
-                            $fail('The selected room does not belong to the selected building.');
-                        }
-                    }
-                ],
-                'campus_id' => 'nullable|exists:school_campus,id',
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Application accepted and email sent.',
             ]);
-        } catch (ValidationException $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Validation failed.',
-                'errors' => $e->errors() // shows all failed fields with reasons
-            ], 422);
+                'message' => 'Error: ' . $e->getMessage(),
+            ]);
         }
+    }
 
 
-        $examDate = $request->exam_date;
-        $results = [];
-
-        $building = campus_buildings::find($request->building_id);
-        $room = building_rooms::find($request->room_id);
-
-        foreach ($request->admission_ids as $id) {
+    public function sendExamination(Request $request)
+    {
+        try {
             try {
-                $admission = admissions::with(['academic_program', 'schoolCampus', 'school_years'])->findOrFail($id);
+                $request->validate([
+                    'admission_ids' => 'required|array',
+                    'admission_ids.*' => 'exists:admissions,id',
+                    'exam_date' => 'required|date',
+                    'exam_time_from' => 'required|date_format:H:i',
+                    'exam_time_to' => 'required|date_format:H:i|after:exam_time_from',
+                    'building_id' => 'required|exists:campus_buildings,id',
+                    'room_id' => [
+                        'required',
+                        'exists:building_rooms,id',
+                        function ($attribute, $value, $fail) use ($request) {
+                            $room = building_rooms::find($value);
+                            if (!$room || $room->building_id != $request->building_id) {
+                                $fail('The selected room does not belong to the selected building.');
+                            }
+                        }
+                    ],
+                    'campus_id' => 'nullable|exists:school_campus,id',
+                ]);
+            } catch (ValidationException $e) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Validation failed.',
+                    'errors' => $e->errors() // shows all failed fields with reasons
+                ], 422);
+            }
 
-                if (strtolower($admission->status) === 'rejected') {
-                    $results[] = [
-                        'admission_id' => $id,
-                        'status' => 'skipped',
-                        'message' => 'Applicant is rejected and will not be scheduled.',
-                    ];
-                    continue;
-                }
 
-                if (!$admission->test_permit_no) {
-                    $prefix = "SNL-";
-                    $paddedId = str_pad($admission->id, 5, '0', STR_PAD_LEFT);
-                    $admission->test_permit_no = $prefix . $paddedId;
-                    $admission->save();
-                }
+            $examDate = $request->exam_date;
+            $results = [];
 
-                $schedule = exam_schedules::where('admission_id', $admission->id)->first();
-                $wasAlreadySent = $schedule ? $schedule->exam_sent : false;
+            $building = campus_buildings::find($request->building_id);
+            $room = building_rooms::find($request->room_id);
 
-                exam_schedules::updateOrCreate(
-                    ['admission_id' => $admission->id],
-                    [
-                       
-                        'test_permit_no' => $admission->test_permit_no,
-                        'room_id' => $room->id,
-                        'building_id' => $building->id,
-                        'campus_id' => $request->campus_id,
-                        'course_id' => $request->course_id ?? null,
-                        'exam_time_from' => $request->exam_time_from,
-                        'exam_time_to' => $request->exam_time_to,
-                        'exam_date' => $examDate,
-                        'academic_year' => $admission->school_years->school_year,
-                        'exam_sent' => $wasAlreadySent,
-                        
-                    ]
-                );
+            foreach ($request->admission_ids as $id) {
+                try {
+                    $admission = admissions::with(['academic_program', 'schoolCampus', 'school_years'])->findOrFail($id);
 
-                if (!$wasAlreadySent && $admission->email) {
-                    $examDateFormatted = date('F d, Y', strtotime($examDate));
-                    $timeFormatted = date('h:i A', strtotime($request->exam_time_from)) . ' – ' . date('h:i A', strtotime($request->exam_time_to));
-                    $testingCenter = $admission->schoolCampus->campus_name ?? 'SNL – Main Campus';
+                    if (strtolower($admission->status) === 'rejected') {
+                        $results[] = [
+                            'admission_id' => $id,
+                            'status' => 'skipped',
+                            'message' => 'Applicant is rejected and will not be scheduled.',
+                        ];
+                        continue;
+                    }
 
-                    Mail::html("
+                    if (!$admission->test_permit_no) {
+                        $prefix = "SNL-";
+                        $paddedId = str_pad($admission->id, 5, '0', STR_PAD_LEFT);
+                        $admission->test_permit_no = $prefix . $paddedId;
+                        $admission->save();
+                    }
+
+                    $schedule = exam_schedules::where('admission_id', $admission->id)->first();
+                    $wasAlreadySent = $schedule ? $schedule->exam_sent : false;
+
+                    exam_schedules::updateOrCreate(
+                        ['admission_id' => $admission->id],
+                        [
+
+                            'test_permit_no' => $admission->test_permit_no,
+                            'room_id' => $room->id,
+                            'building_id' => $building->id,
+                            'campus_id' => $request->campus_id,
+                            'course_id' => $request->course_id ?? null,
+                            'exam_time_from' => $request->exam_time_from,
+                            'exam_time_to' => $request->exam_time_to,
+                            'exam_date' => $examDate,
+                            'academic_year' => $admission->school_years->school_year,
+                            'exam_sent' => $wasAlreadySent,
+
+                        ]
+                    );
+
+                    if (!$wasAlreadySent && $admission->email) {
+                        $examDateFormatted = date('F d, Y', strtotime($examDate));
+                        $timeFormatted = date('h:i A', strtotime($request->exam_time_from)) . ' – ' . date('h:i A', strtotime($request->exam_time_to));
+                        $testingCenter = $admission->schoolCampus->campus_name ?? 'SNL – Main Campus';
+
+                        Mail::html("
                         <div style='font-family: Arial, sans-serif; max-width: 700px; margin: auto;'>
                             <h2>SNL University Exam Schedule</h2>
                             <p>Good day!</p>
@@ -770,90 +772,89 @@ public function sendExamination(Request $request)
                             </p>
                         </div>
                     ", function ($message) use ($admission) {
-                        $message->to($admission->email)->subject('SNL Exam Schedule Notification');
-                    });
+                            $message->to($admission->email)->subject('SNL Exam Schedule Notification');
+                        });
 
-                    exam_schedules::where('admission_id', $admission->id)->update(['exam_sent' => true]);
+                        exam_schedules::where('admission_id', $admission->id)->update(['exam_sent' => true]);
 
-                    $admission->update(['sent_exam_schedule' => 1]);
+                        $admission->update(['sent_exam_schedule' => 1]);
 
+                        $results[] = [
+                            'admission_id' => $id,
+                            'status' => 'exam_sent',
+                        ];
+                    } else {
+                        $results[] = [
+                            'admission_id' => $id,
+                            'status' => 'skipped',
+                            'message' => 'Email already sent previously.',
+                        ];
+                    }
+                } catch (\Exception $ex) {
                     $results[] = [
                         'admission_id' => $id,
-                        'status' => 'exam_sent',
-                    ];
-                } else {
-                    $results[] = [
-                        'admission_id' => $id,
-                        'status' => 'skipped',
-                        'message' => 'Email already sent previously.',
+                        'status' => 'error',
+                        'message' => $ex->getMessage(),
                     ];
                 }
-            } catch (\Exception $ex) {
-                $results[] = [
-                    'admission_id' => $id,
-                    'status' => 'error',
-                    'message' => $ex->getMessage(),
-                ];
             }
-        }
 
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Bulk exam scheduling completed.',
-            'results' => $results,
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to send exam schedules.',
-            'error' => $e->getMessage(),
-        ]);
-    }
-}
-
-
-
- public function reserveSlot(Request $request, $id)
-{
-    try {
-        // Validate schedule date
-        $request->validate([
-            'schedule_date' => 'required|date|after_or_equal:today',
-        ]);
-
-        // Fetch admission with course
-        $admission = admissions::with('course')->findOrFail($id);
-
-        if (!$admission->course) {
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Bulk exam scheduling completed.',
+                'results' => $results,
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Missing course data.',
+                'message' => 'Failed to send exam schedules.',
+                'error' => $e->getMessage(),
             ]);
         }
+    }
 
-        $currentYear = Carbon::now()->year;
-        $nextYear = $currentYear + 1;
-        $academicYearText = $currentYear . '-' . $nextYear;
 
-        // Format dynamic schedule range (e.g. June 1 to 15 of current year)
-        $scheduleStart = Carbon::create($currentYear, 6, 1)->format('F d');
-        $scheduleEnd = Carbon::create($currentYear, 6, 15)->format('d, Y');
 
-        // Create reservation
-        $reservation = new AdmissionReservation();
-        $reservation->admission_id = $id;
-        $reservation->schedule_date = $request->schedule_date;
-        $reservation->academic_year_id = $admission->academic_year_id;
-        $reservation->reservation_code = strtoupper(uniqid('RES-'));
-        $reservation->save();
+    public function reserveSlot(Request $request, $id)
+    {
+        try {
+            // Validate schedule date
+            $request->validate([
+                'schedule_date' => 'required|date|after_or_equal:today',
+            ]);
 
-        // Use data directly from admissions table
-        $student_name = $admission->given_name . ' ' . $admission->surname;
-        $reservation_date = date('F d, Y', strtotime($request->schedule_date));
+            // Fetch admission with course
+            $admission = admissions::with('course')->findOrFail($id);
 
-        // Email HTML content
-        $htmlContent = '
+            if (!$admission->course) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Missing course data.',
+                ]);
+            }
+
+            $currentYear = Carbon::now()->year;
+            $nextYear = $currentYear + 1;
+            $academicYearText = $currentYear . '-' . $nextYear;
+
+            // Format dynamic schedule range (e.g. June 1 to 15 of current year)
+            $scheduleStart = Carbon::create($currentYear, 6, 1)->format('F d');
+            $scheduleEnd = Carbon::create($currentYear, 6, 15)->format('d, Y');
+
+            // Create reservation
+            $reservation = new AdmissionReservation();
+            $reservation->admission_id = $id;
+            $reservation->schedule_date = $request->schedule_date;
+            $reservation->academic_year_id = $admission->academic_year_id;
+            $reservation->reservation_code = strtoupper(uniqid('RES-'));
+            $reservation->save();
+
+            // Use data directly from admissions table
+            $student_name = $admission->given_name . ' ' . $admission->surname;
+            $reservation_date = date('F d, Y', strtotime($request->schedule_date));
+
+            // Email HTML content
+            $htmlContent = '
         <!DOCTYPE html>
         <html>
         <head>
@@ -872,7 +873,7 @@ public function sendExamination(Request $request)
                 <p>www.prismsouth.org.au/commons/cn</p>
             </div>
 
-            <h2>Computational Quarters for AZ '. $academicYearText. ' </h2>
+            <h2>Computational Quarters for AZ ' . $academicYearText . ' </h2>
 
             <h3>Name: ' . htmlspecialchars($student_name) . '</h3>
             <p>Course: ' . htmlspecialchars($admission->course->course_name) . '</p>
@@ -907,68 +908,67 @@ public function sendExamination(Request $request)
         </body>
         </html>';
 
-        // Send email
-        Mail::send([], [], function ($message) use ($admission, $htmlContent) {
-            $message->to($admission->email)
+            // Send email
+            Mail::send([], [], function ($message) use ($admission, $htmlContent) {
+                $message->to($admission->email)
                     ->subject('SNL Online Reservation Confirmation')
                     ->setBody($htmlContent, 'text/html');
-        });
+            });
 
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Reservation created and email sent successfully.',
-        ]);
-
-    } catch (ValidationException $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Validation failed.',
-            'errors' => $e->errors(),
-        ], 422);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Reservation failed.',
-            'error' => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Reservation created and email sent successfully.',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Reservation failed.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
 
 
-public function inputExamScores(Request $request)
-{
-    $data = $request->all(); // expects an array of {id, exam_score}
-    $results = [];
-    $passingScore = 75;
+    public function inputExamScores(Request $request)
+    {
+        $data = $request->all(); // expects an array of {id, exam_score}
+        $results = [];
+        $passingScore = 75;
 
-    foreach ($data as $item) {
-        try {
-            // Validate each item
-            if (!isset($item['id']) || !isset($item['exam_score'])) {
-                throw new \Exception("Both id and exam_score are required");
-            }
+        foreach ($data as $item) {
+            try {
+                // Validate each item
+                if (!isset($item['id']) || !isset($item['exam_score'])) {
+                    throw new \Exception("Both id and exam_score are required");
+                }
 
-            if (!is_numeric($item['exam_score']) || $item['exam_score'] < 0 || $item['exam_score'] > 100) {
-                throw new \Exception("Invalid score for schedule ID {$item['id']}");
-            }
+                if (!is_numeric($item['exam_score']) || $item['exam_score'] < 0 || $item['exam_score'] > 100) {
+                    throw new \Exception("Invalid score for schedule ID {$item['id']}");
+                }
 
-            $schedule = exam_schedules::with('applicant')->findOrFail($item['id']);
-            $schedule->exam_score = $item['exam_score'];
-            $schedule->exam_status = ($item['exam_score'] >= $passingScore) ? 'passed' : 'reconsider';
-            $schedule->save();
+                $schedule = exam_schedules::with('applicant')->findOrFail($item['id']);
+                $schedule->exam_score = $item['exam_score'];
+                $schedule->exam_status = ($item['exam_score'] >= $passingScore) ? 'passed' : 'reconsider';
+                $schedule->save();
 
-            // ✅ Send email only if passed and not already sent
-            if (
-                $schedule->exam_status === 'passed' &&
-                $schedule->applicant &&
-                $schedule->applicant->email &&
-                !$schedule->exam_score_sent
-            ) {
-                $studentName = trim($schedule->applicant->first_name . ' ' . $schedule->applicant->last_name);
+                // ✅ Send email only if passed and not already sent
+                if (
+                    $schedule->exam_status === 'passed' &&
+                    $schedule->applicant &&
+                    $schedule->applicant->email &&
+                    !$schedule->exam_score_sent
+                ) {
+                    $studentName = trim($schedule->applicant->first_name . ' ' . $schedule->applicant->last_name);
 
-                $htmlContent = "
+                    $htmlContent = "
                 <html>
                     <body style='font-family: Arial, sans-serif; color: #333;'>
                         <div style='max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
@@ -999,86 +999,86 @@ public function inputExamScores(Request $request)
                 </html>
                 ";
 
-                Mail::send([], [], function ($message) use ($schedule, $studentName, $htmlContent) {
-                    $message->to($schedule->applicant->email, $studentName)
-                        ->subject('SNL Examination Result')
-                        ->setBody($htmlContent, 'text/html');
-                });
+                    Mail::send([], [], function ($message) use ($schedule, $studentName, $htmlContent) {
+                        $message->to($schedule->applicant->email, $studentName)
+                            ->subject('SNL Examination Result')
+                            ->setBody($htmlContent, 'text/html');
+                    });
 
-                // ✅ Mark as sent
-                $schedule->exam_score_sent = 1;
-                $schedule->save();
+                    // ✅ Mark as sent
+                    $schedule->exam_score_sent = 1;
+                    $schedule->save();
+                }
+
+                $results[] = [
+                    'schedule_id' => $schedule->id,
+                    'status' => 'success',
+                    'exam_score' => $schedule->exam_score,
+                    'exam_status' => $schedule->exam_status,
+                    'email_sent' => $schedule->exam_score_sent,
+                ];
+            } catch (\Exception $e) {
+                $results[] = [
+                    'schedule_id' => $item['id'] ?? null,
+                    'status' => 'failed',
+                    'message' => $e->getMessage(),
+                ];
             }
-
-            $results[] = [
-                'schedule_id' => $schedule->id,
-                'status' => 'success',
-                'exam_score' => $schedule->exam_score,
-                'exam_status' => $schedule->exam_status,
-                'email_sent' => $schedule->exam_score_sent,
-            ];
-        } catch (\Exception $e) {
-            $results[] = [
-                'schedule_id' => $item['id'] ?? null,
-                'status' => 'failed',
-                'message' => $e->getMessage(),
-            ];
         }
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Bulk exam scores processed.',
+            'results' => $results,
+        ]);
     }
 
-    return response()->json([
-        'isSuccess' => true,
-        'message' => 'Bulk exam scores processed.',
-        'results' => $results,
-    ]);
-}
+
+    public function exportExamScore()
+    {
+        $fileName = 'exam_schedules.xlsx';
+
+        // 1. Save to storage
+        Excel::store(new ExamSchedulesExport, $fileName, 'public');
+        // 'public' means it goes to storage/app/public/
+
+        // 2. Also download for user
+        return Excel::download(new ExamSchedulesExport, $fileName);
+    }
 
 
-public function exportExamScore()
-{
-    $fileName = 'exam_schedules.xlsx';
+    public function importExamScores(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv',
+        ]);
 
-    // 1. Save to storage
-    Excel::store(new ExamSchedulesExport, $fileName, 'public'); 
-    // 'public' means it goes to storage/app/public/
+        Excel::import(new ExamSchedulesImport, $request->file('file'));
 
-    // 2. Also download for user
-    return Excel::download(new ExamSchedulesExport, $fileName);
-}
-
-
-public function importExamScores(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:xlsx,xls,csv',
-    ]);
-
-    Excel::import(new ExamSchedulesImport, $request->file('file'));
-
-    return response()->json([
-        'isSuccess' => true,
-        'message'   => 'Exam scores imported successfully!'
-    ]);
-}
+        return response()->json([
+            'isSuccess' => true,
+            'message'   => 'Exam scores imported successfully!'
+        ]);
+    }
 
 
 
     public function getExamScoreSummary()
-{
-    $summary = exam_schedules::selectRaw("
+    {
+        $summary = exam_schedules::selectRaw("
         SUM(CASE WHEN exam_status = 'passed' THEN 1 ELSE 0 END) as passed,
         SUM(CASE WHEN exam_status = 'reconsider' THEN 1 ELSE 0 END) as reconsider
     ")->first();
 
-    return response()->json([
-        'isSuccess' => true,
-        'message' => 'Exam scores summary retrieved.',
-        'summary' => [
-            'passed' => $summary->passed,
-            'reconsider' => $summary->reconsider,
-        ]
-    ]);
-}
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Exam scores summary retrieved.',
+            'summary' => [
+                'passed' => $summary->passed,
+                'reconsider' => $summary->reconsider,
+            ]
+        ]);
+    }
 
 
 
@@ -1198,79 +1198,78 @@ public function importExamScores(Request $request)
         }
     }
 
-    
-public function getUniqueSchoolYearsDropdown()
-{
-    try {
-        $data = school_years::selectRaw("id, CONCAT(TRIM(school_year), ' ', TRIM(semester)) as academic_year")
-            ->orderBy('created_at','desc','school_year', 'desc')
-            ->get();
 
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'School years fetched successfully.',
-            'academic_years' => $data
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to fetch school years.',
-            'error' => $e->getMessage(),
-        ], 500);
+    public function getUniqueSchoolYearsDropdown()
+    {
+        try {
+            $data = school_years::selectRaw("id, CONCAT(TRIM(school_year), ' ', TRIM(semester)) as academic_year")
+                ->orderBy('created_at', 'desc', 'school_year', 'desc')
+                ->get();
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'School years fetched successfully.',
+                'academic_years' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to fetch school years.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
 
 
 
-// Get campuses for first dropdown
-        public function getCampusDropdown()
-        {
-            try {
-                $campuses = school_campus::select('id', 'campus_name')->get();
+    // Get campuses for first dropdown
+    public function getCampusDropdown()
+    {
+        try {
+            $campuses = school_campus::select('id', 'campus_name')->get();
 
-                return response()->json([
-                    'isSuccess' => true,
-                    'message' => 'Campuses fetched successfully.',
-                    'campuses' => $campuses
-                ]);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Failed to fetch campuses.',
-                    'error' => $e->getMessage(),
-                ], 500);
-            }
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Campuses fetched successfully.',
+                'campuses' => $campuses
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to fetch campuses.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
+    }
 
-        // Get buildings for selected campus
-        public function getBuildingsByCampus($campusId)
-        {
-            try {
-                $buildings = campus_buildings::where('campus_id', $campusId)
-                    ->select('id', 'building_name')
-                    ->get();
+    // Get buildings for selected campus
+    public function getBuildingsByCampus($campusId)
+    {
+        try {
+            $buildings = campus_buildings::where('campus_id', $campusId)
+                ->select('id', 'building_name')
+                ->get();
 
-                return response()->json([
-                    'isSuccess' => true,
-                    'message' => 'Buildings fetched successfully.',
-                    'buildings' => $buildings
-                ]);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Failed to fetch buildings.',
-                    'error' => $e->getMessage(),
-                ], 500);
-            }
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Buildings fetched successfully.',
+                'buildings' => $buildings
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to fetch buildings.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
+    }
 
-        // Existing rooms function (unchanged)
-        public function getByBuilding($buildingid)
-        {
-            $rooms = building_rooms::where('building_id', $buildingid)->get();
-            return response()->json($rooms);
-        }
-
+    // Existing rooms function (unchanged)
+    public function getByBuilding($buildingid)
+    {
+        $rooms = building_rooms::where('building_id', $buildingid)->get();
+        return response()->json($rooms);
+    }
 }
