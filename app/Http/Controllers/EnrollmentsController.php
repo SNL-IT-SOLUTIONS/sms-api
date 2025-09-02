@@ -803,6 +803,7 @@ class EnrollmentsController extends Controller
                 DB::table('student_subjects')->insert($insertData);
 
                 // Recalculate fees
+                // Recalculate fees
                 $totalUnits  = $subjects->sum('units');
                 $unitRate    = 200;
                 $unitsFee    = $totalUnits * $unitRate;
