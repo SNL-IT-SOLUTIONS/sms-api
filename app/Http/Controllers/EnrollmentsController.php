@@ -795,7 +795,7 @@ class EnrollmentsController extends Controller
                     $insertData[] = [
                         'student_id'     => $student->id,
                         'subject_id'     => $subject->id,
-                        'school_year_id' => $gradeLevel->school_year_id,
+                        'school_year_id' => $student->academic_year_id,
                         'created_at'     => $now,
                         'updated_at'     => $now,
                     ];
@@ -808,8 +808,8 @@ class EnrollmentsController extends Controller
                 $unitRate    = 200;
                 $unitsFee    = $totalUnits * $unitRate;
                 $miscFee     = 2000;
-                $tuitionFee  = $student->tuition_fee ?? 0; // keep existing tuition if set
-                $totalAmount = $tuitionFee + $miscFee + $unitsFee;
+                $tuitionFee  = $unitsFee ?? 0; // keep existing tuition if set
+                $totalAmount = $tuitionFee + $miscFee;
 
                 // Determine enrollment_status
                 $hasAllRequirements = $student->has_form137
@@ -1270,7 +1270,7 @@ class EnrollmentsController extends Controller
             $miscFee    = (float) $student->misc_fee;
             $unitsFee   = (float) $student->units_fee;
 
-            $totalFee   = $tuitionFee + $miscFee + $unitsFee;
+            $totalFee   = $tuitionFee + $miscFee;
             $totalUnits = (int) ($student->subjects()->sum('units') ?? 0);
 
             // Payments

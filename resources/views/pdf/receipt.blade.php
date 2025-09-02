@@ -46,7 +46,8 @@
     <h2>Official Receipt</h2>
 
     <p><b>Receipt No:</b> {{ $receiptNo ?? 'N/A' }}</p>
-    <p><b>Date:</b> {{ $paidAt ? \Carbon\Carbon::parse($paidAt)->format('F d, Y h:i A') : now()->format('F d, Y h:i A') }}</p>
+    <p><b>Date:</b>
+        {{ $paidAt ? \Carbon\Carbon::parse($paidAt)->format('F d, Y h:i A') : now()->format('F d, Y h:i A') }}</p>
     <hr>
 
     <p><b>Student Name:</b> {{ $firstName }} {{ $lastName }}</p>
@@ -79,7 +80,7 @@
         $tuitionFeeNum = (float) str_replace(',', '', $tuitionFee);
         $miscFeeNum = (float) str_replace(',', '', $miscFee);
         $unitsFeeNum = (float) str_replace(',', '', $unitsFee);
-        $totalFee = $tuitionFeeNum + $miscFeeNum + $unitsFeeNum;
+        $totalFee = $tuitionFeeNum + $miscFeeNum;
 
         $paidAmountNum = (float) str_replace(',', '', $paidAmount);
         $remainingBalanceNum = (float) str_replace(',', '', $remainingBalance);
@@ -98,10 +99,6 @@
             <td>{{ number_format($miscFeeNum, 2) }}</td>
         </tr>
         <tr>
-            <td>Units Fee</td>
-            <td>{{ number_format($unitsFeeNum, 2) }}</td>
-        </tr>
-        <tr>
             <td><b>Total Fee</b></td>
             <td><b>{{ number_format($totalFee, 2) }}</b></td>
         </tr>
@@ -110,7 +107,7 @@
             <td><b>{{ number_format($paidAmountNum, 2) }}</b></td>
         </tr>
         <tr>
-            <td><b>Remaining Balance</b></td>
+            <td><b>Outstanding Balance</b></td>
             <td><b>{{ number_format($remainingBalanceNum, 2) }}</b></td>
         </tr>
     </table>
