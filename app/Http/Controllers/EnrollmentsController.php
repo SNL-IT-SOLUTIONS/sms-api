@@ -1119,6 +1119,10 @@ class EnrollmentsController extends Controller
                 $query->where('is_active', $request->is_active);
             }
 
+            if ($request->has('academic_year_id')) {
+                $query->where('academic_year_id', $request->academic_year_id);
+            }
+
             // 📄 Paginate
             $students = $query->paginate($perPage, ['*'], 'page', $page);
 
@@ -1127,6 +1131,13 @@ class EnrollmentsController extends Controller
             foreach ($students as $student) {
                 $examSchedule = $student->examSchedule;
                 $admission    = $examSchedule?->applicant;
+
+
+                $academicYear = DB::table('school_years')
+                    ->where('id', $student->academic_year_id)
+                    ->select('id', 'school_year', 'semester', 'is_active', 'is_archived')
+                    ->first();
+
 
                 // 📚 Curriculum & Grouped Subjects
                 $curriculum = null;
@@ -1186,7 +1197,14 @@ class EnrollmentsController extends Controller
                     'units_fee'          => $student->units_fee,
                     'total_amount'       => $student->total_amount,
                     'total_paid'         => $totalPaid,
-                    'outstanding_balance' => $outstandingBalance, // ✅ added
+                    'outstanding_balance' => $outstandingBalance,
+                    'academic_year'      => $academicYear ? [
+                        'id'          => $academicYear->id,
+                        'school_year' => $academicYear->school_year,
+                        'semester'    => $academicYear->semester,
+                        'is_active'   => $academicYear->is_active,
+                        'is_archived' => $academicYear->is_archived,
+                    ] : null, // ✅ added
                     'exam' => [
                         'exam_id'     => $examSchedule?->id,
                         'exam_date'   => $examSchedule?->exam_date,

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 
 
 class PaymentsController extends Controller
@@ -342,6 +343,125 @@ class PaymentsController extends Controller
             return response()->json([
                 'isSuccess' => false,
                 'message'   => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function printProcessPayments(Request $request)
+    {
+        try {
+            $studentId = $request->get('student_id'); // ✅ optional param
+
+            // 🔎 Fetch students with relationships
+            $query = students::with([
+                'examSchedule.applicant.gradeLevel',
+                'examSchedule.applicant.course',
+                'examSchedule.applicant.campus',
+                'section',
+                'payments'
+            ])
+                ->where('is_enrolled', 1)
+                ->orderBy('academic_year_id', 'asc');
+
+            // 🎯 If a specific student ID is provided → filter
+            if ($studentId) {
+                $query->where('id', $studentId);
+            }
+
+            $students = $query->get();
+
+            if ($students->isEmpty()) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => $studentId
+                        ? "No records found for student ID {$studentId}"
+                        : "No enrolled students found."
+                ], 404);
+            }
+
+            // 📂 Group by academic year
+            // 📂 Group by school_year_id (year + semester combined)
+            $groupedByYearSemester = $students->groupBy('academic_year_id');
+
+            $results = [];
+
+            foreach ($groupedByYearSemester as $academicYearId => $studentsGroup) {
+                $studentsData = [];
+
+                // 🔎 Fetch school year + semester info
+                $academicYear = DB::table('school_years')
+                    ->where('id', $academicYearId)
+                    ->select('id', 'school_year', 'semester', 'is_active', 'is_archived')
+                    ->first();
+
+                foreach ($studentsGroup as $student) {
+                    $examSchedule = $student->examSchedule;
+                    $admission    = $examSchedule?->applicant;
+
+                    // 💰 Payment info per semester
+                    $totalPaid = $student->payments()
+                        ->where('school_year_id', $academicYearId) // <-- filter per semester
+                        ->sum('paid_amount');
+
+                    $outstandingBalance = max($student->total_amount - $totalPaid, 0);
+
+                    $studentsData[] = [
+                        'id'                 => $student->id,
+                        'student_number'     => $student->student_number,
+                        'status'             => $student->enrollment_status,
+                        'payment_status'     => $student->payment_status,
+                        'grade_level'        => $admission?->gradeLevel?->grade_level,
+                        'course'             => $admission?->course?->course_name,
+                        'campus'             => $admission?->campus?->campus_name,
+                        'tuition_fee'        => $student->tuition_fee,
+                        'misc_fee'           => $student->misc_fee,
+                        'units_fee'          => $student->units_fee,
+                        'total_amount'       => $student->total_amount,
+                        'total_paid'         => $totalPaid,
+                        'outstanding_balance' => $outstandingBalance,
+                        'exam' => [
+                            'exam_id'     => $examSchedule?->id,
+                            'exam_date'   => $examSchedule?->exam_date,
+                            'exam_status' => $examSchedule?->exam_status,
+                            'exam_score'  => $examSchedule?->exam_score,
+                        ],
+                        'applicant' => [
+                            'applicant_id' => $admission?->id,
+                            'first_name'   => $admission?->first_name,
+                            'last_name'    => $admission?->last_name,
+                            'email'        => $admission?->email,
+                            'contact'      => $admission?->contact_number,
+                        ],
+                        'section' => [
+                            'section_id'   => $student->section?->id,
+                            'section_name' => $student->section?->section_name,
+                        ],
+                    ];
+                }
+
+                $results[] = [
+                    'academic_year' => $academicYear ? [
+                        'id'          => $academicYear->id,
+                        'school_year' => $academicYear->school_year,
+                        'semester'    => $academicYear->semester,
+                        'is_active'   => $academicYear->is_active,
+                        'is_archived' => $academicYear->is_archived,
+                    ] : null,
+                    'students' => $studentsData,
+                ];
+            }
+
+
+            // 🎯 Response for frontend (ready to print)
+            return response()->json([
+                'isSuccess' => true,
+                'data'      => $results,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Error: ' . $e->getMessage(),
             ], 500);
         }
     }
