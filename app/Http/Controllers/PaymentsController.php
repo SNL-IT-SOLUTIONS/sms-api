@@ -285,7 +285,11 @@ class PaymentsController extends Controller
             $query = payments::with(['student.examSchedule.admission'])
                 ->orderBy('created_at', 'desc');
 
-            // Optional search by student name, student_id, receipt_no, or status
+            if ($request->has('academic_year_id') || $request->has('school_year_id')) {
+                $schoolYearId = $request->academic_year_id ?? $request->school_year_id;
+                $query->where('school_year_id', $schoolYearId);
+            }
+            // ✅ Optional search by student name, student_id, receipt_no, or status
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -301,7 +305,7 @@ class PaymentsController extends Controller
 
             $payments = $query->paginate($perPage, ['*'], 'page', $page);
 
-            // Format results
+            // ✅ Format results
             $data = $payments->map(function ($payment) {
                 $student = $payment->student;
                 $examSchedule = $student->examSchedule ?? null;
@@ -326,6 +330,7 @@ class PaymentsController extends Controller
                     'receipt_no'         => $payment->receipt_no,
                     'paid_at'            => $payment->paid_at,
                     'received_by'        => $payment->received_by,
+                    'school_year_id'     => $payment->school_year_id, // ✅ included in response
                 ];
             });
 
