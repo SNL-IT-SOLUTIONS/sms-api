@@ -11,34 +11,35 @@ class students extends Model
 {
     use HasApiTokens;
     use HasFactory;
-     protected $table = 'students';
+    protected $table = 'students';
 
-   protected $fillable = [
-    'curriculum_id',
-    'exam_schedules_id',
-    'student_number',
-    'password',
-    'profile_img',
-    'student_status',
-    'course_id',
-    'misc_fee',
-    'section_id',
-    'academic_year_id',
-    'grade_level_id',
-    'units_fee',
-    'tuition_fee',
-    'is_active',
-    'has_form137',
-    'has_form138',
-    'has_good_moral',
-    'has_certificate_of_completion',
-    'has_birth_certificate',
-    'enrollment_status',
-    'is_enrolled',
-    'is_active',
-    'total_amount',
-];
-      protected $hidden = [
+    protected $fillable = [
+        'payment_status',
+        'curriculum_id',
+        'exam_schedules_id',
+        'student_number',
+        'password',
+        'profile_img',
+        'student_status',
+        'course_id',
+        'misc_fee',
+        'section_id',
+        'academic_year_id',
+        'grade_level_id',
+        'units_fee',
+        'tuition_fee',
+        'is_active',
+        'has_form137',
+        'has_form138',
+        'has_good_moral',
+        'has_certificate_of_completion',
+        'has_birth_certificate',
+        'enrollment_status',
+        'is_enrolled',
+        'is_active',
+        'total_amount',
+    ];
+    protected $hidden = [
         'password',
     ];
 
@@ -50,8 +51,8 @@ class students extends Model
             'student_id',       // FK on pivot for student
             'subject_id'        // FK on pivot for subject
         )
-        ->withPivot(['school_year_id',  'final_rating', 'remarks'])
-        ->withTimestamps();
+            ->withPivot(['school_year_id',  'final_rating', 'remarks'])
+            ->withTimestamps();
     }
     public function admission()
     {
@@ -70,42 +71,35 @@ class students extends Model
 
     public function section()
     {
-        return $this->belongsTo(sections::class, 'section_id'); 
+        return $this->belongsTo(sections::class, 'section_id');
     }
-public function payments()
-{
-    return $this->hasMany(payments::class, 'student_id'); // must match the column in payments table
+    public function payments()
+    {
+        return $this->hasMany(payments::class, 'student_id'); // must match the column in payments table
+    }
+
+    public function campus()
+    {
+        return $this->belongsTo(school_campus::class, 'school_campus_id');
+    }
+
+    // Students.php
+    public function curriculum()
+    {
+        return $this->belongsTo(curriculums::class, 'curriculum_id');
+    }
+
+
+
+    public function schedules()
+    {
+        return $this->hasManyThrough(
+            SectionSubjectSchedule::class,
+            sections::class,
+            'id',
+            'section_id',
+            'section_id',
+            'id'
+        )->with(['subject', 'teacher', 'room']);
+    }
 }
-
-public function campus()
-{
-    return $this->belongsTo(school_campus::class, 'school_campus_id');
-}
-
-// Students.php
-public function curriculum()
-{
-    return $this->belongsTo(curriculums::class, 'curriculum_id');
-}
-
-
-
-public function schedules()
-{
-    return $this->hasManyThrough(
-        SectionSubjectSchedule::class, 
-        sections::class,                
-        'id',                          
-        'section_id',                  
-        'section_id',                 
-        'id'                         
-    )->with(['subject', 'teacher', 'room']);
-}
-
-
-
-
-
-
-}
-

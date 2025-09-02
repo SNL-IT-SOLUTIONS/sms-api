@@ -13,6 +13,7 @@ class payments extends Model
 
     protected $fillable = [
         'student_id',
+        'school_year_id',
         'amount',
         'paid_amount',
         'remaining_balance',
@@ -37,7 +38,7 @@ class payments extends Model
         return $this->belongsTo(students::class, 'student_id');
     }
 
-        public function admission()
+    public function admission()
     {
         return $this->belongsTo(admissions::class, 'admission_id');
     }
@@ -54,27 +55,21 @@ class payments extends Model
 
     public function section()
     {
-        return $this->belongsTo(sections::class, 'section_id'); 
+        return $this->belongsTo(sections::class, 'section_id');
     }
-public function payments()
-{
-    return $this->hasMany(payments::class, 'student_id'); // must match the column in payments table
+    public function payments()
+    {
+        return $this->hasMany(payments::class, 'student_id'); // must match the column in payments table
+    }
+
+    public function campus()
+    {
+        return $this->belongsTo(school_campus::class, 'school_campus_id');
+    }
+
+    // Students.php
+    public function curriculum()
+    {
+        return $this->belongsTo(curriculums::class, 'curriculum_id');
+    }
 }
-
-public function campus()
-{
-    return $this->belongsTo(school_campus::class, 'school_campus_id');
-}
-
-// Students.php
-public function curriculum()
-{
-    return $this->belongsTo(curriculums::class, 'curriculum_id');
-}
-
-
-  
-}
-
-
-

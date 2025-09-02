@@ -8,6 +8,7 @@ use Barryvdh\DomPDF\Facade\Pdf; // Assuming you have a PDF facade set up
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 
 
 class PaymentsController extends Controller
@@ -18,17 +19,18 @@ class PaymentsController extends Controller
     public function confirmPayment(Request $request, $studentId)
     {
         try {
-            // Validate input
+            // ✅ Validate input
             $validated = $request->validate([
                 'amount'         => 'required|numeric|min:1',
                 'payment_method' => 'nullable|string|in:cash,card,gcash,bank_transfer',
                 'remarks'        => 'nullable|string|max:255',
             ]);
 
-            // Fetch student safely
-            $student = students::findOrFail($studentId);
+            // ✅ Fetch student safely
+            $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus', 'subjects'])
+                ->findOrFail($studentId);
 
-            // Calculate how much has already been paid
+            // ✅ Payment calculation
             $totalPaid = $student->payments()->sum('paid_amount');
             $totalDue  = (float) $student->total_amount;
             $outstandingBalance = $totalDue - $totalPaid;
@@ -40,14 +42,11 @@ class PaymentsController extends Controller
                 ], 400);
             }
 
-            // Cap payment so no overpayment
             $paidAmount = min($validated['amount'], $outstandingBalance);
-
-            // Recalculate outstanding balance
             $newOutstanding = $outstandingBalance - $paidAmount;
             $paymentStatus = ($newOutstanding <= 0) ? 'paid' : 'partial';
 
-            // Generate receipt number (atomic to avoid duplicates)
+            // ✅ Generate unique receipt number
             $receiptNo = 'RCPT-' . str_pad(
                 $student->payments()->lockForUpdate()->count() + 1,
                 6,
@@ -55,11 +54,12 @@ class PaymentsController extends Controller
                 STR_PAD_LEFT
             );
 
-            // Create payment record
+            // ✅ Create payment record
             $payment = payments::create([
                 'student_id'        => $student->id,
-                'amount'            => $totalDue,   // original total due
+                'amount'            => $totalDue,
                 'paid_amount'       => $paidAmount,
+                'school_year_id'    => $student->academic_year_id,
                 'payment_method'    => $validated['payment_method'] ?? 'cash',
                 'status'            => $paymentStatus,
                 'receipt_no'        => $receiptNo,
@@ -69,20 +69,62 @@ class PaymentsController extends Controller
                 'remaining_balance' => $newOutstanding,
             ]);
 
-            // Update student payment status (but keep total_amount intact!)
-            $student->update([
-                'payment_status' => $paymentStatus,
-            ]);
+            // ✅ Update student status safely
+            $student->payment_status = $paymentStatus;
+            $student->save();
 
-            // Response
+            // ✅ Generate Receipt PDF
+            $receiptDir = storage_path('app/receipts');
+            if (!file_exists($receiptDir)) {
+                mkdir($receiptDir, 0777, true);
+            }
+
+            $pdfPath = $receiptDir . "/receipt_{$student->student_number}.pdf";
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.receipt', [
+                'studentNumber'      => $student->student_number,
+                'courseName'         => $student->examSchedule?->applicant?->course?->course_name ?? '—',
+                'campusName'         => $student->examSchedule?->applicant?->campus?->campus_name ?? '—',
+                'firstName'          => $student->examSchedule?->applicant?->first_name ?? '',
+                'lastName'           => $student->examSchedule?->applicant?->last_name ?? '',
+                'subjects'           => $student->subjects()->get(['subject_code', 'subject_name', 'units']),
+                'totalUnits'         => $student->subjects()->sum('units') ?? 0,
+
+                // Payment details
+                'receiptNo'          => $receiptNo,
+                'paidAt'             => $payment->paid_at,
+                'tuitionFee'         => number_format((float) $student->tuition_fee, 2),
+                'miscFee'            => number_format((float) $student->misc_fee, 2),
+                'unitsFee'           => number_format((float) $student->units_fee, 2),
+                'paidAmount'         => number_format($student->payments()->sum('paid_amount'), 2),
+                'remainingBalance'   => number_format($newOutstanding, 2),
+            ]);
+            $pdf->save($pdfPath);
+
+            // ✅ Send Email with Receipt
+            $email = $student->examSchedule?->applicant?->email;
+            if ($email) {
+                Mail::send([], [], function ($message) use ($email, $student, $pdfPath) {
+                    $message->to($email)
+                        ->subject("Official Receipt - {$student->student_number}")
+                        ->attach($pdfPath, [
+                            'as'   => "Receipt_{$student->student_number}.pdf",
+                            'mime' => 'application/pdf',
+                        ])
+                        ->setBody('Attached is your official receipt. Thank you for your payment!', 'text/html');
+                });
+            }
+
+            // ✅ Response
             return response()->json([
                 'isSuccess'         => true,
-                'message'           => 'Payment confirmed and receipt generated.',
+                'message'           => 'Payment confirmed. Receipt generated and emailed.',
                 'paid_amount'       => $paidAmount,
                 'status'            => $paymentStatus,
-                'receipt'           => $payment->receipt_no,
+                'receipt'           => $receiptNo,
                 'remaining_balance' => $newOutstanding,
-                'total_amount'      => $totalDue, // still show original total
+                'total_amount'      => $totalDue,
+                'pdf_url'           => url("storage/receipts/receipt_{$student->student_number}.pdf")
             ], 200);
         } catch (ValidationException $e) {
             return response()->json([
