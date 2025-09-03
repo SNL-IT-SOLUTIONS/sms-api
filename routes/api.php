@@ -277,4 +277,5 @@ Route::prefix('dropdown')->group(function () {
     Route::get('buildings', [CampusBuildingsController::class, 'getBuildingsDropdown']);
     Route::get('gradelevels', [EnrollmentsController::class, 'getGradeLevelsDropdown']);
     Route::get('faculties', [ScheduleController::class, 'getFacultyDropdown']);
+    Route::get('usertypes', [UserTypesController::class, 'getUserTypesDropdown']);
 });
