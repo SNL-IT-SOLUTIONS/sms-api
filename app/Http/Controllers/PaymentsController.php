@@ -461,7 +461,7 @@ class PaymentsController extends Controller
             // 🎯 Response for frontend (ready to print)
             return response()->json([
                 'isSuccess' => true,
-                'data'      => $results,
+                'printpayments'      => $results,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
