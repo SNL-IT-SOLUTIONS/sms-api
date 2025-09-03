@@ -67,6 +67,7 @@ class AccountsController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 // Personal Information
+                'username' => 'unique:accounts,username',
                 'surname' => 'nullable|string|max:50',
                 'given_name' => 'nullable|string|max:50',
                 'middle_name' => 'nullable|string|max:50',
