@@ -718,9 +718,11 @@ class AdmissionsController extends Controller
                     $wasAlreadySent = $schedule ? $schedule->exam_sent : false;
 
                     exam_schedules::updateOrCreate(
-                        ['admission_id' => $admission->id],
                         [
-                            'test_permit_no' => $admission->test_permit_no, // just use existing value
+                            'admission_id' => $admission->id
+                        ],
+                        [
+                            'test_permit_no' => 'SNL-' . str_pad($admission->id, 6, '0', STR_PAD_LEFT), // or uniqid("TP-")
                             'room_id' => $room->id,
                             'building_id' => $building->id,
                             'campus_id' => $request->campus_id,
