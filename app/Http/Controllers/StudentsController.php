@@ -117,10 +117,10 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // // Load enrollment
-            // $enrollment = \App\Models\enrollments::where('student_id', $student->id)
-            //     ->latest()
-            //     ->first();
+            // Load enrollment
+            $enrollment = \App\Models\enrollments::where('student_id', $student->id)
+                ->latest()
+                ->first();
 
             // if (!$enrollment) {
             //     return response()->json([
