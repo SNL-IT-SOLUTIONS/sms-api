@@ -673,34 +673,25 @@ class AdmissionsController extends Controller
     public function sendExamination(Request $request)
     {
         try {
-            try {
-                $request->validate([
-                    'admission_ids' => 'required|array',
-                    'admission_ids.*' => 'exists:admissions,id',
-                    'exam_date' => 'required|date',
-                    'exam_time_from' => 'required|date_format:H:i',
-                    'exam_time_to' => 'required|date_format:H:i|after:exam_time_from',
-                    'building_id' => 'required|exists:campus_buildings,id',
-                    'room_id' => [
-                        'required',
-                        'exists:building_rooms,id',
-                        function ($attribute, $value, $fail) use ($request) {
-                            $room = building_rooms::find($value);
-                            if (!$room || $room->building_id != $request->building_id) {
-                                $fail('The selected room does not belong to the selected building.');
-                            }
+            $request->validate([
+                'admission_ids' => 'required|array',
+                'admission_ids.*' => 'exists:admissions,id',
+                'exam_date' => 'required|date',
+                'exam_time_from' => 'required|date_format:H:i',
+                'exam_time_to' => 'required|date_format:H:i|after:exam_time_from',
+                'building_id' => 'required|exists:campus_buildings,id',
+                'room_id' => [
+                    'required',
+                    'exists:building_rooms,id',
+                    function ($attribute, $value, $fail) use ($request) {
+                        $room = building_rooms::find($value);
+                        if (!$room || $room->building_id != $request->building_id) {
+                            $fail('The selected room does not belong to the selected building.');
                         }
-                    ],
-                    'campus_id' => 'nullable|exists:school_campus,id',
-                ]);
-            } catch (ValidationException $e) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Validation failed.',
-                    'errors' => $e->errors() // shows all failed fields with reasons
-                ], 422);
-            }
-
+                    }
+                ],
+                'campus_id' => 'nullable|exists:school_campus,id',
+            ]);
 
             $examDate = $request->exam_date;
             $results = [];
@@ -721,12 +712,7 @@ class AdmissionsController extends Controller
                         continue;
                     }
 
-                    if (!$admission->test_permit_no) {
-                        $prefix = "SNL-";
-                        $paddedId = str_pad($admission->id, 5, '0', STR_PAD_LEFT);
-                        $admission->test_permit_no = $prefix . $paddedId;
-                        $admission->save();
-                    }
+                    // ✅ Removed test_permit_no generation
 
                     $schedule = exam_schedules::where('admission_id', $admission->id)->first();
                     $wasAlreadySent = $schedule ? $schedule->exam_sent : false;
@@ -734,8 +720,7 @@ class AdmissionsController extends Controller
                     exam_schedules::updateOrCreate(
                         ['admission_id' => $admission->id],
                         [
-
-                            'test_permit_no' => $admission->test_permit_no,
+                            'test_permit_no' => $admission->test_permit_no, // just use existing value
                             'room_id' => $room->id,
                             'building_id' => $building->id,
                             'campus_id' => $request->campus_id,
@@ -745,7 +730,6 @@ class AdmissionsController extends Controller
                             'exam_date' => $examDate,
                             'academic_year' => $admission->school_years->school_year,
                             'exam_sent' => $wasAlreadySent,
-
                         ]
                     );
 
@@ -776,7 +760,6 @@ class AdmissionsController extends Controller
                         });
 
                         exam_schedules::where('admission_id', $admission->id)->update(['exam_sent' => true]);
-
                         $admission->update(['sent_exam_schedule' => 1]);
 
                         $results[] = [
