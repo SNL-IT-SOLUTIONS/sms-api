@@ -244,9 +244,16 @@ class PaymentsController extends Controller
     //DROPDOWN
     public function getEnrollmentReferences()
     {
-        // Fetch all enrollments, you can filter if you want
-        $references = enrollments::select('id', 'reference_number')
-            ->where('total_tuition_fee', '>=', 0) // optional: show only active or unpaid
+        // Fetch all enrollments, optionally filter or sort
+        $references = enrollments::select(
+            'id',
+            'reference_number',
+            'student_id',
+            'total_tuition_fee',
+            'payment_status',
+            'school_year_id',
+            'created_at'
+        )
             ->orderBy('reference_number')
             ->get();
 
