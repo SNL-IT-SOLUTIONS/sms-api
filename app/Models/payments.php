@@ -18,12 +18,13 @@ class payments extends Model
         'paid_amount',
         'remaining_balance',
         'payment_method',
-        'reference_no',
+        'reference_no',     // 👈 make sure this matches your DB
         'remarks',
         'status',
         'paid_at',
         'received_by',
-        'receipt_no'
+        'receipt_no',
+        'transaction',
     ];
 
     protected $casts = [

@@ -17,6 +17,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
+use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\GradeLevelsController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\StudentsController;
@@ -127,11 +128,11 @@ Route::get('getprocesspayment', [EnrollmentsController::class, 'getProcessPaymen
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
     Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
-    Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
+    // Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
     Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
     Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
     Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
-    Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
+    // Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
     Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
     Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
     Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
@@ -151,7 +152,7 @@ Route::get('getmyschedule', [StudentsController::class, 'getMySchedule'])->middl
 Route::get('getmygrades', [StudentsController::class, 'getMyGrades'])->middleware('auth:sanctum');
 Route::get('transactionhistory', [StudentsController::class, 'transactionHistory'])->middleware('auth:sanctum');
 Route::post('/payments/webhook', [StudentsController::class, 'handleWebhook']);
-
+Route::post('enrollnow', [StudentsController::class, 'enrollNow'])->middleware('auth:sanctum');
 
 
 
@@ -166,12 +167,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 //Assign Schedule
-Route::post('/assign-schedule', [ScheduleController::class, 'assignSchedule']);
+Route::post('/assignschedule', [ScheduleController::class, 'assignSchedule']);
 Route::get('/getschedules', [ScheduleController::class, 'getSchedule']);
 Route::post('/updateschedule/{id}', [ScheduleController::class, 'updateSchedule']);
 Route::post('/deleteschedule/{id}', [ScheduleController::class, 'deleteSchedule']);
 
 
+//Faculty Routes
+Route::get('getfacultyschedule', [FacultyController::class, 'getMySchedules']);
+Route::get('getfaculties', [ScheduleController::class, 'getFaculty']);
+Route::get('getmyclasses', [ScheduleController::class, 'getMyClasses'])->middleware('auth:sanctum');
+Route::get('getmyclassgrades', [ScheduleController::class, 'getMyClassGrades'])->middleware('auth:sanctum');
+Route::post('submitgrades', [ScheduleController::class, 'submitGrades'])->middleware('auth:sanctum');
+Route::post('updategrades', [ScheduleController::class, 'updateGrades'])->middleware('auth:sanctum');
 
 
 // // Account Registration and Verification
@@ -278,4 +286,5 @@ Route::prefix('dropdown')->group(function () {
     Route::get('gradelevels', [EnrollmentsController::class, 'getGradeLevelsDropdown']);
     Route::get('faculties', [ScheduleController::class, 'getFacultyDropdown']);
     Route::get('usertypes', [UserTypesController::class, 'getUserTypesDropdown']);
+    Route::get('paymentreference', [PaymentsController::class, 'getEnrollmentReferences']);
 });

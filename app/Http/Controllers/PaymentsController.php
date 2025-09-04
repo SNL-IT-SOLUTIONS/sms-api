@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\enrollments;
 use App\Models\payments;
 use App\Models\students;
 use Barryvdh\DomPDF\Facade\Pdf; // Assuming you have a PDF facade set up
@@ -22,38 +23,41 @@ class PaymentsController extends Controller
         try {
             // ✅ Validate input
             $validated = $request->validate([
-                'amount'         => 'required|numeric|min:1',
-                'payment_method' => 'nullable|string|in:cash,card,gcash,bank_transfer',
-                'remarks'        => 'nullable|string|max:255',
+                'receipt_no'      => 'nullable|numeric',
+                'transaction'     => 'nullable|string|max:100',
+                'amount'          => 'required|numeric', // allow any amount, including overpayment
+                'payment_method'  => 'nullable|string|in:cash,card,online',
+                'references'      => 'nullable|array',       // 👈 multiple references
+                'references.*'    => 'string|max:50|exists:enrollments,reference_number',
+                'remarks'         => 'nullable|string|max:255',
             ]);
 
-            // ✅ Fetch student safely
+            // ✅ Fetch student
             $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus', 'subjects'])
                 ->findOrFail($studentId);
 
+            // ✅ Fetch enrollment
+            $enrollment = enrollments::where('student_id', $student->id)->firstOrFail();
+
             // ✅ Payment calculation
             $totalPaid = $student->payments()->sum('paid_amount');
-            $totalDue  = (float) $student->total_amount;
-            $outstandingBalance = $totalDue - $totalPaid;
-
-            if ($outstandingBalance <= 0) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'No outstanding balance. Student is already fully paid.'
-                ], 400);
-            }
-
-            $paidAmount = min($validated['amount'], $outstandingBalance);
-            $newOutstanding = $outstandingBalance - $paidAmount;
+            $totalDue  = (float) $enrollment->total_tuition_fee;
+            $paidAmount = $validated['amount'];
+            $newOutstanding = $totalDue - $totalPaid - $paidAmount;
             $paymentStatus = ($newOutstanding <= 0) ? 'paid' : 'partial';
 
-            // ✅ Generate unique receipt number
-            $receiptNo = 'RCPT-' . str_pad(
+            // ✅ Generate unique OR number
+            $receiptNo = $validated['receipt_no'] ?? 'RCPT-' . str_pad(
                 $student->payments()->lockForUpdate()->count() + 1,
                 6,
                 '0',
                 STR_PAD_LEFT
             );
+
+            // ✅ Group Reference Numbers
+            $groupReference = !empty($validated['references'])
+                ? implode(',', $validated['references'])
+                : mt_rand(100000, 999999);
 
             // ✅ Create payment record
             $payment = payments::create([
@@ -64,15 +68,30 @@ class PaymentsController extends Controller
                 'payment_method'    => $validated['payment_method'] ?? 'cash',
                 'status'            => $paymentStatus,
                 'receipt_no'        => $receiptNo,
+                'reference_no'      => $groupReference,
                 'remarks'           => $validated['remarks'] ?? 'Payment',
+                'transaction'       => $validated['transaction'] ?? null,
                 'paid_at'           => now(),
+                'validated_at'      => now(),
                 'received_by'       => auth()->id(),
                 'remaining_balance' => $newOutstanding,
             ]);
 
-            // ✅ Update student status safely
+            // ✅ Update student payment status
             $student->payment_status = $paymentStatus;
             $student->save();
+
+            // ✅ Update enrollment balance and status
+            $enrollment->total_tuition_fee = $newOutstanding;
+
+            if ($newOutstanding <= 0) {
+                $enrollment->payment_status = 'paid';
+            } elseif ($totalPaid + $paidAmount > 0) {
+                $enrollment->payment_status = 'partial';
+            } else {
+                $enrollment->payment_status = 'pending';
+            }
+            $enrollment->save();
 
             // ✅ Generate Receipt PDF
             $receiptDir = storage_path('app/receipts');
@@ -90,10 +109,10 @@ class PaymentsController extends Controller
                 'lastName'           => $student->examSchedule?->applicant?->last_name ?? '',
                 'subjects'           => $student->subjects()->get(['subject_code', 'subject_name', 'units']),
                 'totalUnits'         => $student->subjects()->sum('units') ?? 0,
-
-                // Payment details
                 'receiptNo'          => $receiptNo,
                 'paidAt'             => $payment->paid_at,
+                'transaction'        => $payment->transaction,
+                'groupReference'     => $groupReference,
                 'tuitionFee'         => number_format((float) $student->tuition_fee, 2),
                 'miscFee'            => number_format((float) $student->misc_fee, 2),
                 'unitsFee'           => number_format((float) $student->units_fee, 2),
@@ -102,7 +121,7 @@ class PaymentsController extends Controller
             ]);
             $pdf->save($pdfPath);
 
-            // ✅ Send Email with Receipt
+            // ✅ Send Email
             $email = $student->examSchedule?->applicant?->email;
             if ($email) {
                 Mail::send([], [], function ($message) use ($email, $student, $pdfPath) {
@@ -123,8 +142,10 @@ class PaymentsController extends Controller
                 'paid_amount'       => $paidAmount,
                 'status'            => $paymentStatus,
                 'receipt'           => $receiptNo,
+                'references'        => $groupReference,
                 'remaining_balance' => $newOutstanding,
                 'total_amount'      => $totalDue,
+                'updated_balance'   => $enrollment->total_tuition_fee,
                 'pdf_url'           => url("storage/receipts/receipt_{$student->student_number}.pdf")
             ], 200);
         } catch (ValidationException $e) {
@@ -137,139 +158,6 @@ class PaymentsController extends Controller
             return response()->json([
                 'isSuccess' => false,
                 'message'   => 'Error: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-
-
-    public function testPayMongoPayment(Request $request)
-    {
-        try {
-            $student = auth()->user();
-            $paidAmount = (float) $request->input('amount');
-
-            if (!$paidAmount || $paidAmount <= 0) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Invalid payment amount'
-                ], 422);
-            }
-
-            // Cap payment to remaining balance (from total_amount now 👇)
-            $totalDue = $student->total_amount;
-            $paidAmount = min($paidAmount, $totalDue);
-            $remainingBalance = $totalDue - $paidAmount;
-            $paymentStatus = ($remainingBalance <= 0) ? 'paid' : 'partial';
-
-            // Create PayMongo Payment Intent
-            $amountCentavos = intval($paidAmount * 100);
-            $intentResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
-                ->post('https://api.paymongo.com/v1/payment_intents', [
-                    'data' => [
-                        'attributes' => [
-                            'amount' => $amountCentavos,
-                            'currency' => 'PHP',
-                            'payment_method_allowed' => ['card'],
-                            'description' => "Payment for student #{$student->student_number}",
-                            'metadata' => [
-                                'student_id' => (string) $student->id
-                            ]
-                        ]
-                    ]
-                ]);
-
-            $paymentIntent = $intentResponse->json();
-            if (!isset($paymentIntent['data'])) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Payment Intent creation failed',
-                    'response'  => $paymentIntent
-                ], 400);
-            }
-
-            $paymentIntentId = $paymentIntent['data']['id'];
-
-            // Create Payment Method (Test Card)
-            $billingName = $student->examSchedule->admission?->first_name . ' ' .
-                $student->examSchedule->admission?->last_name;
-            $billingEmail = $student->examSchedule->admission?->email;
-
-            $paymentMethodResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
-                ->post('https://api.paymongo.com/v1/payment_methods', [
-                    'data' => [
-                        'attributes' => [
-                            'type' => 'card',
-                            'details' => [
-                                'card_number' => '4343434343434345',
-                                'exp_month' => 12,
-                                'exp_year'  => 25,
-                                'cvc'       => '123'
-                            ],
-                            'billing' => [
-                                'name'  => $billingName,
-                                'email' => $billingEmail
-                            ]
-                        ]
-                    ]
-                ]);
-
-            $paymentMethod = $paymentMethodResponse->json();
-            if (!isset($paymentMethod['data'])) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Payment Method creation failed',
-                    'response'  => $paymentMethod
-                ], 400);
-            }
-
-            $paymentMethodId = $paymentMethod['data']['id'];
-
-            // Attach Payment Method to Intent
-            $attachResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
-                ->post("https://api.paymongo.com/v1/payment_intents/{$paymentIntentId}/attach", [
-                    'data' => [
-                        'attributes' => [
-                            'payment_method' => $paymentMethodId
-                        ]
-                    ]
-                ]);
-
-            $attachedIntent = $attachResponse->json();
-
-            // Record payment in DB
-            $payment = payments::create([
-                'student_id'        => $student->id,
-                'amount'            => $totalDue,           // balance before this payment
-                'paid_amount'       => $paidAmount,         // amount paid now
-                'remaining_balance' => $remainingBalance,   // balance after payment
-                'payment_method'    => 'card',
-                'status'            => $paymentStatus,
-                'receipt_no'        => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
-                'remarks'           => 'PayMongo',
-                'paid_at'           => now(),
-                'reference_no'      => $paymentIntentId,
-                'received_by'       => 'system'
-            ]);
-
-            // Update student record
-            $student->total_amount   = $remainingBalance;  // 👈 update balance
-            $student->payment_status = $paymentStatus;
-            $student->save();
-
-            return response()->json([
-                'isSuccess'         => true,
-                'message'           => 'Payment confirmed via PayMongo',
-                'paid_amount'       => $paidAmount,
-                'status'            => $student->payment_status,
-                'receipt'           => $payment->receipt_no,
-                'remaining_balance' => $remainingBalance,
-                'payment_intent'    => $attachedIntent
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -351,6 +239,23 @@ class PaymentsController extends Controller
             ], 500);
         }
     }
+
+
+    //DROPDOWN
+    public function getEnrollmentReferences()
+    {
+        // Fetch all enrollments, you can filter if you want
+        $references = enrollments::select('id', 'reference_number')
+            ->where('total_tuition_fee', '>=', 0) // optional: show only active or unpaid
+            ->orderBy('reference_number')
+            ->get();
+
+        return response()->json([
+            'isSuccess' => true,
+            'references' => $references
+        ]);
+    }
+
 
 
     public function printProcessPayments(Request $request)
@@ -470,4 +375,136 @@ class PaymentsController extends Controller
             ], 500);
         }
     }
+
+
+    // public function testPayMongoPayment(Request $request)
+    // {
+    //     try {
+    //         $student = auth()->user();
+    //         $paidAmount = (float) $request->input('amount');
+
+    //         if (!$paidAmount || $paidAmount <= 0) {
+    //             return response()->json([
+    //                 'isSuccess' => false,
+    //                 'message'   => 'Invalid payment amount'
+    //             ], 422);
+    //         }
+
+    //         // Cap payment to remaining balance (from total_amount now 👇)
+    //         $totalDue = $student->total_amount;
+    //         $paidAmount = min($paidAmount, $totalDue);
+    //         $remainingBalance = $totalDue - $paidAmount;
+    //         $paymentStatus = ($remainingBalance <= 0) ? 'paid' : 'partial';
+
+    //         // Create PayMongo Payment Intent
+    //         $amountCentavos = intval($paidAmount * 100);
+    //         $intentResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+    //             ->post('https://api.paymongo.com/v1/payment_intents', [
+    //                 'data' => [
+    //                     'attributes' => [
+    //                         'amount' => $amountCentavos,
+    //                         'currency' => 'PHP',
+    //                         'payment_method_allowed' => ['card'],
+    //                         'description' => "Payment for student #{$student->student_number}",
+    //                         'metadata' => [
+    //                             'student_id' => (string) $student->id
+    //                         ]
+    //                     ]
+    //                 ]
+    //             ]);
+
+    //         $paymentIntent = $intentResponse->json();
+    //         if (!isset($paymentIntent['data'])) {
+    //             return response()->json([
+    //                 'isSuccess' => false,
+    //                 'message'   => 'Payment Intent creation failed',
+    //                 'response'  => $paymentIntent
+    //             ], 400);
+    //         }
+
+    //         $paymentIntentId = $paymentIntent['data']['id'];
+
+    //         // Create Payment Method (Test Card)
+    //         $billingName = $student->examSchedule->admission?->first_name . ' ' .
+    //             $student->examSchedule->admission?->last_name;
+    //         $billingEmail = $student->examSchedule->admission?->email;
+
+    //         $paymentMethodResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+    //             ->post('https://api.paymongo.com/v1/payment_methods', [
+    //                 'data' => [
+    //                     'attributes' => [
+    //                         'type' => 'card',
+    //                         'details' => [
+    //                             'card_number' => '4343434343434345',
+    //                             'exp_month' => 12,
+    //                             'exp_year'  => 25,
+    //                             'cvc'       => '123'
+    //                         ],
+    //                         'billing' => [
+    //                             'name'  => $billingName,
+    //                             'email' => $billingEmail
+    //                         ]
+    //                     ]
+    //                 ]
+    //             ]);
+
+    //         $paymentMethod = $paymentMethodResponse->json();
+    //         if (!isset($paymentMethod['data'])) {
+    //             return response()->json([
+    //                 'isSuccess' => false,
+    //                 'message'   => 'Payment Method creation failed',
+    //                 'response'  => $paymentMethod
+    //             ], 400);
+    //         }
+
+    //         $paymentMethodId = $paymentMethod['data']['id'];
+
+    //         // Attach Payment Method to Intent
+    //         $attachResponse = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+    //             ->post("https://api.paymongo.com/v1/payment_intents/{$paymentIntentId}/attach", [
+    //                 'data' => [
+    //                     'attributes' => [
+    //                         'payment_method' => $paymentMethodId
+    //                     ]
+    //                 ]
+    //             ]);
+
+    //         $attachedIntent = $attachResponse->json();
+
+    //         // Record payment in DB
+    //         $payment = payments::create([
+    //             'student_id'        => $student->id,
+    //             'amount'            => $totalDue,           // balance before this payment
+    //             'paid_amount'       => $paidAmount,         // amount paid now
+    //             'remaining_balance' => $remainingBalance,   // balance after payment
+    //             'payment_method'    => 'card',
+    //             'status'            => $paymentStatus,
+    //             'receipt_no'        => 'RCPT-' . str_pad($student->payments()->count() + 1, 6, '0', STR_PAD_LEFT),
+    //             'remarks'           => 'PayMongo',
+    //             'paid_at'           => now(),
+    //             'reference_no'      => $paymentIntentId,
+    //             'received_by'       => 'system'
+    //         ]);
+
+    //         // Update student record
+    //         $student->total_amount   = $remainingBalance;  // 👈 update balance
+    //         $student->payment_status = $paymentStatus;
+    //         $student->save();
+
+    //         return response()->json([
+    //             'isSuccess'         => true,
+    //             'message'           => 'Payment confirmed via PayMongo',
+    //             'paid_amount'       => $paidAmount,
+    //             'status'            => $student->payment_status,
+    //             'receipt'           => $payment->receipt_no,
+    //             'remaining_balance' => $remainingBalance,
+    //             'payment_intent'    => $attachedIntent
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'isSuccess' => false,
+    //             'message'   => 'Error: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 }

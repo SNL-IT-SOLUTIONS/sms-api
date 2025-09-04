@@ -6,16 +6,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Student extends Model
+class enrollments extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
-    protected $table = 'students'; // ✅ matches your table
+    protected $table = 'enrollments';
 
     protected $fillable = [
+        'original_tuition_fee',
+        'reference_number',
+        'admission_id',
+        'total_tuition_fee',
+        'student_id',
         'total_amount',
+        'school_year_id',
         'curriculum_id',
-        'exam_schedules_id',
+        'exam_schedule_id', // 🔧 fixed naming
         'course_code',
         'student_number',
         'password',
@@ -36,14 +42,14 @@ class Student extends Model
         'has_birth_certificate',
         'academic_year_id',
         'grade_level_id',
-        'created_at',
-        'updated_at',
+        'created_by',
+        'updated_by',
     ];
 
     // 🔗 Relationships
     public function examSchedule()
     {
-        return $this->belongsTo(exam_schedules::class, 'exam_schedules_id');
+        return $this->belongsTo(exam_schedules::class, 'exam_schedule_id');
     }
 
     public function course()
@@ -64,5 +70,28 @@ class Student extends Model
     public function gradeLevel()
     {
         return $this->belongsTo(grade__levels::class, 'grade_level_id');
+    }
+    public function student()
+    {
+        return $this->belongsTo(students::class, 'student_id');
+    }
+    public function curriculum()
+    {
+        return $this->belongsTo(curriculums::class, 'curriculum_id');
+    }
+    public function admission()
+    {
+        return $this->belongsTo(admissions::class, 'admission_id');
+    }
+    public function subjects()
+    {
+        return $this->belongsToMany(
+            subjects::class,   // related model
+            'student_subjects', // pivot table
+            'student_id',       // FK on pivot for student
+            'subject_id'        // FK on pivot for subject
+        )
+            ->withPivot(['school_year_id',  'final_rating', 'remarks'])
+            ->withTimestamps();
     }
 }

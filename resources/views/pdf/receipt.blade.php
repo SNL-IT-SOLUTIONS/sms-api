@@ -79,7 +79,6 @@
     @php
         $tuitionFeeNum = (float) str_replace(',', '', $tuitionFee);
         $miscFeeNum = (float) str_replace(',', '', $miscFee);
-        $unitsFeeNum = (float) str_replace(',', '', $unitsFee);
         $totalFee = $tuitionFeeNum + $miscFeeNum;
 
         $paidAmountNum = (float) str_replace(',', '', $paidAmount);

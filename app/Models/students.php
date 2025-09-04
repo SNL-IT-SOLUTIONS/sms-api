@@ -14,6 +14,8 @@ class students extends Model
     protected $table = 'students';
 
     protected $fillable = [
+        'reference_number',
+        'admission_id',
         'payment_status',
         'curriculum_id',
         'exam_schedules_id',
@@ -88,6 +90,11 @@ class students extends Model
     {
         return $this->belongsTo(curriculums::class, 'curriculum_id');
     }
+    public function enrollment()
+    {
+        return $this->hasOne(enrollments::class, 'student_id');
+    }
+
 
 
 

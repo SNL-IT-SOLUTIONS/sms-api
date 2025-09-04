@@ -11,6 +11,7 @@ class exam_schedules extends Model
 
     protected $table = 'exam_schedules';
     protected $fillable = [
+
         'admission_id',
         'is_approved',
         'academic_program_id',
@@ -39,22 +40,21 @@ class exam_schedules extends Model
     }
 
     public function room()
-{
-    return $this->belongsTo(building_rooms::class, 'room_id');
-}
+    {
+        return $this->belongsTo(building_rooms::class, 'room_id');
+    }
 
-public function building()
-{
-    return $this->belongsTo(campus_buildings::class, 'building_id');
-}
-public function campus()
-{
-    return $this->belongsTo(school_campus::class, 'campus_id');
-}
+    public function building()
+    {
+        return $this->belongsTo(campus_buildings::class, 'building_id');
+    }
+    public function campus()
+    {
+        return $this->belongsTo(school_campus::class, 'campus_id');
+    }
 
     public function admission()
-{
-    return $this->belongsTo(admissions::class, 'admission_id');
-}
-
+    {
+        return $this->belongsTo(admissions::class, 'admission_id');
+    }
 }

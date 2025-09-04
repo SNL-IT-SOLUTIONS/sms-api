@@ -13,47 +13,46 @@ use Illuminate\Support\Str;
 class SocialAuthController extends Controller
 {
     public function redirectToGoogle()
-{
-    /** @var \Laravel\Socialite\Two\GoogleProvider $googleDriver */
-    $googleDriver = Socialite::driver('google');
+    {
+        /** @var \Laravel\Socialite\Two\GoogleProvider $googleDriver */
+        $googleDriver = Socialite::driver('google');
 
-    return $googleDriver->stateless()->redirect();
-}
+        return $googleDriver->stateless()->redirect();
+    }
 
-   public function handleGoogleCallback()
-{
-    try {
-          /** @var \Laravel\Socialite\Two\GoogleProvider $provider */
+    public function handleGoogleCallback()
+    {
+        try {
+            /** @var \Laravel\Socialite\Two\GoogleProvider $provider */
             $provider = Socialite::driver('google');
             $googleUser = $provider->stateless()->user();
 
-        $user = accounts::where('email', $googleUser->getEmail())->first();
+            $user = accounts::where('email', $googleUser->getEmail())->first();
 
-        if (!$user) {
-            $user = accounts::create([
-                'email' => $googleUser->getEmail(),
-                'username' => $googleUser->getNickname() ?? Str::slug($googleUser->getName()),
-                'password' => Hash::make(Str::random(12)),
-                'is_admitted' => 0,
-                'is_verified' => 1,
-                'given_name' => $googleUser->user['given_name'] ?? '',
-                'last_name' => $googleUser->user['surname'] ?? '',
-            ]);
+            if (!$user) {
+                $user = accounts::create([
+                    'email' => $googleUser->getEmail(),
+                    'username' => $googleUser->getNickname() ?? Str::slug($googleUser->getName()),
+                    'password' => Hash::make(Str::random(12)),
+                    'is_admitted' => 0,
+                    'is_verified' => 1,
+                    'given_name' => $googleUser->user['given_name'] ?? '',
+                    'last_name' => $googleUser->user['surname'] ?? '',
+                ]);
+            }
+
+            $token = $user->createToken('google-token')->plainTextToken;
+
+            // 👇 Redirect to frontend with token & user info
+            return redirect()->to("https://enrollmentsystemproject.vercel.app/oauth-callback?token={$token}&user=" . urlencode(json_encode($user->makeHidden(['created_at', 'updated_at']))));
+        } catch (\Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Google login failed.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        $token = $user->createToken('google-token')->plainTextToken;
-
-        // 👇 Redirect to frontend with token & user info
-        return redirect()->to("https://enrollmentsystemproject.vercel.app/oauth-callback?token={$token}&user=" . urlencode(json_encode($user->makeHidden(['created_at', 'updated_at']))));
-
-    } catch (\Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Google login failed.',
-            'error' => $e->getMessage(),
-        ], 500);
     }
-}
 
 
 
@@ -86,7 +85,7 @@ class SocialAuthController extends Controller
 
             $token = $user->createToken('github-token')->plainTextToken;
 
-          return redirect("https://enrollmentsystemproject.vercel.app/oauth-callback2?token=$token&user=" . urlencode(json_encode($user)));
+            return redirect("https://enrollmentsystemproject.vercel.app/oauth-callback2?token=$token&user=" . urlencode(json_encode($user)));
         } catch (\Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
