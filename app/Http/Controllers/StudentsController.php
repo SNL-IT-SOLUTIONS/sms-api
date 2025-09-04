@@ -108,7 +108,6 @@ class StudentsController extends Controller
     public function getAssessmentBilling()
     {
         try {
-            // Get the logged-in student
             $student = auth()->user();
 
             if (!$student) {
@@ -118,19 +117,28 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // Load relationships
-            $student->load(['admission', 'course', 'campus', 'subjects']);
+            // Load enrollment
+            $enrollment = \App\Models\enrollments::where('student_id', $student->id)
+                ->latest()
+                ->first();
 
-            // Get all payments made by this student
+            if (!$enrollment) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'No enrollment record found.'
+                ], 404);
+            }
+
+            // Get payments
             $payments = payments::where('student_id', $student->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
             $totalPaid = $payments->sum('paid_amount');
-            $totalFee = $student->misc_fee + $student->units_fee;
-            $remainingBalance = $totalFee - $totalPaid;
+            $totalFee = (float) $enrollment->original_tuition_fee; // original fee (misc + tuition)
+            $remainingBalance = (float) $enrollment->total_tuition_fee; // what’s left
 
-            // Prepare subjects array
+            // Subjects
             $subjects = $student->subjects->map(function ($sub) {
                 return [
                     'code' => $sub->subject_code,
@@ -139,52 +147,52 @@ class StudentsController extends Controller
                 ];
             });
 
-            // Prepare assessment billing data
             $assessment = [
-                'student_name' => $student->examSchedule?->admission?->first_name . ' ' . $student->examSchedule?->admission?->last_name,
+                'student_name'   => $student->examSchedule?->admission?->first_name . ' ' . $student->examSchedule?->admission?->last_name,
                 'student_number' => $student->student_number,
-                'course' => $student->course->course_name ?? null,
-                'campus' => $student->examSchedule?->admission?->campus?->campus_name ?? null,
+                'course'         => $student->course->course_name ?? null,
+                'campus'         => $student->examSchedule?->admission?->campus?->campus_name ?? null,
 
                 'subjects' => [
-                    'list' => $subjects,
+                    'list'        => $subjects,
                     'total_units' => $student->subjects->sum('units')
                 ],
                 'billing' => [
                     [
                         'description' => 'Miscellaneous Fee',
-                        'amount' => number_format($student->misc_fee, 2)
+                        'amount'      => number_format((float) $enrollment->misc_fee, 2)
                     ],
                     [
-                        'description' => 'Units Fee',
-                        'amount' => number_format($student->units_fee, 2)
+                        'description' => 'Tuition Fee',
+                        'amount'      => number_format((float) $enrollment->tuition_fee, 2)
                     ],
                     [
                         'description' => 'Total Fee',
-                        'amount' => number_format($totalFee, 2)
+                        'amount'      => number_format($totalFee, 2)
                     ],
                     [
                         'description' => 'Total Paid',
-                        'amount' => number_format($totalPaid, 2)
+                        'amount'      => number_format($totalPaid, 2)
                     ],
                     [
                         'description' => 'Remaining Balance',
-                        'amount' => number_format($remainingBalance, 2)
+                        'amount'      => number_format($remainingBalance, 2)
                     ]
                 ]
             ];
 
             return response()->json([
                 'isSuccess' => true,
-                'bill' => $assessment
+                'bill'      => $assessment
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => $e->getMessage()
+                'message'   => $e->getMessage()
             ], 500);
         }
     }
+
 
     //WORKING
     public function transactionHistory()
@@ -350,7 +358,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ Load student record
+            //  Load student record
             $student = students::where('admission_id', $user->admission_id)->first();
             if (!$student) {
                 return response()->json([
@@ -359,7 +367,7 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // ❌ Check if student has unpaid enrollment
+
             $hasUnpaid = enrollments::where('student_id', $student->id)
                 ->where('payment_status', 'Unpaid')
                 ->exists();
