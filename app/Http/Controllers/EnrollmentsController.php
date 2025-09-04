@@ -693,10 +693,14 @@ class EnrollmentsController extends Controller
                 'admission.course',
                 'admission.campus',
                 'section',
-                'payments'
+                'payments',
+                'enrollment'
             ])
-                ->orderBy('created_at', 'desc')
-                ->where('is_enrolled', 1);
+                ->where('is_enrolled', 1)
+                ->whereHas('enrollments', function ($q) {
+                    $q->where('total_tuition_fee', '>', 0);
+                })
+                ->orderBy('created_at', 'desc');
 
 
             if ($request->has('search')) {

@@ -94,6 +94,10 @@ class students extends Model
     {
         return $this->hasOne(enrollments::class, 'student_id');
     }
+    public function enrollments()
+    {
+        return $this->hasMany(enrollments::class, 'student_id', 'id');
+    }
 
 
 
