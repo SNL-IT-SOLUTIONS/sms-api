@@ -599,6 +599,7 @@ class EnrollmentsController extends Controller
                 && $validated['has_birth_certificate'];
 
             $enrollmentStatus = $hasAllDocs ? 'Complete Requirements' : 'Incomplete Requirements';
+            $schedule->update(['is_approved' => 1]);
 
             // Create student record
             $student = students::create([
