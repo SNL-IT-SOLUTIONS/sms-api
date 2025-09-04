@@ -209,6 +209,7 @@ class PaymentsController extends Controller
                     'student_name'       => $studentName,
                     'amount_billed'      => $payment->amount,
                     'paid_amount'        => $payment->paid_amount,
+                    'transcation'        => $payment->transaction,
                     'remaining_balance'  => $payment->remaining_balance,
                     'latest_balance'     => $student->total_amount,
                     'payment_method'     => $payment->payment_method,
