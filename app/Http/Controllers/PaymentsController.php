@@ -43,7 +43,7 @@ class PaymentsController extends Controller
             $totalPaid = $student->payments()->sum('paid_amount');
             $totalDue  = (float) $enrollment->total_tuition_fee;
             $paidAmount = $validated['amount'];
-            $newOutstanding = $totalDue - $totalPaid - $paidAmount;
+            $newOutstanding = $enrollment->total_tuition_fee - $paidAmount;
             $paymentStatus = ($newOutstanding <= 0) ? 'paid' : 'partial';
 
             // ✅ Generate unique OR number
