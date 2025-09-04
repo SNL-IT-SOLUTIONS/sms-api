@@ -532,8 +532,7 @@ class EnrollmentsController extends Controller
                 'has_certificate_of_completion' => 'required|boolean',
             ]);
 
-            // Fetch schedule with applicant and grade level
-            $schedule = exam_schedules::with(['applicant.gradeLevel'])->find($validated['id']);
+            $schedule = exam_schedules::with(['applicant'])->find($validated['id']);
 
             if (!$schedule || !$schedule->applicant) {
                 return response()->json([
@@ -544,7 +543,6 @@ class EnrollmentsController extends Controller
 
             $admission = $schedule->applicant;
 
-            // Prevent duplicate enrollment
             if (students::where('exam_schedules_id', $schedule->id)->exists()) {
                 return response()->json([
                     'isSuccess' => false,
@@ -561,13 +559,7 @@ class EnrollmentsController extends Controller
             $rawPassword        = $studentNumber . $birthdateFormatted;
             $hashedPassword     = Hash::make($rawPassword);
 
-            // Validate grade_level_id
-            $gradeLevelId = $admission->grade_level_id;
-            if (!DB::table('grade_levels')->where('id', $gradeLevelId)->exists()) {
-                $gradeLevelId = 1; // fallback
-            }
-
-            // ✅ Find a section that still has space (students_size limit)
+            // Assign section
             $section = DB::table('sections')
                 ->where('campus_id', $admission->school_campus_id)
                 ->where('is_archived', 0)
@@ -595,12 +587,10 @@ class EnrollmentsController extends Controller
                 && $validated['has_birth_certificate'];
 
             $enrollmentStatus = $hasAllDocs ? 'Complete Requirements' : 'Incomplete Requirements';
-            $schedule->update([
-                'is_approved' => 1
-            ]);
+            $schedule->update(['is_approved' => 1]);
 
-            // Create student record with docs
-            $student = [
+            // Create student record
+            $student = students::create([
                 'admission_id'                  => $schedule->admission_id,
                 'exam_schedules_id'             => $schedule->id,
                 'student_number'                => $studentNumber,
@@ -608,48 +598,31 @@ class EnrollmentsController extends Controller
                 'profile_img'                   => null,
                 'student_status'                => 0,
                 'course_id'                     => $admission->academic_program_id,
-                'section_id'                    => $section->id, // ✅ assigned section
+                'section_id'                    => $section->id,
                 'academic_year_id'              => $admission->academic_year_id,
-                'grade_level_id'                => $gradeLevelId,
-                'units_fee'                     => 0,
-                'tuition_fee'                   => 0,
+                'grade_level_id'                => $admission->grade_level_id ?? null,
+                'user_type'                     => 'student',
                 'is_active'                     => 1,
+                'is_enrolled'                   => 1,
+                'enrollment_status'             => $enrollmentStatus,
                 'has_form137'                   => $validated['has_form137'],
                 'has_form138'                   => $validated['has_form138'],
                 'has_good_moral'                => $validated['has_good_moral'],
                 'has_certificate_of_completion' => $validated['has_certificate_of_completion'],
                 'has_birth_certificate'         => $validated['has_birth_certificate'],
-                'enrollment_status'             => $enrollmentStatus,
-            ];
-            $student = students::create($student);
+            ]);
 
-
-            // Grade level name
-            $gradeLevelName = DB::table('grade_levels')
-                ->where('id', $gradeLevelId)
-                ->value('grade_level') ?? 'N/A';
-
-            // Send email with credentials
-            $html = '
-        <html>
-        <body style="font-family: Arial, sans-serif;">
-            <div style="border:1px solid #ccc; padding:20px; max-width:600px; margin:auto;">
+            // Send email
+            $html = '<html><body style="font-family: Arial, sans-serif;">
                 <h2>Enrollment Confirmation</h2>
                 <p>Hello <strong>' . $admission->first_name . ' ' . $admission->last_name . '</strong>,</p>
                 <p>You have been successfully enrolled. Here are your login credentials:</p>
                 <ul>
                     <li><strong>Student Number:</strong> ' . $studentNumber . '</li>
                     <li><strong>Password:</strong> ' . $rawPassword . '</li>
-                    <li><strong>Grade Level:</strong> ' . $gradeLevelName . '</li>
                     <li><strong>Enrollment Status:</strong> ' . $enrollmentStatus . '</li>
                 </ul>
-                <p>Please keep this information secure.</p>
-                <br>
-                <p>Best regards,<br>Enrollment Team</p>
-            </div>
-        </body>
-        </html>
-        ';
+            </body></html>';
 
             Mail::send([], [], function ($message) use ($admission, $html) {
                 $message->to($admission->email)
@@ -662,16 +635,8 @@ class EnrollmentsController extends Controller
                 'message'        => 'Student enrolled successfully. Credentials sent via email.',
                 'student_id'     => $student->id,
                 'student_number' => $studentNumber,
-                'grade_level'    => $gradeLevelName,
                 'section_id'     => $section->id,
                 'enrollment_status' => $enrollmentStatus,
-                'documents'      => [
-                    'form137'   => $student->has_form137,
-                    'form138'   => $student->has_form138,
-                    'good_moral' => $student->has_good_moral,
-                    'certificate_of_completion' => $student->has_certificate_of_completion,
-                    'birth_certificate' => $student->has_birth_certificate,
-                ]
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -680,6 +645,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
 
 
 

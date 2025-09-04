@@ -416,7 +416,7 @@ class StudentsController extends Controller
             $enrollmentStatus = $hasAllRequirements ? 'Officially Enrolled' : 'Unofficial Enrolled';
 
             do {
-                $referenceNumber = mt_rand(1000000, 9999999); // 7-digit random number
+                $referenceNumber = mt_rand(1000000, 9999999);
             } while (enrollments::where('reference_number', $referenceNumber)->exists());
 
 
