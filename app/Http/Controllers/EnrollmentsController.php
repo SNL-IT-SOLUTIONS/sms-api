@@ -65,7 +65,8 @@ class EnrollmentsController extends Controller
             }
 
             // Order newest exam first
-            $query->orderBy('created_at', 'desc');
+            $query->orderBy('exam_score', 'desc')
+                ->orderBy('created_at', 'asc');
 
             $schedules = $query->paginate($perPage, ['*'], 'page', $page);
 
