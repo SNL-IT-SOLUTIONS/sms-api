@@ -243,7 +243,7 @@ class PaymentsController extends Controller
 
 
     //DROPDOWN
-    public function getEnrollmentReferences(Request $request, $studentId)
+    public function getEnrollmentReferences(Request $request, $id)
     {
         // Fetch all enrollments, optionally filter or sort
         $references = enrollments::select(
@@ -255,7 +255,7 @@ class PaymentsController extends Controller
             'school_year_id',
             'created_at'
         )
-            ->where('student_id', $studentId) // ✅ only this student's receipts
+            ->where('student_id', $id) // ✅ only this student's receipts
             ->orderBy('reference_number')
             ->get();
 
