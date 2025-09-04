@@ -615,7 +615,6 @@ class EnrollmentsController extends Controller
                 'curriculum_id'                 => $curriculum->id, // ✅ added here
                 'user_type'                     => 'student',
                 'is_active'                     => 1,
-                'is_enrolled'                   => 1,
                 'enrollment_status'             => $enrollmentStatus,
                 'has_form137'                   => $validated['has_form137'],
                 'has_form138'                   => $validated['has_form138'],
