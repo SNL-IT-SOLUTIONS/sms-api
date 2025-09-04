@@ -122,12 +122,12 @@ class StudentsController extends Controller
                 ->latest()
                 ->first();
 
-            // if (!$enrollment) {
-            //     return response()->json([
-            //         'isSuccess' => false,
-            //         'message' => 'No enrollment record found.'
-            //     ], 404);
-            // }
+            if (!$enrollment) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'No enrollment record found.'
+                ], 404);
+            }
 
             // Get payments
             $payments = payments::where('student_id', $student->id)
@@ -187,7 +187,7 @@ class StudentsController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'isSuccess' => false,
+                'isSuccess' => true,
                 'message'   => $e->getMessage()
             ], 500);
         }
