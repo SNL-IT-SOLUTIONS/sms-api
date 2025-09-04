@@ -572,6 +572,18 @@ class EnrollmentsController extends Controller
                 })
                 ->first();
 
+            $curriculum = DB::table('curriculums')
+                ->where('course_id', $admission->academic_program_id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$curriculum) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No curriculum assigned for this course.'
+                ], 400);
+            }
+
             if (!$section) {
                 return response()->json([
                     'isSuccess' => false,
@@ -587,7 +599,6 @@ class EnrollmentsController extends Controller
                 && $validated['has_birth_certificate'];
 
             $enrollmentStatus = $hasAllDocs ? 'Complete Requirements' : 'Incomplete Requirements';
-            $schedule->update(['is_approved' => 1]);
 
             // Create student record
             $student = students::create([
@@ -601,6 +612,7 @@ class EnrollmentsController extends Controller
                 'section_id'                    => $section->id,
                 'academic_year_id'              => $admission->academic_year_id,
                 'grade_level_id'                => $admission->grade_level_id ?? null,
+                'curriculum_id'                 => $curriculum->id, // ✅ added here
                 'user_type'                     => 'student',
                 'is_active'                     => 1,
                 'is_enrolled'                   => 1,
