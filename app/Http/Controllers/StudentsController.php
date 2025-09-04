@@ -117,17 +117,17 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // Load enrollment
-            $enrollment = \App\Models\enrollments::where('student_id', $student->id)
-                ->latest()
-                ->first();
+            // // Load enrollment
+            // $enrollment = \App\Models\enrollments::where('student_id', $student->id)
+            //     ->latest()
+            //     ->first();
 
-            if (!$enrollment) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'No enrollment record found.'
-                ], 404);
-            }
+            // if (!$enrollment) {
+            //     return response()->json([
+            //         'isSuccess' => false,
+            //         'message' => 'No enrollment record found.'
+            //     ], 404);
+            // }
 
             // Get payments
             $payments = payments::where('student_id', $student->id)
