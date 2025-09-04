@@ -286,5 +286,5 @@ Route::prefix('dropdown')->group(function () {
     Route::get('gradelevels', [EnrollmentsController::class, 'getGradeLevelsDropdown']);
     Route::get('faculties', [ScheduleController::class, 'getFacultyDropdown']);
     Route::get('usertypes', [UserTypesController::class, 'getUserTypesDropdown']);
-    Route::get('paymentreference', [PaymentsController::class, 'getEnrollmentReferences']);
+    Route::get('paymentreference/{studentId}', [PaymentsController::class, 'getEnrollmentReferences']);
 });
