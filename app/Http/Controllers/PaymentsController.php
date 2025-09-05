@@ -259,6 +259,7 @@ class PaymentsController extends Controller
 
             )
                 ->where('student_id', $id)
+                ->where('total_tuition_fee', '>', 0)
                 ->orderBy('reference_number')
                 ->get();
 
