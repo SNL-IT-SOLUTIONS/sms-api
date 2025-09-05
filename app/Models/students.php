@@ -14,6 +14,7 @@ class students extends Model
     protected $table = 'students';
 
     protected $fillable = [
+        'is_assess',
         'reference_number',
         'admission_id',
         'payment_status',

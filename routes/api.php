@@ -18,6 +18,7 @@ use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\FeesController;
 use App\Http\Controllers\GradeLevelsController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\StudentsController;
@@ -87,6 +88,14 @@ Route::post('adddepartment', [DepartmentsController::class, 'addDepartment']);
 Route::post('updatedepartment/{id}', [DepartmentsController::class, 'updateDepartment']);
 Route::post('deletedepartment/{id}', [DepartmentsController::class, 'deleteDepartment']);
 
+
+//Fees Management
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('getfees', [FeesController::class, 'getFees']);
+    Route::post('createfees', [FeesController::class, 'createFees']);
+    Route::post('updatefees/{id}', [FeesController::class, 'updateFees']);
+    Route::delete('deletefees/{id}', [FeesController::class, 'deleteFees']);
+});
 
 
 

@@ -95,4 +95,11 @@ class enrollments extends Model
             ->withPivot(['school_year_id',  'final_rating', 'remarks'])
             ->withTimestamps();
     }
+
+    public function fees()
+    {
+        return $this->belongsToMany(Fees::class, 'enrollment_fees')
+            ->withPivot('amount')
+            ->withTimestamps();
+    }
 }
