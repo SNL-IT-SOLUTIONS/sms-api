@@ -70,7 +70,7 @@ class AdmissionsController extends Controller
                 'room_id' => $schedule->room->id ?? null,
                 'room_name' => $schedule->room->room_name ?? null,
                 'admission_id' => $schedule->applicant->admission_id ?? null,
-                'test_permit_no' => $schedule->applicant->test_permit_no ?? null,
+                'test_permit_no' => $schedule->test_permit_no ?? null,
                 'first_name' => $schedule->applicant->first_name ?? null,
                 'last_name' => $schedule->applicant->last_name ?? null,
                 'email' => $schedule->applicant->email ?? null,

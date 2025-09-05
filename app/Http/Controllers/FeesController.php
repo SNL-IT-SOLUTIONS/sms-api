@@ -57,7 +57,7 @@ class FeesController extends Controller
     public function updateFees(Request $request, $id)
     {
         $request->validate([
-            'fee_name'       => 'sometimes|string|max:255',
+            'fee_name'       => 'sometimes|string|max:255|uneque:fees,fee_name,' . $id,
             'description'    => 'nullable|string',
             'default_amount' => 'sometimes|numeric|min:0',
             'is_active'      => 'sometimes|boolean',
