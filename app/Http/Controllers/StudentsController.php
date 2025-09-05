@@ -454,7 +454,7 @@ class StudentsController extends Controller
             // ✅ Update student record
             $student->update([
                 'curriculum_id'     => $curriculum->id,
-                'is_enrolled'       => 1
+                'is_assess'         => 1
             ]);
 
             return response()->json([

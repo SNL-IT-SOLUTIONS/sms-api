@@ -708,7 +708,7 @@ class EnrollmentsController extends Controller
                 'payments',
                 'enrollment'
             ])
-                ->where('is_enrolled', 1)
+                ->where('is_assess', 1)
                 ->whereHas('enrollments', function ($q) {
                     $q->where('total_tuition_fee', '>', 0);
                 })
@@ -1002,7 +1002,7 @@ class EnrollmentsController extends Controller
 
 
 
-    //UPDATED 9/4/2025
+    //UPDATED 9/4/2025 //MANAGE ENROLLMENT FRONTEND
     public function getAllEnrollments(Request $request)
     {
         try {

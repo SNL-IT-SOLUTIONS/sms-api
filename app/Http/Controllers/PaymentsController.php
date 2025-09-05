@@ -79,6 +79,7 @@ class PaymentsController extends Controller
 
             // ✅ Update student payment status
             $student->payment_status = $paymentStatus;
+            $student->is_enrolled = 1;
             $student->save();
 
             // ✅ Update enrollment balance and status
@@ -278,7 +279,7 @@ class PaymentsController extends Controller
 
 
 
-
+    //MANAGEPROCESSPAYMENT ENROLLMENTS - FRONTEND
     public function printProcessPayments(Request $request)
     {
         try {
