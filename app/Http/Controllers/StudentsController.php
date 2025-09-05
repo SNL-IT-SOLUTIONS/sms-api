@@ -426,7 +426,7 @@ class StudentsController extends Controller
             do {
                 $referenceNumber = mt_rand(1000000, 9999999);
             } while (enrollments::where('reference_number', $referenceNumber)->exists());
-
+            $transactions = 'Enrollment';
 
             // ✅ Create enrollment
             $enrollment = enrollments::create([
@@ -437,6 +437,7 @@ class StudentsController extends Controller
                 'original_tuition_fee' => $totalFee,
                 'total_tuition_fee' => $totalFee,
                 'payment_status'    => 'Unpaid',
+                'transaction'        => $transactions,
                 'reference_number'  => $referenceNumber, // 👈 save here
                 'created_by'        => $student->id
             ]);
@@ -466,6 +467,7 @@ class StudentsController extends Controller
                     'total_units'       => $totalUnits,
                     'units_fee'         => $unitsFee,
                     'misc_fee'          => $miscFee,
+                    'transcation'        => $transactions,
                     'tuition_fee'       => $tuitionFee,
                     'total_amount'      => $totalFee,
                     'reference_number'  => $referenceNumber,

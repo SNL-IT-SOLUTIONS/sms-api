@@ -245,26 +245,36 @@ class PaymentsController extends Controller
     //DROPDOWN
     public function getEnrollmentReferences(Request $request, $id)
     {
-        // Fetch all enrollments, optionally filter or sort
-        $references = enrollments::select(
-            'id',
-            'reference_number',
-            'student_id',
-            'total_tuition_fee',
-            'payment_status',
-            'school_year_id',
-            'created_at'
-        )
-            ->where('student_id', $id) // ✅ only this student's receipts
-            ->orderBy('reference_number')
-            ->get();
+        try {
+            // ✅ Fetch enrollments for this student
+            $references = enrollments::select(
+                'id',
+                'reference_number',
+                'transaction',
+                'student_id',
+                'total_tuition_fee',
+                'payment_status',
+                'school_year_id',
+                'created_at'
+
+            )
+                ->where('student_id', $id)
+                ->orderBy('reference_number')
+                ->get();
 
 
-        return response()->json([
-            'isSuccess' => true,
-            'references' => $references
-        ]);
+            return response()->json([
+                'isSuccess'   => true,
+                'references'  => $references,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => $e->getMessage(),
+            ], 500);
+        }
     }
+
 
 
 

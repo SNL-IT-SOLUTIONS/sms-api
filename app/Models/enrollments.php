@@ -13,6 +13,7 @@ class enrollments extends Model
     protected $table = 'enrollments';
 
     protected $fillable = [
+        'transcation',
         'original_tuition_fee',
         'reference_number',
         'admission_id',
