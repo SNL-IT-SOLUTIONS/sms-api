@@ -284,6 +284,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //Reports
 Route::get('passedexamreports', [ReportsController::class, 'getPassedExamReport']);
+Route::get('enrolledstudentsreports', [ReportsController::class, 'getEnrolledStudentsReport']);
 
 //Dropdowns
 Route::prefix('dropdown')->group(function () {

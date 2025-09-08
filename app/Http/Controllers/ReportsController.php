@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\exam_schedules;
+use App\Models\students;
 use Illuminate\Http\Request;
 
 class ReportsController extends Controller
@@ -46,6 +47,53 @@ class ReportsController extends Controller
             return response()->json([
                 'isSuccess' => false,
                 'message'   => 'Failed to generate exam report',
+                'error'     => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    public function getEnrolledStudentsReport()
+    {
+        try {
+            // ✅ Fetch all enrolled students with admission details
+            $enrolledStudents = Students::with([
+                'examSchedule',
+                'course',
+                'curriculum',
+                'section',
+                'gradeLevel',
+                'academicYear',
+                'admission:id,first_name,last_name,middle_name,suffix,email,contact_number'
+            ])
+                ->where('is_enrolled', 1)
+                ->get([
+                    'id',
+                    'student_number',
+                    'admission_id',
+                    'profile_img',
+                    'course_id',
+                    'curriculum_id',
+                    'grade_level_id',
+                    'section_id',
+                    'academic_year_id',
+                    'payment_status',
+                    'enrollment_status'
+                ]);
+
+            // ✅ Count total enrolled
+            $totalEnrolled = $enrolledStudents->count();
+
+            return response()->json([
+                'isSuccess'      => true,
+                'message'        => 'Enrolled students report generated successfully',
+                'total_enrolled' => $totalEnrolled,
+                'students'       => $enrolledStudents
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to generate enrolled students report',
                 'error'     => $e->getMessage(),
             ], 500);
         }
