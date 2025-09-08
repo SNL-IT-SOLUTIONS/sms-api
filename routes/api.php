@@ -21,6 +21,7 @@ use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\FeesController;
 use App\Http\Controllers\GradeLevelsController;
 use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\StudentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -280,6 +281,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('updateroom/{id}', [BuildingRoomsController::class, 'updateRoom']);
     Route::post('deleteroom/{id}', [BuildingRoomsController::class, 'deleteRoom']);
 });
+
+//Reports
+Route::get('passedexamreports', [ReportsController::class, 'getPassedExamReport']);
 
 //Dropdowns
 Route::prefix('dropdown')->group(function () {
