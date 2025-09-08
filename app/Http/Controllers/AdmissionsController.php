@@ -529,8 +529,9 @@ class AdmissionsController extends Controller
             $email = $validated['email'];
             $appointmentDate = now()->addDays(7)->format('m/d/Y'); // Example: 7 days from now
 
-            Mail::html("
-    <div style='font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;'>
+            Mail::html(
+                "
+         <div style='font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;'>
         <h1 style='color: #2c3e50; text-align: center;'> SNL University</h1>
         
         <h2 style='color: #2c3e50;'>Good day¹</h2>
@@ -577,11 +578,12 @@ class AdmissionsController extends Controller
         <p>To view your application details, please <a href='https://yourdomain.com/application-status'>Click Here</a></p>
         
         <p style='margin-top: 30px;'>Sincerely,<br>Admissions Office<br>SNL University</p>
-    </div>
-", function ($message) use ($email, $applicantNumber) {
-                $message->to($email)
-                    ->subject('Admission Application Received - Applicant #' . $applicantNumber);
-            });
+    </div>",
+                function ($message) use ($email, $applicantNumber) {
+                    $message->to($email)
+                        ->subject('Admission Application Received - Applicant #' . $applicantNumber);
+                }
+            );
 
             return response()->json([
                 'isSuccess' => true,

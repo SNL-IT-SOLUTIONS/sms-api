@@ -176,63 +176,57 @@ class SubjectsController extends Controller
     }
 
 
-public function saveGrades(Request $request, $id)
-{
-    try {
-        $validated = $request->validate([
-            'final_rating' => 'required', // allow both numeric + string
-        ]);
+    public function saveGrades(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'final_rating' => 'required', // allow both numeric + string
+            ]);
 
-        $studentSubject = student_subjects::findOrFail($id);
+            $studentSubject = student_subjects::findOrFail($id);
 
-        $finalRating = strtoupper($validated['final_rating']); // handle INC / DRP
+            $finalRating = strtoupper($validated['final_rating']); // handle INC / DRP
 
-        $remarks = null;
+            $remarks = null;
 
-        if (is_numeric($finalRating)) {
-            // Validate range if numeric
-            if ($finalRating < 1 || $finalRating > 5) {
+            if (is_numeric($finalRating)) {
+                // Validate range if numeric
+                if ($finalRating < 1 || $finalRating > 5) {
+                    return response()->json([
+                        'isSuccess' => false,
+                        'message'   => 'Final rating must be between 1.0 and 5.0.',
+                    ], 422);
+                }
+
+                $remarks = $finalRating <= 3.0 ? 'PASSED' : 'FAILED';
+            } elseif (in_array($finalRating, ['INC', 'DRP'])) {
+                // Special cases
+                $remarks = $finalRating === 'INC' ? 'INCOMPLETE' : 'DROPPED';
+            } else {
                 return response()->json([
                     'isSuccess' => false,
-                    'message'   => 'Final rating must be between 1.0 and 5.0.',
+                    'message'   => 'Invalid grade. Use numeric (1.0–5.0), INC, or DRP.',
                 ], 422);
             }
 
-            $remarks = $finalRating <= 3.0 ? 'PASSED' : 'FAILED';
+            // Save
+            $studentSubject->update([
+                'final_rating' => is_numeric($finalRating) ? round($finalRating, 2) : $finalRating,
+                'remarks'      => $remarks,
+            ]);
 
-        } elseif (in_array($finalRating, ['INC', 'DRP'])) {
-            // Special cases
-            $remarks = $finalRating === 'INC' ? 'INCOMPLETE' : 'DROPPED';
-
-        } else {
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Grade successfully saved!',
+                'data'      => $studentSubject
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message'   => 'Invalid grade. Use numeric (1.0–5.0), INC, or DRP.',
-            ], 422);
+                'message'   => $e->getMessage(),
+            ], 500);
         }
-
-        // Save
-        $studentSubject->update([
-            'final_rating' => is_numeric($finalRating) ? round($finalRating, 2) : $finalRating,
-            'remarks'      => $remarks,
-        ]);
-
-        return response()->json([
-            'isSuccess' => true,
-            'message'   => 'Grade successfully saved!',
-            'data'      => $studentSubject
-        ], 200);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => $e->getMessage(),
-        ], 500);
     }
-}
-
-
-
 
 
     //Dropdown

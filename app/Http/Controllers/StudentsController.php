@@ -525,9 +525,6 @@ class StudentsController extends Controller
     }
 
 
-
-
-
     //HELPERS
     public function getEnrollmentFees()
     {
