@@ -12,12 +12,12 @@ class ReportsController extends Controller
     public function getPassedExamReport()
     {
         try {
-            // ✅ Fetch all passed students with relationships
+            //  Fetch all passed students with relationships
             $passedStudents = exam_schedules::with([
-                'admission',   // admission details
-                'room',        // room details
-                'building',    // building details
-                'campus',      // campus details
+                'admission',
+                'room',
+                'building',
+                'campus',
 
             ])
                 ->where('exam_status', 'passed')
@@ -28,14 +28,14 @@ class ReportsController extends Controller
                     'exam_date',
                     'exam_time_from',
                     'exam_time_to',
-                    'academic_year', // make sure FK matches your table
+                    'academic_year',
                     'exam_score',
                     'room_id',
                     'building_id',
                     'campus_id'
                 ]);
 
-            // ✅ Count total passed
+            //  Count total passed
             $totalPassed = $passedStudents->count();
 
             return response()->json([
