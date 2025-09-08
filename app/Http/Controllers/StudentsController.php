@@ -117,7 +117,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // Load enrollment
+            // Load latest enrollment
             $enrollment = \App\Models\enrollments::where('student_id', $student->id)
                 ->latest()
                 ->first();
@@ -129,13 +129,25 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // Get payments
+            // Validate misc fee for the school_year_id
+            $miscFee = \App\Models\fees::where('school_year_id', $enrollment->school_year_id)
+                ->where('type', 'miscellaneous') // adjust if your column name differs
+                ->first();
+
+            if (!$miscFee) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Miscellaneous fee not set for this school year.'
+                ], 422);
+            }
+
+            // Payments
             $payments = payments::where('student_id', $student->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
             $totalPaid = $payments->sum('paid_amount');
-            $totalFee = (float) $enrollment->original_tuition_fee; // original fee (misc + tuition)
+            $totalFee = (float) $enrollment->original_tuition_fee; // includes misc + tuition
             $remainingBalance = (float) $enrollment->total_tuition_fee; // what’s left
 
             // Subjects
@@ -157,10 +169,11 @@ class StudentsController extends Controller
                     'list'        => $subjects,
                     'total_units' => $student->subjects->sum('units')
                 ],
+
                 'billing' => [
                     [
                         'description' => 'Miscellaneous Fee',
-                        'amount'      => number_format((float) $enrollment->misc_fee, 2)
+                        'amount'      => number_format((float) $miscFee->amount, 2)
                     ],
                     [
                         'description' => 'Tuition Fee',
@@ -192,6 +205,7 @@ class StudentsController extends Controller
             ], 500);
         }
     }
+
 
 
     //WORKING
@@ -358,7 +372,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ Load student record
+            //  Load student record
             $student = students::where('admission_id', $user->admission_id)->first();
             if (!$student) {
                 return response()->json([
@@ -367,7 +381,7 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // ✅ Check unpaid enrollments
+            //  Check unpaid enrollments
             $hasUnpaid = enrollments::where('student_id', $student->id)
                 ->where('payment_status', 'Unpaid')
                 ->exists();
@@ -379,7 +393,7 @@ class StudentsController extends Controller
                 ], 400);
             }
 
-            // ✅ Validate subjects
+            //  Validate subjects
             $validated = $request->validate([
                 'subjects'   => 'required|array|min:1',
                 'subjects.*' => 'exists:subjects,id'
@@ -393,7 +407,7 @@ class StudentsController extends Controller
                 ], 400);
             }
 
-            // ✅ Curriculum check
+            //  Curriculum check
             $curriculum = DB::table('curriculums')
                 ->where('course_id', $student->course_id)
                 ->orderBy('created_at', 'desc')
@@ -406,20 +420,20 @@ class StudentsController extends Controller
                 ], 400);
             }
 
-            // 💰 Fee computation (units + misc fees)
+            //  Fee computation (units + misc fees)
             $totalUnits = $subjects->sum('units');
             $unitRate   = 200;
             $unitsFee   = $totalUnits * $unitRate;
             $tuitionFee = $unitsFee;
 
-            // ✅ Get all active misc fees for the student's school year ONLY
+            //  Get all active misc fees for the student's school year ONLY
             $miscFees = DB::table('fees')
                 ->where('is_active', 1)
                 ->where('is_archived', 0)
-                ->where('school_year_id', $student->academic_year_id) // ❌ remove null check
+                ->where('school_year_id', $student->academic_year_id) // 
                 ->get();
 
-            // ❌ If no misc fees for this school year, stop enrollment
+            //  If no misc fees for this school year, stop enrollment
             if ($miscFees->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
@@ -430,7 +444,7 @@ class StudentsController extends Controller
             $miscFeeTotal = $miscFees->sum('default_amount');
             $totalFee     = $tuitionFee + $miscFeeTotal;
 
-            // ✅ Determine enrollment_status
+            //  Determine enrollment_status
             $hasAllRequirements = $student->has_form137
                 && $student->has_form138
                 && $student->has_good_moral
@@ -439,14 +453,14 @@ class StudentsController extends Controller
 
             $enrollmentStatus = $hasAllRequirements ? 'Officially Enrolled' : 'Unofficial Enrolled';
 
-            // ✅ Unique reference number
+            //  Unique reference number
             do {
                 $referenceNumber = mt_rand(1000000, 9999999);
             } while (enrollments::where('reference_number', $referenceNumber)->exists());
 
             $transactions = 'Enrollment';
 
-            // ✅ Create enrollment
+            // Create enrollment
             $enrollment = enrollments::create([
                 'student_id'           => $student->id,
                 'school_year_id'       => $student->academic_year_id,
@@ -460,7 +474,7 @@ class StudentsController extends Controller
                 'created_by'           => $student->id
             ]);
 
-            // ✅ Insert misc fees into pivot (enrollment_fees)
+            // Insert misc fees into pivot (enrollment_fees)
             foreach ($miscFees as $fee) {
                 DB::table('enrollment_fees')->insert([
                     'enrollment_id' => $enrollment->id,
@@ -471,14 +485,14 @@ class StudentsController extends Controller
                 ]);
             }
 
-            // ✅ Sync subjects to pivot (student_subjects with school_year_id)
+            //  Sync subjects to pivot (student_subjects with school_year_id)
             $pivotData = [];
             foreach ($validated['subjects'] as $subjectId) {
                 $pivotData[$subjectId] = ['school_year_id' => $student->academic_year_id];
             }
             $student->subjects()->sync($pivotData);
 
-            // ✅ Update student record
+            //  Update student record
             $student->update([
                 'curriculum_id' => $curriculum->id,
                 'is_assess'     => 1
@@ -526,7 +540,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ Load student record
+            //  Load student record
             $student = students::where('admission_id', $user->admission_id)->first();
             if (!$student) {
                 return response()->json([
@@ -535,7 +549,7 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // ✅ Get misc fees for the exact school year of the student
+            // Get misc fees for the exact school year of the student
             $fees = DB::table('fees')
                 ->select('id', 'fee_name', 'default_amount', 'school_year_id')
                 ->where('is_active', 1)

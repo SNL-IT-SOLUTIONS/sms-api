@@ -198,15 +198,20 @@ class PaymentsController extends Controller
             $perPage = $request->get('per_page', 5);
             $page    = $request->get('page', 1);
 
-            // Load payments with student + admission relationship
+            // Base query with relationships
             $query = payments::with(['student.examSchedule.admission'])
                 ->orderBy('created_at', 'desc');
 
+            // ✅ Filter by school year (if provided)
             if ($request->has('academic_year_id') || $request->has('school_year_id')) {
                 $schoolYearId = $request->academic_year_id ?? $request->school_year_id;
                 $query->where('school_year_id', $schoolYearId);
+            } else {
+                // Prevent showing payments without school_year_id
+                $query->whereNotNull('school_year_id');
             }
-            // ✅ Optional search by student name, student_id, receipt_no, or status
+
+            // ✅ Optional search
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -233,22 +238,22 @@ class PaymentsController extends Controller
                     : 'N/A';
 
                 return [
-                    'id'                 => $payment->id,
-                    'student_id'         => $payment->student_id,
-                    'student_name'       => $studentName,
-                    'amount_billed'      => $payment->amount,
-                    'paid_amount'        => $payment->paid_amount,
-                    'transcation'        => $payment->transaction,
-                    'remaining_balance'  => $payment->remaining_balance,
-                    'latest_balance'     => $student->total_amount,
-                    'payment_method'     => $payment->payment_method,
-                    'status'             => $payment->status,
-                    'reference_no'       => $payment->reference_no,
-                    'remarks'            => $payment->remarks,
-                    'receipt_no'         => $payment->receipt_no,
-                    'paid_at'            => $payment->paid_at,
-                    'received_by'        => $payment->received_by,
-                    'school_year_id'     => $payment->school_year_id, // ✅ included in response
+                    'id'                => $payment->id,
+                    'student_id'        => $payment->student_id,
+                    'student_name'      => $studentName,
+                    'amount_billed'     => (float) $payment->amount,
+                    'paid_amount'       => (float) $payment->paid_amount,
+                    'transaction'       => $payment->transaction,
+                    'remaining_balance' => (float) $payment->remaining_balance,
+                    'latest_balance'    => (float) ($student->total_amount ?? $payment->remaining_balance),
+                    'payment_method'    => $payment->payment_method,
+                    'status'            => $payment->status,
+                    'reference_no'      => $payment->reference_no,
+                    'remarks'           => $payment->remarks,
+                    'receipt_no'        => $payment->receipt_no,
+                    'paid_at'           => $payment->paid_at,
+                    'received_by'       => $payment->received_by,
+                    'school_year_id'    => $payment->school_year_id,
                 ];
             });
 
@@ -269,6 +274,7 @@ class PaymentsController extends Controller
             ], 500);
         }
     }
+
 
 
     //DROPDOWN

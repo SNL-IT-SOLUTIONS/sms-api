@@ -99,6 +99,15 @@ class students extends Model
     {
         return $this->hasMany(enrollments::class, 'student_id', 'id');
     }
+    public function academicYear()
+    {
+        return $this->belongsTo(school_years::class, 'academic_year_id', 'id');
+    }
+    public function gradeLevel()
+    {
+        return $this->belongsTo(grade__levels::class, 'grade_level_id', 'id');
+    }
+
 
 
 

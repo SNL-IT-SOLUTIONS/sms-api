@@ -18,130 +18,164 @@ use App\Models\accounts;
 
 class AuthController extends Controller
 {
-   public function login(Request $request)
-{
-    try {
-        $request->validate([
-            'login' => 'required|string',
-            'password' => 'required|string',
-        ]);
+    public function login(Request $request)
+    {
+        try {
+            $request->validate([
+                'login'    => 'required|string',
+                'password' => 'required|string',
+            ]);
 
-        $login = $request->login;
-        $password = $request->password;
+            $login    = $request->login;
+            $password = $request->password;
 
-        // Try logging in as an account
-        $user = accounts::with('userType')
-            ->where('email', $login)
-            ->orWhere('username', $login)
-            ->first();
+            // 🔹 Try logging in as account
+            $user = accounts::with('userType')
+                ->where('email', $login)
+                ->orWhere('username', $login)
+                ->first();
 
-        if ($user && Hash::check($password, $user->password)) {
-            $token = $user->createToken('auth-token')->plainTextToken;
+            if ($user && Hash::check($password, $user->password)) {
+                $token = $user->createToken('auth-token')->plainTextToken;
 
-            $userData = $user->makeHidden(['password', 'created_at', 'updated_at']);
-            $userData['role_name'] = $user->userType->role_name ?? null;
+                $userData = $user->makeHidden(['password', 'created_at', 'updated_at'])->toArray();
+                $userData['role_name'] = $user->userType->role_name ?? null;
 
-            Log::info('Logged in as account', ['user_id' => $user->id]);
+                Log::info('Logged in as account', ['user_id' => $user->id]);
 
-            return response()->json([
-                'isSuccess' => true,
-                'message' => 'Logged in successfully as account',
-                'token' => $token,
-                'user' => $userData,
-            ], 200);
-        }
+                return response()->json([
+                    'isSuccess' => true,
+                    'message'   => 'Logged in successfully as account',
+                    'token'     => $token,
+                    'user'      => $userData,
+                ], 200);
+            }
 
-        // Try logging in as a student
-        $student = students::where('student_number', $login)->first();
+            // 🔹 Try logging in as student
+            $student = students::with([
+                'course:id,course_name,course_code',
+                'section:id,section_name',
+                'gradeLevel:id,grade_level,description',
+                'academicYear:id,school_year,semester',
+                'curriculum:id,curriculum_name',
+                'admission:id,first_name,last_name'
+            ])
+                ->where('student_number', $login) // student login via student_number
+                ->first();
 
-        if ($student && Hash::check($password, $student->password)) {
-            $token = $student->createToken('auth-token')->plainTextToken;
+            if ($student && Hash::check($password, $student->password ?? '')) {
+                // create token for student
+                $token = $student->createToken('auth-token')->plainTextToken;
 
-            $studentData = $student->makeHidden(['password', 'created_at', 'updated_at']);
+                $studentData = [
+                    'id'               => $student->id,
+                    'student_number'   => $student->student_number,
+                    'full_name'        => $student->admission
+                        ? $student->admission->first_name . ' ' . $student->admission->last_name
+                        : null, // ✅ added student name
+                    'profile_img'      => $student->profile_img,
+                    'student_status'   => $student->student_status,
+                    'is_active'        => $student->is_active,
+                    'enrollment_status' => $student->enrollment_status,
+                    'payment_status'   => $student->payment_status,
+                    'is_assess'        => $student->is_assess,
+                    'is_enrolled'      => $student->is_enrolled,
 
-            Log::info('Logged in as student', ['student_id' => $student->id]);
+                    // 👉 Transformed IDs
+                    'academic_year'    => $student->academicYear->school_year ?? null,
+                    'semester'         => $student->academicYear->semester ?? null, // ✅ optional
+                    'grade_desc'       => $student->gradeLevel->description ?? null,
+                    'course'           => $student->course->course_name ?? null,
+                    'course_code'      => $student->course->course_code ?? null,
+                    'section'          => $student->section->section_name ?? null,
+                    'curriculum'       => $student->curriculum->curriculum_name ?? null,
 
-            return response()->json([
-                'isSuccess' => true,
-                'message' => 'Logged in successfully as student',
-                'token' => $token,
-                'user' => $studentData,
-            ], 200);
-        }
+                    'user_type'        => $student->user_type,
+                ];
 
-        // If neither account nor student matched
-        Log::warning('Login failed for user', ['login' => $login]);
+                Log::info('Logged in as student', ['student_id' => $student->id]);
 
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Invalid credentials.',
-        ], 401);
+                return response()->json([
+                    'isSuccess' => true,
+                    'message'   => 'Logged in successfully as student',
+                    'token'     => $token,
+                    'user'      => $studentData,
+                ], 200);
+            }
 
-    } catch (ValidationException $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Validation failed.',
-            'errors' => $e->errors(),
-        ], 422);
-    } catch (\Throwable $e) {
-        Log::error('Login error', ['error' => $e->getMessage()]);
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Login failed.',
-            'error' => $e->getMessage(),
-        ], 500);
-    }
-}
+            // ❌ If both fail
+            Log::warning('Login failed for user', ['login' => $login]);
 
-
-  public function forgotPassword(Request $request)
-{
-    try {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
-
-        $user = accounts::where('email', $request->email)->first();
-
-        if (!$user) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Email not found.',
-            ], 404);
+                'message'   => 'Invalid credentials.',
+            ], 401);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Validation failed.',
+                'errors'    => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Login error', ['error' => $e->getMessage()]);
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Login failed.',
+                'error'     => $e->getMessage(),
+            ], 500);
         }
+    }
 
-        // Generate a temporary password
-        $tempPassword = Str::random(8);
 
-        // Update the user's password with the hashed temporary password
-        $user->update([
-            'password' => Hash::make($tempPassword)
-        ]);
 
-        // Send email directly without Mailable class
-        Mail::html("
+
+    public function forgotPassword(Request $request)
+    {
+        try {
+            $request->validate([
+                'email' => 'required|email',
+            ]);
+
+            $user = accounts::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Email not found.',
+                ], 404);
+            }
+
+            // Generate a temporary password
+            $tempPassword = Str::random(8);
+
+            // Update the user's password with the hashed temporary password
+            $user->update([
+                'password' => Hash::make($tempPassword)
+            ]);
+
+            // Send email directly without Mailable class
+            Mail::html("
             <h1>Password Reset</h1>
             <p>Hello {$user->name},</p>
             <p>Your temporary password is: <strong>{$tempPassword}</strong></p>
             <p>Please log in and change it immediately.</p>
         ", function ($message) use ($user) {
-            $message->to($user->email)
+                $message->to($user->email)
                     ->subject('Your Temporary Password');
-        });
+            });
 
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'A temporary password has been sent to your email.',
-        ], 200);
-
-    } catch (\Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'An error occurred while processing your request.',
-            'error' => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'A temporary password has been sent to your email.',
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'An error occurred while processing your request.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
 
