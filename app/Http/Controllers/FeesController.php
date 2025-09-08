@@ -17,18 +17,30 @@ class FeesController extends Controller
 
     public function getFees(Request $request)
     {
-        $query = fees::query();
+        $query = fees::with('schoolYear'); // ✅ eager load school year relation
 
         if ($request->has('is_active')) {
-            $query->where('is_active', $request->is_active);
-            $query->where('is_archived', 0);
+            $query->where('is_active', $request->is_active)
+                ->where('is_archived', 0);
         }
 
         $fees = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'isSuccess' => true,
-            'fees'      => $fees
+            'fees'      => $fees->map(function ($fee) {
+                return [
+                    'id'             => $fee->id,
+                    'fee_name'       => $fee->fee_name,
+                    'description'    => $fee->description,
+                    'default_amount' => $fee->default_amount,
+                    'is_active'      => $fee->is_active,
+                    'created_at'     => $fee->created_at,
+                    'updated_at'     => $fee->updated_at,
+                    'schoolyear'     => $fee->schoolYear ? $fee->schoolYear->year : null,
+                    'semester'       => $fee->schoolYear ? $fee->schoolYear->semester : null,
+                ];
+            })
         ]);
     }
 
@@ -37,12 +49,14 @@ class FeesController extends Controller
         $request->validate([
             'fee_name'       => 'required|string|max:255',
             'description'    => 'nullable|string',
+            'school_year_id' => 'required|exists:school_years,id', // tie fee to a school year
             'default_amount' => 'required|numeric|min:0',
         ]);
 
         $fee = fees::create([
             'fee_name'       => $request->fee_name,
             'description'    => $request->description,
+            'school_year_id' => $request->school_year_id,
             'default_amount' => $request->default_amount,
             'is_active'      => 1,
         ]);
@@ -57,8 +71,9 @@ class FeesController extends Controller
     public function updateFees(Request $request, $id)
     {
         $request->validate([
-            'fee_name'       => 'sometimes|string|max:255|uneque:fees,fee_name,' . $id,
+            'fee_name'       => 'sometimes|string|max:255|unique:fees,fee_name,' . $id,
             'description'    => 'nullable|string',
+            'school_year_id' => 'sometimes|exists:school_years,id',
             'default_amount' => 'sometimes|numeric|min:0',
             'is_active'      => 'sometimes|boolean',
         ]);
@@ -75,10 +90,10 @@ class FeesController extends Controller
         $fee->update($request->only([
             'fee_name',
             'description',
+            'school_year_id',
             'default_amount',
             'is_active'
         ]));
-
 
         return response()->json([
             'isSuccess' => true,

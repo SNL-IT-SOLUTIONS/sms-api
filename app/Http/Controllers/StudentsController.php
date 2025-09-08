@@ -358,7 +358,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            //  Load student record
+            // ✅ Load student record
             $student = students::where('admission_id', $user->admission_id)->first();
             if (!$student) {
                 return response()->json([
@@ -367,7 +367,7 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-
+            // ✅ Check unpaid enrollments
             $hasUnpaid = enrollments::where('student_id', $student->id)
                 ->where('payment_status', 'Unpaid')
                 ->exists();
@@ -406,13 +406,29 @@ class StudentsController extends Controller
                 ], 400);
             }
 
-            // 💰 Fee computation
+            // 💰 Fee computation (units + misc fees)
             $totalUnits = $subjects->sum('units');
             $unitRate   = 200;
             $unitsFee   = $totalUnits * $unitRate;
-            $miscFee    = 2000;
             $tuitionFee = $unitsFee;
-            $totalFee   = $tuitionFee + $miscFee;
+
+            // ✅ Get all active misc fees for the student's school year ONLY
+            $miscFees = DB::table('fees')
+                ->where('is_active', 1)
+                ->where('is_archived', 0)
+                ->where('school_year_id', $student->academic_year_id) // ❌ remove null check
+                ->get();
+
+            // ❌ If no misc fees for this school year, stop enrollment
+            if ($miscFees->isEmpty()) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No applicable fees found for your school year. Please contact the registrar.'
+                ], 400);
+            }
+
+            $miscFeeTotal = $miscFees->sum('default_amount');
+            $totalFee     = $tuitionFee + $miscFeeTotal;
 
             // ✅ Determine enrollment_status
             $hasAllRequirements = $student->has_form137
@@ -423,38 +439,49 @@ class StudentsController extends Controller
 
             $enrollmentStatus = $hasAllRequirements ? 'Officially Enrolled' : 'Unofficial Enrolled';
 
+            // ✅ Unique reference number
             do {
                 $referenceNumber = mt_rand(1000000, 9999999);
             } while (enrollments::where('reference_number', $referenceNumber)->exists());
+
             $transactions = 'Enrollment';
 
             // ✅ Create enrollment
             $enrollment = enrollments::create([
-                'student_id'        => $student->id,
-                'school_year_id'    => $student->academic_year_id,
-                'tuition_fee'       => $tuitionFee,
-                'misc_fee'          => $miscFee,
+                'student_id'           => $student->id,
+                'school_year_id'       => $student->academic_year_id,
+                'tuition_fee'          => $tuitionFee,
+                'misc_fee'             => $miscFeeTotal,
                 'original_tuition_fee' => $totalFee,
-                'total_tuition_fee' => $totalFee,
-                'payment_status'    => 'Unpaid',
-                'transaction'        => $transactions,
-                'reference_number'  => $referenceNumber, // 👈 save here
-                'created_by'        => $student->id
+                'total_tuition_fee'    => $totalFee,
+                'payment_status'       => 'Unpaid',
+                'transaction'          => $transactions,
+                'reference_number'     => $referenceNumber,
+                'created_by'           => $student->id
             ]);
 
-            // ✅ Build pivot data with school_year_id
+            // ✅ Insert misc fees into pivot (enrollment_fees)
+            foreach ($miscFees as $fee) {
+                DB::table('enrollment_fees')->insert([
+                    'enrollment_id' => $enrollment->id,
+                    'fee_id'        => $fee->id,
+                    'amount'        => $fee->default_amount,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            // ✅ Sync subjects to pivot (student_subjects with school_year_id)
             $pivotData = [];
             foreach ($validated['subjects'] as $subjectId) {
                 $pivotData[$subjectId] = ['school_year_id' => $student->academic_year_id];
             }
-
-            // ✅ Sync subjects to pivot (student_subjects with school_year_id)
             $student->subjects()->sync($pivotData);
 
             // ✅ Update student record
             $student->update([
-                'curriculum_id'     => $curriculum->id,
-                'is_assess'         => 1
+                'curriculum_id' => $curriculum->id,
+                'is_assess'     => 1
             ]);
 
             return response()->json([
@@ -466,8 +493,8 @@ class StudentsController extends Controller
                     'subjects'          => $subjects,
                     'total_units'       => $totalUnits,
                     'units_fee'         => $unitsFee,
-                    'misc_fee'          => $miscFee,
-                    'transcation'        => $transactions,
+                    'misc_fees'         => $miscFees,
+                    'misc_fee_total'    => $miscFeeTotal,
                     'tuition_fee'       => $tuitionFee,
                     'total_amount'      => $totalFee,
                     'reference_number'  => $referenceNumber,
@@ -485,6 +512,61 @@ class StudentsController extends Controller
 
 
 
+
+
+    //HELPERS
+    public function getEnrollmentFees()
+    {
+        try {
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Unauthorized.'
+                ], 401);
+            }
+
+            // ✅ Load student record
+            $student = students::where('admission_id', $user->admission_id)->first();
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Student record not found.'
+                ], 404);
+            }
+
+            // ✅ Get misc fees for the exact school year of the student
+            $fees = DB::table('fees')
+                ->select('id', 'fee_name', 'default_amount', 'school_year_id')
+                ->where('is_active', 1)
+                ->where('is_archived', 0)
+                ->where('school_year_id', $student->academic_year_id) // 🔥 fixed
+                ->get();
+
+            if ($fees->isEmpty()) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No applicable enrollment fees found for this student\'s school year.'
+                ], 400);
+            }
+
+            $total = $fees->sum('default_amount');
+
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Applicable fees retrieved successfully.',
+                'data'      => [
+                    'fees'  => $fees,
+                    'total' => $total
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => $e->getMessage()
+            ], 500);
+        }
+    }
 
 
     //PAYMENT

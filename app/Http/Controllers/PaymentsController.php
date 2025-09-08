@@ -25,9 +25,9 @@ class PaymentsController extends Controller
             $validated = $request->validate([
                 'receipt_no'      => 'nullable|numeric',
                 'transaction'     => 'nullable|string|max:100',
-                'amount'          => 'required|numeric', // allow any amount, including overpayment
+                'amount'          => 'required|numeric',
                 'payment_method'  => 'nullable|string|in:cash,card,online',
-                'references'      => 'nullable|array',       // 👈 multiple references
+                'references'      => 'nullable|array',
                 'references.*'    => 'string|max:50|exists:enrollments,reference_number',
                 'remarks'         => 'nullable|string|max:255',
             ]);
@@ -39,11 +39,38 @@ class PaymentsController extends Controller
             // ✅ Fetch enrollment
             $enrollment = enrollments::where('student_id', $student->id)->firstOrFail();
 
+            // ✅ Validate school year
+            if (empty($student->academic_year_id)) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Student has no assigned school year. Cannot process fees.'
+                ], 400);
+            }
+
+            // ✅ Get misc fees from fees table
+            $miscFees = DB::table('fees')
+                ->where('school_year_id', $student->academic_year_id)
+                ->where('is_active', 1)
+                ->where('is_archived', 0)
+                ->sum('default_amount');
+
+            if ($miscFees <= 0) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No applicable enrollment fees found for this student\'s school year.'
+                ], 400);
+            }
+
+            // ✅ Compute units fee (per unit × subject units)
+            $totalUnits = $student->subjects()->sum('units') ?? 0;
+            $perUnitRate = config('school.per_unit_rate', 1000); // 👈 you can store per-unit rate in config or db
+            $unitsFee = $totalUnits * $perUnitRate;
+
             // ✅ Payment calculation
             $totalPaid = $student->payments()->sum('paid_amount');
-            $totalDue  = (float) $enrollment->total_tuition_fee;
+            $totalDue  = (float) $enrollment->tuition_fee + $miscFees + $unitsFee;
             $paidAmount = $validated['amount'];
-            $newOutstanding = $enrollment->total_tuition_fee - $paidAmount;
+            $newOutstanding = $totalDue - ($totalPaid + $paidAmount);
             $paymentStatus = ($newOutstanding <= 0) ? 'paid' : 'partial';
 
             // ✅ Generate unique OR number
@@ -64,7 +91,7 @@ class PaymentsController extends Controller
                 'student_id'        => $student->id,
                 'amount'            => $totalDue,
                 'paid_amount'       => $paidAmount,
-                'school_year_id'    => $student->academic_year_id,
+                'school_year_id'    => $student->school_year_id,
                 'payment_method'    => $validated['payment_method'] ?? 'cash',
                 'status'            => $paymentStatus,
                 'receipt_no'        => $receiptNo,
@@ -103,22 +130,22 @@ class PaymentsController extends Controller
             $pdfPath = $receiptDir . "/receipt_{$student->student_number}.pdf";
 
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.receipt', [
-                'studentNumber'      => $student->student_number,
-                'courseName'         => $student->examSchedule?->applicant?->course?->course_name ?? '—',
-                'campusName'         => $student->examSchedule?->applicant?->campus?->campus_name ?? '—',
-                'firstName'          => $student->examSchedule?->applicant?->first_name ?? '',
-                'lastName'           => $student->examSchedule?->applicant?->last_name ?? '',
-                'subjects'           => $student->subjects()->get(['subject_code', 'subject_name', 'units']),
-                'totalUnits'         => $student->subjects()->sum('units') ?? 0,
-                'receiptNo'          => $receiptNo,
-                'paidAt'             => $payment->paid_at,
-                'transaction'        => $payment->transaction,
-                'groupReference'     => $groupReference,
-                'tuitionFee'         => number_format((float) $student->tuition_fee, 2),
-                'miscFee'            => number_format((float) $student->misc_fee, 2),
-                'unitsFee'           => number_format((float) $student->units_fee, 2),
-                'paidAmount'         => number_format($student->payments()->sum('paid_amount'), 2),
-                'remainingBalance'   => number_format($newOutstanding, 2),
+                'studentNumber'    => $student->student_number,
+                'courseName'       => $student->examSchedule?->applicant?->course?->course_name ?? '—',
+                'campusName'       => $student->examSchedule?->applicant?->campus?->campus_name ?? '—',
+                'firstName'        => $student->examSchedule?->applicant?->first_name ?? '',
+                'lastName'         => $student->examSchedule?->applicant?->last_name ?? '',
+                'subjects'         => $student->subjects()->get(['subject_code', 'subject_name', 'units']),
+                'totalUnits'       => $totalUnits,
+                'receiptNo'        => $receiptNo,
+                'paidAt'           => $payment->paid_at,
+                'transaction'      => $payment->transaction,
+                'groupReference'   => $groupReference,
+                'tuitionFee'       => number_format((float) $enrollment->tuition_fee, 2),
+                'miscFee'          => number_format((float) $miscFees, 2),
+                'unitsFee'         => number_format((float) $unitsFee, 2),
+                'paidAmount'       => number_format($student->payments()->sum('paid_amount'), 2),
+                'remainingBalance' => number_format($newOutstanding, 2),
             ]);
             $pdf->save($pdfPath);
 
@@ -162,6 +189,7 @@ class PaymentsController extends Controller
             ], 500);
         }
     }
+
 
 
     public function getAllPayments(Request $request)

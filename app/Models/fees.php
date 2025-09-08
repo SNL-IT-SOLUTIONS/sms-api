@@ -17,4 +17,9 @@ class fees extends Model
         'default_amount',
         'is_active',
     ];
+
+    public function schoolYear()
+    {
+        return $this->belongsTo(school_years::class, 'schoolyear_id');
+    }
 }
