@@ -375,7 +375,8 @@ class StudentsController extends Controller
                     'subject_code' => $sched->subject->subject_code ?? null,
                     'subject_name' => $sched->subject->subject_name ?? null,
                     'day' => $sched->day,
-                    'time' => $sched->time,
+                    'start_time' => $sched->start_time,
+                    'end_time' => $sched->end_time,
                     'room' => $sched->room->room_name ?? null,
                     'teacher' => $sched->teacher?->first_name . ' ' . $sched->teacher?->last_name,
                 ];

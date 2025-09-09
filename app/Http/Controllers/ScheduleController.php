@@ -51,11 +51,12 @@ class ScheduleController extends Controller
     {
         try {
             $validated = $request->validate([
-                'section_id' => 'required|exists:sections,id',
-                'subject_id' => 'required|exists:subjects,id',
-                'day'        => 'required|string|max:20',
-                'time'       => 'required|string|max:50',
-                'building_id' => 'required|exists:campus_buildings,id',
+                'section_id'   => 'required|exists:sections,id',
+                'subject_id'   => 'required|exists:subjects,id',
+                'day'          => 'required|string|max:20',
+                'start_time'   => 'required|date_format:H:i',
+                'end_time'     => 'required|date_format:H:i|after:start_time',
+                'building_id'  => 'required|exists:campus_buildings,id',
                 'room_id' => [
                     'required',
                     'exists:building_rooms,id',
@@ -97,18 +98,18 @@ class ScheduleController extends Controller
         }
     }
 
-    // ✅ Update schedule
     public function updateSchedule(Request $request, $id)
     {
         try {
             $schedule = SectionSubjectSchedule::findOrFail($id);
 
             $validated = $request->validate([
-                'section_id' => 'sometimes|exists:sections,id',
-                'subject_id' => 'sometimes|exists:subjects,id',
-                'day'        => 'sometimes|string|max:20',
-                'time'       => 'sometimes|string|max:50',
-                'building_id' => 'sometimes|exists:campus_buildings,id',
+                'section_id'   => 'sometimes|exists:sections,id',
+                'subject_id'   => 'sometimes|exists:subjects,id',
+                'day'          => 'sometimes|string|max:20',
+                'start_time'   => 'sometimes|date_format:H:i',
+                'end_time'     => 'sometimes|date_format:H:i|after:start_time',
+                'building_id'  => 'sometimes|exists:campus_buildings,id',
                 'room_id' => [
                     'sometimes',
                     'exists:building_rooms,id',
@@ -151,6 +152,7 @@ class ScheduleController extends Controller
             ]);
         }
     }
+
 
     // ✅ Soft delete (archive)
     public function deleteSchedule($id)

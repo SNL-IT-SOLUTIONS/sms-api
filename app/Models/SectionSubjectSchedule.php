@@ -15,7 +15,8 @@ class SectionSubjectSchedule extends Model
         'section_id',
         'subject_id',
         'day',
-        'time',
+        'start_time',
+        'end_time',
         'room_id',
         'teacher_id',
     ];
