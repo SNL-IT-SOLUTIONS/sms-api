@@ -371,16 +371,21 @@ class StudentsController extends Controller
 
             // Format response
             $formatted = $schedules->map(function ($sched) {
+                $teacher = $sched->teacher
+                    ? $sched->teacher->given_name . ' ' . $sched->teacher->surname
+                    : null;
+
                 return [
                     'subject_code' => $sched->subject->subject_code ?? null,
                     'subject_name' => $sched->subject->subject_name ?? null,
-                    'day' => $sched->day,
-                    'start_time' => $sched->start_time,
-                    'end_time' => $sched->end_time,
-                    'room' => $sched->room->room_name ?? null,
-                    'teacher' => $sched->teacher?->first_name . ' ' . $sched->teacher?->last_name,
+                    'day'          => $sched->day,
+                    'start_time'   => $sched->start_time,
+                    'end_time'     => $sched->end_time,
+                    'room'         => $sched->room->room_name ?? null,
+                    'teacher'      => $teacher,
                 ];
             });
+
 
             return response()->json([
                 'isSuccess' => true,
