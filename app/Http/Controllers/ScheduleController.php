@@ -98,7 +98,6 @@ class ScheduleController extends Controller
     }
 
     // ✅ Update schedule
-    // ✅ Update schedule
     public function updateSchedule(Request $request, $id)
     {
         try {
@@ -115,7 +114,7 @@ class ScheduleController extends Controller
                     'exists:building_rooms,id',
                     function ($attribute, $value, $fail) use ($request) {
                         if ($value && $request->building_id) {
-                            $room = \App\Models\BuildingRoom::find($value);
+                            $room = building_rooms::find($value);
                             if (!$room || $room->building_id != $request->building_id) {
                                 $fail('The selected room does not belong to the selected building.');
                             }
@@ -127,7 +126,7 @@ class ScheduleController extends Controller
                     'exists:school_campus,id',
                     function ($attribute, $value, $fail) use ($request) {
                         if ($value && $request->building_id) {
-                            $building = \App\Models\CampusBuilding::find($request->building_id);
+                            $building = campus_buildings::find($request->building_id);
                             if ($building && $building->campus_id != $value) {
                                 $fail('The selected building does not belong to the selected campus.');
                             }
