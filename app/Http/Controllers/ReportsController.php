@@ -25,10 +25,13 @@ class ReportsController extends Controller
             // 🔍 Search (student name or test permit no)
             if ($request->has('search')) {
                 $search = $request->search;
-                $query->whereHas('admission', function ($q) use ($search) {
-                    $q->where('first_name', 'like', "%$search%")
-                        ->orWhere('last_name', 'like', "%$search%");
-                })->orWhere('test_permit_no', 'like', "%$search%");
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('admission', function ($q2) use ($search) {
+                        $q2->where('first_name', 'like', "%$search%")
+                            ->orWhere('last_name', 'like', "%$search%");
+                    })
+                        ->orWhere('test_permit_no', 'like', "%$search%");
+                });
             }
 
             // 🎯 Filters
@@ -39,13 +42,22 @@ class ReportsController extends Controller
                 $query->where('campus_id', $request->campus_id);
             }
 
+            // 🏆 Ranking: Order by score descending
+            $query->orderByDesc('exam_score');
+
             $passedStudents = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // 🚀 Add rank field manually
+            $students = $passedStudents->getCollection()->map(function ($student, $index) use ($perPage, $page) {
+                $student->rank = ($page - 1) * $perPage + ($index + 1);
+                return $student;
+            });
 
             return response()->json([
                 'isSuccess'    => true,
                 'message'      => 'Exam report generated successfully',
                 'total_passed' => $passedStudents->total(),
-                'students'     => $passedStudents->items(),
+                'students'     => $students,
                 'pagination'   => [
                     'total'        => $passedStudents->total(),
                     'per_page'     => $passedStudents->perPage(),
