@@ -189,7 +189,7 @@ Route::post('/deleteschedule/{id}', [ScheduleController::class, 'deleteSchedule'
 
 
 //Faculty Routes
-Route::get('getfacultyschedule', [FacultyController::class, 'getMySchedules']);
+Route::get('getfacultyschedule', [FacultyController::class, 'getMySchedules'])->middleware('auth:sanctum');
 Route::get('getfaculties', [ScheduleController::class, 'getFaculty']);
 Route::get('getmyclasses', [ScheduleController::class, 'getMyClasses'])->middleware('auth:sanctum');
 Route::get('getmyclassgrades', [ScheduleController::class, 'getMyClassGrades'])->middleware('auth:sanctum');

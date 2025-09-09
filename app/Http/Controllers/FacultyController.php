@@ -17,33 +17,35 @@ class FacultyController extends Controller
     public function getMySchedules(Request $request)
     {
         try {
-            // Get currently logged in user
-            $facultyId = Auth::id();
+            $faculty = Auth::user();
 
-            if (!$facultyId) {
+            if (!$faculty) {
                 return response()->json([
                     'isSuccess' => false,
                     'message'   => 'Unauthorized. Please log in first.',
                 ], 401);
             }
 
+            $facultyId = $faculty->id;
+
             $schedules = DB::table('section_subject_schedule as sss')
                 ->join('sections as sec', 'sec.id', '=', 'sss.section_id')
                 ->join('subjects as sub', 'sub.id', '=', 'sss.subject_id')
                 ->leftJoin('building_rooms as br', 'br.id', '=', 'sss.room_id')
                 ->leftJoin('courses as c', 'c.id', '=', 'sec.course_id')
-                ->leftJoin('enrollments as en', 'en.section_id', '=', 'sec.id')
+                ->leftJoin('students as st', 'st.section_id', '=', 'sec.id')
                 ->select(
                     'sub.subject_code',
                     'sub.subject_name',
                     'sss.id as schedule_id',
                     'sec.section_name',
                     'sss.day',
-                    'sss.time',
+                    'sss.start_time',
+                    'sss.end_time',
                     'br.room_name',
                     'c.course_name',
                     'c.course_code',
-                    DB::raw('COUNT(en.id) as enrolled_students'),
+                    DB::raw('COUNT(st.id) as enrolled_students'),
                     DB::raw('sub.units as faculty_credit')
                 )
                 ->where('sss.teacher_id', $facultyId)
@@ -53,21 +55,24 @@ class FacultyController extends Controller
                     'sss.id',
                     'sec.section_name',
                     'sss.day',
-                    'sss.time',
+                    'sss.start_time',
+                    'sss.end_time',
                     'br.room_name',
                     'c.course_name',
                     'c.course_code',
                     'sub.units'
                 )
                 ->orderBy('sss.day')
-                ->orderBy('sss.time')
+                ->orderBy('sss.start_time')
                 ->get();
 
             $formatted = $schedules->map(function ($s) {
                 return [
                     'subject'           => $s->subject_name,
                     'specialization'    => $s->subject_code,
-                    'schedule'          => $s->day . ' ' . $s->time,
+                    'day'               => $s->day,
+                    'start_time'          =>  $s->start_time,
+                    'end_time'            => $s->end_time,
                     'room'              => $s->room_name ?? '--',
                     'section'           => $s->section_name,
                     'course'            => $s->course_name ?? '--',
@@ -76,6 +81,7 @@ class FacultyController extends Controller
                     'enrolled_students' => $s->enrolled_students,
                 ];
             });
+
 
             return response()->json([
                 'isSuccess' => true,
@@ -127,6 +133,47 @@ class FacultyController extends Controller
                 'isSuccess' => false,
                 'message' => 'Failed to fetch grade summary.',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function submitGrade(Request $request)
+    {
+        try {
+            $facultyId = Auth::id();
+
+            if (!$facultyId) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Unauthorized.'
+                ], 401);
+            }
+
+            $validated = $request->validate([
+                'student_id'   => 'required|exists:student_subjects,student_id',
+                'subject_id'   => 'required|exists:student_subjects,subject_id',
+                'final_rating' => 'required|numeric|min:1|max:5',
+                'remarks'      => 'nullable|string|max:50'
+            ]);
+
+            DB::table('student_subjects')
+                ->where('student_id', $validated['student_id'])
+                ->where('subject_id', $validated['subject_id'])
+                ->update([
+                    'final_rating' => $validated['final_rating'],
+                    'remarks'      => $validated['remarks'] ?? $this->getCollegeRemarks($validated['final_rating']),
+                    'updated_at'   => now()
+                ]);
+
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Grade submitted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to submit grade.',
+                'error'     => $e->getMessage()
             ], 500);
         }
     }
