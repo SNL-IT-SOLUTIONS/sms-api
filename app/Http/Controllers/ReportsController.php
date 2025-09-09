@@ -67,7 +67,7 @@ class ReportsController extends Controller
     public function getEnrolledStudentsReport(Request $request)
     {
         try {
-            $perPage = $request->get('per_page', 5);
+            $perPage = $request->get('per_page', 4);
             $page    = $request->get('page', 1);
 
             $query = Students::with([
