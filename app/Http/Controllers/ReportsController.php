@@ -12,7 +12,7 @@ class ReportsController extends Controller
     public function getPassedExamReport(Request $request)
     {
         try {
-            $perPage = $request->get('per_page', 4);
+            $perPage = $request->get('per_page', 5);
             $page    = $request->get('page', 1);
 
             $query = exam_schedules::with([
@@ -79,7 +79,7 @@ class ReportsController extends Controller
     public function getEnrolledStudentsReport(Request $request)
     {
         try {
-            $perPage = $request->get('per_page', 4);
+            $perPage = $request->get('per_page', 5);
             $page    = $request->get('page', 1);
 
             $query = Students::with([
