@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\SectionSubjectSchedule;
 use App\Models\Account;
 use App\Models\accounts;
+use App\Models\building_rooms;
+use App\Models\campus_buildings;
 use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
@@ -51,9 +53,31 @@ class ScheduleController extends Controller
             $validated = $request->validate([
                 'section_id' => 'required|exists:sections,id',
                 'subject_id' => 'required|exists:subjects,id',
-                'day' => 'required|string|max:20',
-                'time' => 'required|string|max:50',
-                'room_id' => 'nullable|exists:building_rooms,id',
+                'day'        => 'required|string|max:20',
+                'time'       => 'required|string|max:50',
+                'building_id' => 'required|exists:campus_buildings,id',
+                'room_id' => [
+                    'required',
+                    'exists:building_rooms,id',
+                    function ($attribute, $value, $fail) use ($request) {
+                        $room = building_rooms::find($value);
+                        if (!$room || $room->building_id != $request->building_id) {
+                            $fail('The selected room does not belong to the selected building.');
+                        }
+                    }
+                ],
+                'campus_id' => [
+                    'nullable',
+                    'exists:school_campus,id',
+                    function ($attribute, $value, $fail) use ($request) {
+                        if ($value && $request->building_id) {
+                            $building = campus_buildings::find($request->building_id);
+                            if ($building && $building->campus_id != $value) {
+                                $fail('The selected building does not belong to the selected campus.');
+                            }
+                        }
+                    }
+                ],
                 'teacher_id' => 'nullable|exists:accounts,id',
             ]);
 
@@ -61,18 +85,19 @@ class ScheduleController extends Controller
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Schedule successfully assigned.',
+                'message'   => 'Schedule successfully assigned.',
                 'schedules' => $schedule
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to assign schedule.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to assign schedule.',
+                'error'     => $e->getMessage()
             ]);
         }
     }
 
+    // ✅ Update schedule
     // ✅ Update schedule
     public function updateSchedule(Request $request, $id)
     {
@@ -82,24 +107,48 @@ class ScheduleController extends Controller
             $validated = $request->validate([
                 'section_id' => 'sometimes|exists:sections,id',
                 'subject_id' => 'sometimes|exists:subjects,id',
-                'day' => 'sometimes|string|max:20',
-                'time' => 'sometimes|string|max:50',
-                'room_id' => 'n ullable|exists:building_rooms,id',
-                'teacher_id' => 'nullable|exists:accounts,id',
+                'day'        => 'sometimes|string|max:20',
+                'time'       => 'sometimes|string|max:50',
+                'building_id' => 'sometimes|exists:campus_buildings,id',
+                'room_id' => [
+                    'sometimes',
+                    'exists:building_rooms,id',
+                    function ($attribute, $value, $fail) use ($request) {
+                        if ($value && $request->building_id) {
+                            $room = \App\Models\BuildingRoom::find($value);
+                            if (!$room || $room->building_id != $request->building_id) {
+                                $fail('The selected room does not belong to the selected building.');
+                            }
+                        }
+                    }
+                ],
+                'campus_id' => [
+                    'sometimes',
+                    'exists:school_campus,id',
+                    function ($attribute, $value, $fail) use ($request) {
+                        if ($value && $request->building_id) {
+                            $building = \App\Models\CampusBuilding::find($request->building_id);
+                            if ($building && $building->campus_id != $value) {
+                                $fail('The selected building does not belong to the selected campus.');
+                            }
+                        }
+                    }
+                ],
+                'teacher_id' => 'sometimes|exists:accounts,id',
             ]);
 
             $schedule->update($validated);
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Schedule successfully updated.',
+                'message'   => 'Schedule successfully updated.',
                 'schedules' => $schedule
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to update schedule.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to update schedule.',
+                'error'     => $e->getMessage()
             ]);
         }
     }
