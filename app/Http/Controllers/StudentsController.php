@@ -98,57 +98,93 @@ class StudentsController extends Controller
 
 
 
-    public function updateStudentsProfile(Request $request)
+    public function updateStudentProfile(Request $request)
     {
         try {
-            $student = Auth::user(); // logged in student
+            $student = Auth::user(); // currently logged-in student
 
             if (!$student) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'Not authenticated.',
+                    'message'   => 'Not authenticated.',
                 ], 401);
             }
 
-            // get related admission
-            $examSchedule = $student->examSchedule; // assuming relationship is set up
-            if (!$examSchedule || !$examSchedule->admission) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Admission details not found.',
-                ], 404);
-            }
+            // ✅ Validation rules
+            $validated = $request->validate([
+                'profile_img'       => 'sometimes|nullable|string|max:255',
+                'student_status'    => 'sometimes|nullable|string|max:50',
+                'enrollment_status' => 'sometimes|nullable|string|max:50',
+                'payment_status'    => 'sometimes|nullable|string|max:50',
 
-            $admission = $examSchedule->admission;
+                // Admissions side
+                'first_name'       => 'sometimes|required|string|max:100',
+                'middle_name'      => 'sometimes|nullable|string|max:100',
+                'last_name'        => 'sometimes|required|string|max:100',
+                'suffix'           => 'sometimes|nullable|string|max:20',
+                'gender'           => 'sometimes|required|string|in:male,female',
+                'birthdate'        => 'sometimes|nullable|date',
+                'email'            => 'sometimes|required|email|max:150',
+                'contact_number'   => 'sometimes|nullable|string|max:20',
+                'province'         => 'sometimes|nullable|string|max:150',
+                'city'             => 'sometimes|nullable|string|max:150',
+                'barangay'         => 'sometimes|nullable|string|max:150',
 
-            // validate admission fields
-            $request->validate([
-                'first_name' => 'required|string|max:255',
-                'last_name'  => 'required|string|max:255',
-                'email'      => 'required|email|max:255|unique:admissions,email,' . $admission->id,
-                // add more fields you need
+                // Guardian info
+                'guardian_name'    => 'sometimes|nullable|string|max:150',
+                'guardian_contact' => 'sometimes|nullable|string|max:20',
+                'mother_name'      => 'sometimes|nullable|string|max:150',
+                'mother_contact'   => 'sometimes|nullable|string|max:20',
+                'father_name'      => 'sometimes|nullable|string|max:150',
+                'father_contact'   => 'sometimes|nullable|string|max:20',
             ]);
 
-            // update admission data instead of students
-            $admission->update($request->only([
-                'first_name',
-                'last_name',
-                'email',
-                // add other fields
-            ]));
+            // ✅ Update student
+            $studentModel = Students::findOrFail($student->id);
+            $studentModel->update([
+                'profile_img'      => $validated['profile_img']      ?? $studentModel->profile_img,
+                'student_status'   => $validated['student_status']   ?? $studentModel->student_status,
+                'enrollment_status' => $validated['enrollment_status'] ?? $studentModel->enrollment_status,
+                'payment_status'   => $validated['payment_status']   ?? $studentModel->payment_status,
+            ]);
+
+            // ✅ Update admission record
+            $admission = $studentModel->admission;
+            if ($admission) {
+                $admission->update([
+                    'first_name'       => $validated['first_name'],
+                    'middle_name'      => $validated['middle_name']   ?? $admission->middle_name,
+                    'last_name'        => $validated['last_name'],
+                    'suffix'           => $validated['suffix']        ?? $admission->suffix,
+                    'gender'           => $validated['gender'],
+                    'birthdate'        => $validated['birthdate']     ?? $admission->birthdate,
+                    'email'            => $validated['email'],
+                    'contact_number'   => $validated['contact_number'] ?? $admission->contact_number,
+                    'province'         => $validated['province']      ?? $admission->province,
+                    'city'             => $validated['city']          ?? $admission->city,
+                    'barangay'         => $validated['barangay']      ?? $admission->barangay,
+                    'guardian_name'    => $validated['guardian_name'] ?? $admission->guardian_name,
+                    'guardian_contact' => $validated['guardian_contact'] ?? $admission->guardian_contact,
+                    'mother_name'      => $validated['mother_name']   ?? $admission->mother_name,
+                    'mother_contact'   => $validated['mother_contact'] ?? $admission->mother_contact,
+                    'father_name'      => $validated['father_name']   ?? $admission->father_name,
+                    'father_contact'   => $validated['father_contact'] ?? $admission->father_contact,
+                ]);
+            }
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Profile updated successfully.',
-                'data' => $admission,
+                'message'   => 'Profile updated successfully',
+                'data'      => $this->getStudentProfile()->getData()->data // reuse the profile getter for updated data
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Error: ' . $e->getMessage(),
+                'message'   => 'Error updating profile: ' . $e->getMessage(),
             ], 500);
         }
     }
+
 
 
 

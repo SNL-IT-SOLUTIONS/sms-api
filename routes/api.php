@@ -165,6 +165,8 @@ Route::post('/payments/webhook', [StudentsController::class, 'handleWebhook']);
 Route::get('getenrollmentfees', [StudentsController::class, 'getEnrollmentFees'])->middleware('auth:sanctum');
 Route::post('enrollnow', [StudentsController::class, 'enrollNow'])->middleware('auth:sanctum');
 Route::get('studentsprofile', [StudentsController::class, 'getStudentProfile'])->middleware('auth:sanctum');
+Route::post('updatestudentsprofile', [StudentsController::class, 'updateStudentProfile'])->middleware('auth:sanctum');
+
 
 
 
