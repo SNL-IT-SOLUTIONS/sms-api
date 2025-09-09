@@ -14,7 +14,12 @@ class ScheduleController extends Controller
     public function getSchedule(Request $request)
     {
         try {
-            $query = SectionSubjectSchedule::with(['section', 'subject', 'teacher']);
+            $query = SectionSubjectSchedule::with([
+                'section',
+                'subject',
+                'teacher',
+                'room.building.campus' // ✅ eager load room → building → campus
+            ]);
 
             if ($request->has('section_id')) {
                 $query->where('section_id', $request->section_id);
@@ -22,6 +27,18 @@ class ScheduleController extends Controller
 
             if ($request->has('subject_id')) {
                 $query->where('subject_id', $request->subject_id);
+            }
+
+            if ($request->has('building_id')) {
+                $query->where('building_id', $request->building_id);
+            }
+
+            if ($request->has('room_id')) {
+                $query->where('room_id', $request->room_id);
+            }
+
+            if ($request->has('campus_id')) {
+                $query->where('campus_id', $request->campus_id);
             }
 
             $schedules = $query->where('is_archived', 0)->get();
@@ -46,6 +63,7 @@ class ScheduleController extends Controller
             ]);
         }
     }
+
 
     public function assignSchedule(Request $request)
     {
