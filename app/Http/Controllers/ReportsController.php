@@ -9,40 +9,49 @@ use Illuminate\Support\Facades\DB;
 
 class ReportsController extends Controller
 {
-    public function getPassedExamReport()
+    public function getPassedExamReport(Request $request)
     {
         try {
-            //  Fetch all passed students with relationships
-            $passedStudents = exam_schedules::with([
+            $perPage = $request->get('per_page', 5);
+            $page    = $request->get('page', 1);
+
+            $query = exam_schedules::with([
                 'admission',
                 'room',
                 'building',
                 'campus',
+            ])->where('exam_status', 'passed');
 
-            ])
-                ->where('exam_status', 'passed')
-                ->get([
-                    'id',
-                    'admission_id',
-                    'test_permit_no',
-                    'exam_date',
-                    'exam_time_from',
-                    'exam_time_to',
-                    'academic_year',
-                    'exam_score',
-                    'room_id',
-                    'building_id',
-                    'campus_id'
-                ]);
+            // 🔍 Search (student name or test permit no)
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->whereHas('admission', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%$search%")
+                        ->orWhere('last_name', 'like', "%$search%");
+                })->orWhere('test_permit_no', 'like', "%$search%");
+            }
 
-            //  Count total passed
-            $totalPassed = $passedStudents->count();
+            // 🎯 Filters
+            if ($request->has('academic_year')) {
+                $query->where('academic_year', $request->academic_year);
+            }
+            if ($request->has('campus_id')) {
+                $query->where('campus_id', $request->campus_id);
+            }
+
+            $passedStudents = $query->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
                 'isSuccess'    => true,
                 'message'      => 'Exam report generated successfully',
-                'total_passed' => $totalPassed,
-                'students'     => $passedStudents
+                'total_passed' => $passedStudents->total(),
+                'students'     => $passedStudents->items(),
+                'pagination'   => [
+                    'total'        => $passedStudents->total(),
+                    'per_page'     => $passedStudents->perPage(),
+                    'current_page' => $passedStudents->currentPage(),
+                    'last_page'    => $passedStudents->lastPage(),
+                ],
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
@@ -54,11 +63,14 @@ class ReportsController extends Controller
     }
 
 
-    public function getEnrolledStudentsReport()
+
+    public function getEnrolledStudentsReport(Request $request)
     {
         try {
-            // ✅ Fetch all enrolled students with admission details
-            $enrolledStudents = Students::with([
+            $perPage = $request->get('per_page', 5);
+            $page    = $request->get('page', 1);
+
+            $query = Students::with([
                 'examSchedule',
                 'course',
                 'curriculum',
@@ -66,30 +78,42 @@ class ReportsController extends Controller
                 'gradeLevel',
                 'academicYear',
                 'admission:id,first_name,last_name,middle_name,suffix,email,contact_number'
-            ])
-                ->where('is_enrolled', 1)
-                ->get([
-                    'id',
-                    'student_number',
-                    'admission_id',
-                    'profile_img',
-                    'course_id',
-                    'curriculum_id',
-                    'grade_level_id',
-                    'section_id',
-                    'academic_year_id',
-                    'payment_status',
-                    'enrollment_status'
-                ]);
+            ])->where('is_enrolled', 1);
 
-            // ✅ Count total enrolled
-            $totalEnrolled = $enrolledStudents->count();
+            // 🔍 Search (student number or name)
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where('student_number', 'like', "%$search%")
+                    ->orWhereHas('admission', function ($q) use ($search) {
+                        $q->where('first_name', 'like', "%$search%")
+                            ->orWhere('last_name', 'like', "%$search%");
+                    });
+            }
+
+            // 🎯 Filters
+            if ($request->has('course_id')) {
+                $query->where('course_id', $request->course_id);
+            }
+            if ($request->has('grade_level_id')) {
+                $query->where('grade_level_id', $request->grade_level_id);
+            }
+            if ($request->has('academic_year_id')) {
+                $query->where('academic_year_id', $request->academic_year_id);
+            }
+
+            $enrolledStudents = $query->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
                 'isSuccess'      => true,
                 'message'        => 'Enrolled students report generated successfully',
-                'total_enrolled' => $totalEnrolled,
-                'students'       => $enrolledStudents
+                'total_enrolled' => $enrolledStudents->total(),
+                'students'       => $enrolledStudents->items(),
+                'pagination'     => [
+                    'total'        => $enrolledStudents->total(),
+                    'per_page'     => $enrolledStudents->perPage(),
+                    'current_page' => $enrolledStudents->currentPage(),
+                    'last_page'    => $enrolledStudents->lastPage(),
+                ],
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
@@ -100,44 +124,67 @@ class ReportsController extends Controller
         }
     }
 
-    public function getReconsiderExamReport()
+
+    public function getReconsiderExamReport(Request $request)
     {
         try {
-            // ✅ Fetch all students with reconsider exam status
-            $reconsideredStudents = DB::table('exam_schedules')
+            $perPage = $request->get('per_page', 5);
+            $page    = $request->get('page', 1);
+
+            $query = DB::table('exam_schedules')
                 ->join('admissions', 'exam_schedules.admission_id', '=', 'admissions.id')
-                ->where('exam_schedules.exam_status', 'reconsider')
-                ->get([
-                    'exam_schedules.id as exam_schedule_id',
-                    'exam_schedules.test_permit_no',
-                    'exam_schedules.exam_date',
-                    'exam_schedules.exam_time_from',
-                    'exam_schedules.exam_time_to',
-                    'exam_schedules.academic_year',
-                    'exam_schedules.exam_score',
-                    'exam_schedules.room_id',
-                    'exam_schedules.building_id',
-                    'exam_schedules.campus_id',
+                ->where('exam_schedules.exam_status', 'reconsider');
 
-                    // 👇 Admission details
-                    'admissions.id as admission_id',
-                    'admissions.first_name',
-                    'admissions.last_name',
-                    'admissions.middle_name',
-                    'admissions.gender',
-                    'admissions.email',
-                    'admissions.contact_number',
-                    'admissions.city',
-                ]);
+            // 🔍 Search (name or test permit no)
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('admissions.first_name', 'like', "%$search%")
+                        ->orWhere('admissions.last_name', 'like', "%$search%")
+                        ->orWhere('exam_schedules.test_permit_no', 'like', "%$search%");
+                });
+            }
 
-            // ✅ Count total reconsidered
-            $totalReconsidered = $reconsideredStudents->count();
+            // 🎯 Filters
+            if ($request->has('academic_year')) {
+                $query->where('exam_schedules.academic_year', $request->academic_year);
+            }
+            if ($request->has('campus_id')) {
+                $query->where('exam_schedules.campus_id', $request->campus_id);
+            }
+
+            $reconsideredStudents = $query->select([
+                'exam_schedules.id as exam_schedule_id',
+                'exam_schedules.test_permit_no',
+                'exam_schedules.exam_date',
+                'exam_schedules.exam_time_from',
+                'exam_schedules.exam_time_to',
+                'exam_schedules.academic_year',
+                'exam_schedules.exam_score',
+                'exam_schedules.room_id',
+                'exam_schedules.building_id',
+                'exam_schedules.campus_id',
+                'admissions.id as admission_id',
+                'admissions.first_name',
+                'admissions.last_name',
+                'admissions.middle_name',
+                'admissions.gender',
+                'admissions.email',
+                'admissions.contact_number',
+                'admissions.city',
+            ])->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
                 'isSuccess'        => true,
                 'message'          => 'Reconsider exam report generated successfully',
-                'total_reconsider' => $totalReconsidered,
-                'students'         => $reconsideredStudents
+                'total_reconsider' => $reconsideredStudents->total(),
+                'students'         => $reconsideredStudents->items(),
+                'pagination'       => [
+                    'total'        => $reconsideredStudents->total(),
+                    'per_page'     => $reconsideredStudents->perPage(),
+                    'current_page' => $reconsideredStudents->currentPage(),
+                    'last_page'    => $reconsideredStudents->lastPage(),
+                ],
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([

@@ -706,7 +706,7 @@ class EnrollmentsController extends Controller
                 'admission.campus',
                 'section',
                 'payments',
-                'enrollment'
+                'enrollment.fees'
             ])
                 ->where('is_assess', 1)
                 ->whereHas('enrollments', function ($q) {
@@ -714,7 +714,7 @@ class EnrollmentsController extends Controller
                 })
                 ->orderBy('created_at', 'desc');
 
-
+            // 🔍 Search
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -748,25 +748,25 @@ class EnrollmentsController extends Controller
             if ($request->has('is_active')) {
                 $query->where('is_active', $request->is_active);
             }
-
             if ($request->has('academic_year_id')) {
                 $query->where('academic_year_id', $request->academic_year_id);
             }
 
             // 📄 Paginate
             $students = $query->paginate($perPage, ['*'], 'page', $page);
-
             $results = [];
 
             foreach ($students as $student) {
                 $admission = $student->admission;
 
                 // 🎓 Enrollment (latest by academic year)
-                $enrollment = DB::table('enrollments')
+                $enrollment = enrollments::with('fees')
                     ->where('student_id', $student->id)
                     ->orderBy('created_at', 'desc')
                     ->first();
 
+
+                // 🏫 Academic year
                 $academicYear = null;
                 if ($student->academic_year_id) {
                     $academicYear = DB::table('school_years')
@@ -786,12 +786,28 @@ class EnrollmentsController extends Controller
                 $payments = $paymentsQuery->get();
                 $totalPaid = $payments->sum('paid_amount');
 
-                $tuitionFee   = $enrollment?->tuition_fee ?? 0;
-                $miscFee      = $enrollment?->misc_fee ?? 0;
-                $totalAmount  = $enrollment?->total_tuition_fee ?? ($tuitionFee + $miscFee);
+                $tuitionFee = $enrollment?->tuition_fee ?? 0;
+
+                // 🧾 Breakdown misc fees
+                $miscBreakdown = [];
+                $miscFee = 0;
+                if ($enrollment) {
+                    $miscBreakdown = $enrollment->fees->map(function ($fee) {
+                        return [
+                            'fee_id'   => $fee->id,
+                            'fee_name' => $fee->fee_name,
+                            'amount'   => $fee->pivot->amount,
+                        ];
+                    });
+                    $miscFee = $enrollment->fees->sum(fn($f) => $f->pivot->amount);
+
+                    $miscFee = $miscBreakdown->sum('amount');
+                }
+
+                $totalAmount = $enrollment?->total_tuition_fee ?? ($tuitionFee + $miscFee);
                 $outstandingBalance = max($totalAmount - $totalPaid, 0);
 
-                // 📚 Curriculum & subjects (your existing logic)
+                // 📚 Curriculum & subjects
                 $curriculum = null;
                 $groupedSubjects = [];
                 $totalUnits = 0;
@@ -816,33 +832,32 @@ class EnrollmentsController extends Controller
 
                         foreach ($subjects as $subj) {
                             $key = "Level {$subj->grade_level_id} - {$subj->semester}";
-
                             $groupedSubjects[$key][] = [
                                 'subject_id'   => $subj->subject_id,
                                 'subject_name' => $subj->subject_name,
                                 'units'        => $subj->units,
                             ];
-
                             $totalUnits += $subj->units;
                         }
                     }
                 }
 
                 $results[] = [
-                    'id'                 => $student->id,
-                    'student_number'     => $student->student_number,
-                    'status'             => $student->enrollment_status,
-                    'payment_status'     => $enrollment?->payment_status ?? $student->payment_status,
-                    'grade_level'        => $admission?->gradeLevel?->grade_level,
-                    'course'             => $admission?->course?->course_name,
-                    'campus'             => $admission?->campus?->campus_name,
-                    'tuition_fee'        => $tuitionFee,
-                    'misc_fee'           => $miscFee,
-                    'total_amount'       => $totalAmount,
-                    'total_paid'         => $totalPaid,
+                    'id'                  => $student->id,
+                    'student_number'      => $student->student_number,
+                    'status'              => $student->enrollment_status,
+                    'payment_status'      => $enrollment?->payment_status ?? $student->payment_status,
+                    'grade_level'         => $admission?->gradeLevel?->grade_level,
+                    'course'              => $admission?->course?->course_name,
+                    'campus'              => $admission?->campus?->campus_name,
+                    'tuition_fee'         => $tuitionFee,
+                    'misc_fee_total'      => $miscFee,
+                    'misc_fee_breakdown'  => $miscBreakdown,
+                    'total_amount'        => $totalAmount,
+                    'total_paid'          => $totalPaid,
                     'outstanding_balance' => $outstandingBalance,
-                    'is_active'          => $student->is_active,
-                    'academic_year'      => $academicYear,
+                    'is_active'           => $student->is_active,
+                    'academic_year'       => $academicYear,
                     'applicant' => [
                         'applicant_id' => $admission?->id,
                         'first_name'   => $admission?->first_name,
@@ -864,7 +879,6 @@ class EnrollmentsController extends Controller
                 ];
             }
 
-
             return response()->json([
                 'isSuccess'  => true,
                 'data'       => $results,
@@ -882,6 +896,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
 
 
 

@@ -98,7 +98,7 @@ class enrollments extends Model
 
     public function fees()
     {
-        return $this->belongsToMany(Fees::class, 'enrollment_fees')
+        return $this->belongsToMany(fees::class, 'enrollment_fees', 'enrollment_id', 'fee_id')
             ->withPivot('amount')
             ->withTimestamps();
     }
