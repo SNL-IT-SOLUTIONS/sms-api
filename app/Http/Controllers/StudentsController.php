@@ -19,31 +19,78 @@ use Illuminate\Http\Request;
 
 class StudentsController extends Controller
 {
-    public function getStudentsProfile()
+    public function getStudentProfile()
     {
         try {
-            $student = Auth::user(); // gets the currently logged in user
+            $student = Auth::user(); // currently logged-in student
 
             if (!$student) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'Not authenticated.',
+                    'message'   => 'Not authenticated.',
                 ], 401);
             }
 
-            // If you want to eager load relations (like course, section, etc.)
-            $profile = Students::with(['course', 'section']) // add your relationships here
+            // ✅ Only fetch needed fields
+            $profile = Students::select([
+                'id',
+                'student_number',
+                'profile_img',
+                'student_status',
+                'section_id',
+                'course_id',
+                'academic_year_id',
+                'grade_level_id',
+                'enrollment_status',
+                'payment_status',
+                'is_active',
+                'curriculum_id',
+                'admission_id'
+            ])
+                ->with([
+                    'course:id,course_name,course_code',
+                    'section:id,section_name',
+                    'admission' => function ($q) {
+                        $q->select([
+                            'id',
+                            'first_name',
+                            'middle_name',
+                            'last_name',
+                            'suffix',
+                            'gender',
+                            'birthdate',
+                            'email',
+                            'contact_number',
+                            'province',
+                            'city',
+                            'barangay',
+                            'guardian_name',
+                            'guardian_contact',
+                            'mother_name',
+                            'mother_contact',
+                            'father_name',
+                            'father_contact'
+                        ]);
+                    }
+                ])
                 ->where('id', $student->id)
                 ->first();
 
+            if (!$profile) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Student profile not found.',
+                ], 404);
+            }
+
             return response()->json([
                 'isSuccess' => true,
-                'data' => $profile,
+                'data'      => $profile,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Error: ' . $e->getMessage(),
+                'message'   => 'Error: ' . $e->getMessage(),
             ], 500);
         }
     }
