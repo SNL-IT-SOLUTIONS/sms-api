@@ -613,7 +613,7 @@ class StudentsController extends Controller
                     $hasPassed = DB::table('student_subjects')
                         ->where('student_id', $student->id)
                         ->where('subject_id', $prereq->id)
-                        ->where('final_rating', '>=', 75) // passing mark
+                        ->where('final_rating', '<= ', 3.0) // passing mark
                         ->exists();
 
                     // 🚫 New enrolee trying advanced subject
