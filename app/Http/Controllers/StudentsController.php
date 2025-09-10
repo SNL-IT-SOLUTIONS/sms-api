@@ -13,6 +13,7 @@ use App\Models\payments;
 use App\Models\enrollments;
 use Luigel\Paymongo\Facades\Paymongo;
 use Illuminate\Support\Facades\DB;
+use App\Models\fees;
 
 
 use Illuminate\Http\Request;
@@ -306,7 +307,7 @@ class StudentsController extends Controller
             }
 
             // Load latest enrollment
-            $enrollment = \App\Models\enrollments::where('student_id', $student->id)
+            $enrollment = enrollments::where('student_id', $student->id)
                 ->latest()
                 ->first();
 
@@ -318,8 +319,7 @@ class StudentsController extends Controller
             }
 
             // Validate misc fee for the school_year_id
-            $miscFee = \App\Models\fees::where('school_year_id', $enrollment->school_year_id)
-                ->where('type', 'miscellaneous') // adjust if your column name differs
+            $miscFee = fees::where('school_year_id', $enrollment->school_year_id)
                 ->first();
 
             if (!$miscFee) {
