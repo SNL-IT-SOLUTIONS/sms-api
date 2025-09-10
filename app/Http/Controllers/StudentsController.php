@@ -61,15 +61,15 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // ✅ Subjects grouped by school year + semester
+            // ✅ Subjects grouped by school year + semester (fixed with LEFT JOIN)
             $subjects = DB::table('student_subjects as ss')
                 ->join('subjects as subj', 'subj.id', '=', 'ss.subject_id')
                 ->join('students as stu', 'stu.id', '=', 'ss.student_id')
-                ->join('section_subject_schedule as sched', function ($join) {
+                ->leftJoin('section_subject_schedule as sched', function ($join) {
                     $join->on('sched.subject_id', '=', 'ss.subject_id')
                         ->on('sched.section_id', '=', 'stu.section_id');
                 })
-                ->join('accounts as t', 't.id', '=', 'sched.teacher_id')
+                ->leftJoin('accounts as t', 't.id', '=', 'sched.teacher_id')
                 ->join('school_years as sy', 'sy.id', '=', 'ss.school_year_id')
                 ->select(
                     'sy.school_year',
@@ -79,8 +79,8 @@ class StudentsController extends Controller
                     'subj.subject_name',
                     'subj.units',
                     'sched.day as schedule_day',
-                    DB::raw("CONCAT(sched.start_time, ' - ', sched.end_time) as schedule_time"),
-                    DB::raw("CONCAT(t.given_name, ' ', t.surname) as teacher_name"),
+                    DB::raw("IFNULL(CONCAT(sched.start_time, ' - ', sched.end_time), 'TBA') as schedule_time"),
+                    DB::raw("IFNULL(CONCAT(t.given_name, ' ', t.surname), 'TBA') as teacher_name"),
                     'ss.final_rating',
                     'ss.remarks'
                 )
@@ -95,27 +95,12 @@ class StudentsController extends Controller
             // ✅ Total units
             $totalUnits = collect($subjects)->flatten()->sum('units');
 
-            // ✅ Fees (from enrollments table)
-            $enrollment = DB::table('enrollments')
-                ->select('tuition_fee', 'misc_fee', 'total_tuition_fee', 'payment_status')
-                ->where('student_id', $authStudent->id)
-                ->latest('id') // get the most recent enrollment
-                ->first();
-
-            $fees = [
-                'tuition_fee'       => $enrollment->tuition_fee ?? 0,
-                'misc_fee'          => $enrollment->misc_fee ?? 0,
-                'total_tuition_fee' => $enrollment->total_tuition_fee ?? 0,
-                'payment_status'    => $enrollment->payment_status ?? 'N/A',
-            ];
-
             return response()->json([
                 'isSuccess' => true,
                 'message' => 'COR retrieved successfully.',
                 'student'  => $student,
                 'subjects_by_term' => $subjects,
-                'total_units' => $totalUnits,
-                'fees' => $fees
+                'total_units' => $totalUnits
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -125,6 +110,7 @@ class StudentsController extends Controller
             ], 500);
         }
     }
+
 
 
 
