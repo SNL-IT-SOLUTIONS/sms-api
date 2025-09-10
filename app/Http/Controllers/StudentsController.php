@@ -19,6 +19,119 @@ use Illuminate\Http\Request;
 
 class StudentsController extends Controller
 {
+    public function getCOR()
+    {
+        try {
+            $authStudent = auth()->user();
+
+            if (!$authStudent) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Unauthorized.'
+                ], 401);
+            }
+
+            // ✅ Student + Admission info with gender & curriculum
+            $student = DB::table('students as s')
+                ->join('admissions as a', 'a.id', '=', 's.admission_id')
+                ->join('sections as sec', 'sec.id', '=', 's.section_id')
+                ->leftJoin('courses as c', 'c.id', '=', 'a.academic_program_id')
+                ->leftJoin('grade_levels as gl', 'gl.id', '=', 's.grade_level_id')
+                ->leftJoin('school_years as sy', 'sy.id', '=', 's.academic_year_id')
+                ->leftJoin('curriculums as cur', 'cur.id', '=', 's.curriculum_id')
+                ->select(
+                    's.id as student_id',
+                    's.student_number',
+                    DB::raw("CONCAT(a.first_name, ' ', a.last_name) as student_name"),
+                    'a.gender',
+                    'sec.section_name',
+                    'c.course_name as course',
+                    'gl.grade_level as grade_level',
+                    'sy.school_year',
+                    'cur.curriculum_name',
+                    's.curriculum_id'
+                )
+                ->where('s.id', $authStudent->id)
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Student not found.'
+                ], 404);
+            }
+
+            // ✅ Subjects grouped by school year + semester
+            $subjects = DB::table('student_subjects as ss')
+                ->join('subjects as subj', 'subj.id', '=', 'ss.subject_id')
+                ->join('students as stu', 'stu.id', '=', 'ss.student_id')
+                ->join('section_subject_schedule as sched', function ($join) {
+                    $join->on('sched.subject_id', '=', 'ss.subject_id')
+                        ->on('sched.section_id', '=', 'stu.section_id');
+                })
+                ->join('accounts as t', 't.id', '=', 'sched.teacher_id')
+                ->join('school_years as sy', 'sy.id', '=', 'ss.school_year_id')
+                ->select(
+                    'sy.school_year',
+                    'sy.semester',
+                    'subj.id as subject_id',
+                    'subj.subject_code',
+                    'subj.subject_name',
+                    'subj.units',
+                    'sched.day as schedule_day',
+                    DB::raw("CONCAT(sched.start_time, ' - ', sched.end_time) as schedule_time"),
+                    DB::raw("CONCAT(t.given_name, ' ', t.surname) as teacher_name"),
+                    'ss.final_rating',
+                    'ss.remarks'
+                )
+                ->where('ss.student_id', $authStudent->id)
+                ->orderBy('sy.school_year')
+                ->orderBy('sy.semester')
+                ->get()
+                ->groupBy(function ($row) {
+                    return $row->school_year . ' - ' . $row->semester;
+                });
+
+            // ✅ Total units
+            $totalUnits = collect($subjects)->flatten()->sum('units');
+
+            // ✅ Fees (from enrollments table)
+            $enrollment = DB::table('enrollments')
+                ->select('tuition_fee', 'misc_fee', 'total_tuition_fee', 'payment_status')
+                ->where('student_id', $authStudent->id)
+                ->latest('id') // get the most recent enrollment
+                ->first();
+
+            $fees = [
+                'tuition_fee'       => $enrollment->tuition_fee ?? 0,
+                'misc_fee'          => $enrollment->misc_fee ?? 0,
+                'total_tuition_fee' => $enrollment->total_tuition_fee ?? 0,
+                'payment_status'    => $enrollment->payment_status ?? 'N/A',
+            ];
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'COR retrieved successfully.',
+                'student'  => $student,
+                'subjects_by_term' => $subjects,
+                'total_units' => $totalUnits,
+                'fees' => $fees
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to retrieve COR.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+
+
+
+
     public function getStudentProfile()
     {
         try {

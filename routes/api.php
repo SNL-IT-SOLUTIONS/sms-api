@@ -166,7 +166,7 @@ Route::get('getenrollmentfees', [StudentsController::class, 'getEnrollmentFees']
 Route::post('enrollnow', [StudentsController::class, 'enrollNow'])->middleware('auth:sanctum');
 Route::get('studentsprofile', [StudentsController::class, 'getStudentProfile'])->middleware('auth:sanctum');
 Route::post('updatestudentsprofile', [StudentsController::class, 'updateStudentProfile'])->middleware('auth:sanctum');
-
+Route::get('getcor', [StudentsController::class, 'getCOR'])->middleware('auth:sanctum');
 
 
 
@@ -191,7 +191,7 @@ Route::post('/deleteschedule/{id}', [ScheduleController::class, 'deleteSchedule'
 //Faculty Routes
 Route::get('getfacultyschedule', [FacultyController::class, 'getMySchedules'])->middleware('auth:sanctum');
 Route::get('getfaculties', [ScheduleController::class, 'getFaculty']);
-Route::get('getmyclasses', [ScheduleController::class, 'getMyClasses'])->middleware('auth:sanctum');
+Route::get('getmystudents', [FacultyController::class, 'getStudents'])->middleware('auth:sanctum');
 Route::get('getmyclassgrades', [ScheduleController::class, 'getMyClassGrades'])->middleware('auth:sanctum');
 Route::post('submitgrades', [ScheduleController::class, 'submitGrades'])->middleware('auth:sanctum');
 Route::post('updategrades', [ScheduleController::class, 'updateGrades'])->middleware('auth:sanctum');

@@ -11,6 +11,52 @@ use Illuminate\Support\Facades\Auth;
 class FacultyController extends Controller
 {
 
+
+
+    public function getStudents()
+    {
+        try {
+            $teacherId = Auth::id(); // ✅ logged-in teacher
+
+            $students = DB::table('section_subject_schedule as secsub')
+                ->join('students as s', 's.section_id', '=', 'secsub.section_id')
+                ->join('admissions as a', 'a.id', '=', 's.admission_id') // ✅ student names
+                ->join('subjects as subj', 'subj.id', '=', 'secsub.subject_id')
+                ->join('sections as sec', 'sec.id', '=', 's.section_id')
+                ->leftJoin('student_subjects as ss', function ($join) {
+                    $join->on('ss.student_id', '=', 's.id')
+                        ->on('ss.subject_id', '=', 'subj.id');
+                })
+                ->select(
+                    's.id as student_id',
+                    's.student_number',
+                    DB::raw("CONCAT(a.first_name, ' ', a.last_name) as student_name"),
+                    'sec.id as section_id',
+                    'sec.section_name',
+                    'subj.id as subject_id',
+                    'subj.subject_name',
+                    'secsub.teacher_id',
+                    'ss.final_rating',
+                    'ss.remarks'
+                )
+                ->where('secsub.teacher_id', $teacherId)
+                ->get();
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Students retrieved successfully.',
+                'count' => $students->count(),
+                'data' => $students
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to retrieve students.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * Get all schedules for a specific faculty (teacher).
      */
