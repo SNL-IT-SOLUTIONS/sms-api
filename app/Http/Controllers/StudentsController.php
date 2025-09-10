@@ -91,6 +91,11 @@ class StudentsController extends Controller
                 ->groupBy(function ($row) {
                     return $row->school_year . ' - ' . $row->semester;
                 });
+            $fees = DB::table('enrollments')
+                ->where('student_id', $authStudent->id)
+                ->orderBy('created_at', 'desc') // latest enrollment
+                ->select('tuition_fee', 'misc_fee', 'total_tuition_fee', 'payment_status')
+                ->first();
 
             // ✅ Total units
             $totalUnits = collect($subjects)->flatten()->sum('units');
@@ -100,7 +105,8 @@ class StudentsController extends Controller
                 'message' => 'COR retrieved successfully.',
                 'student'  => $student,
                 'subjects_by_term' => $subjects,
-                'total_units' => $totalUnits
+                'total_units' => $totalUnits,
+                'fees' => $fees
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
