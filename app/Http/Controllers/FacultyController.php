@@ -186,7 +186,7 @@ class FacultyController extends Controller
     public function submitGrade(Request $request)
     {
         try {
-            $facultyId = auth()->id(); // ✅ logged-in faculty
+            $facultyId = auth()->user(); // ✅ logged-in faculty
 
             // ✅ Validate input
             $validated = $request->validate([
@@ -196,20 +196,6 @@ class FacultyController extends Controller
                 'remarks'      => 'nullable|string|max:255',
             ]);
 
-            // ✅ Check if this teacher is authorized for this student + subject
-            $isAssigned = DB::table('section_subject_schedule as secsub')
-                ->join('students as s', 's.section_id', '=', 'secsub.section_id')
-                ->where('s.id', $validated['student_id'])
-                ->where('secsub.subject_id', $validated['subject_id'])
-                ->where('secsub.teacher_id', $facultyId)
-                ->exists();
-
-            if (!$isAssigned) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'You are not authorized to grade this student for this subject.'
-                ], 403);
-            }
 
             // ✅ Save or update the grade in student_subjects
             $grade = DB::table('student_subjects')
