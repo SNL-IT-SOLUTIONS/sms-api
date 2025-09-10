@@ -186,40 +186,60 @@ class FacultyController extends Controller
     public function submitGrade(Request $request)
     {
         try {
-            $facultyId = Auth::id();
+            $facultyId = auth()->id(); // ✅ logged-in faculty
 
-            if (!$facultyId) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Unauthorized.'
-                ], 401);
-            }
-
+            // ✅ Validate input
             $validated = $request->validate([
-                'student_id'   => 'required|exists:student_subjects,student_id',
-                'subject_id'   => 'required|exists:student_subjects,subject_id',
+                'student_id'   => 'required|exists:students,id',
+                'subject_id'   => 'required|exists:subjects,id',
                 'final_rating' => 'required|numeric|min:1|max:5',
-                'remarks'      => 'nullable|string|max:50'
+                'remarks'      => 'nullable|string|max:255',
             ]);
 
-            DB::table('student_subjects')
+            // ✅ Check if this teacher is authorized for this student + subject
+            $isAssigned = DB::table('section_subject_schedule as secsub')
+                ->join('students as s', 's.section_id', '=', 'secsub.section_id')
+                ->where('s.id', $validated['student_id'])
+                ->where('secsub.subject_id', $validated['subject_id'])
+                ->where('secsub.teacher_id', $facultyId)
+                ->exists();
+
+            if (!$isAssigned) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'You are not authorized to grade this student for this subject.'
+                ], 403);
+            }
+
+            // ✅ Save or update the grade in student_subjects
+            $grade = DB::table('student_subjects')
                 ->where('student_id', $validated['student_id'])
                 ->where('subject_id', $validated['subject_id'])
+                ->first();
+
+            if (!$grade) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Student is not enrolled in this subject.'
+                ], 404);
+            }
+
+            DB::table('student_subjects')
+                ->where('id', $grade->id)
                 ->update([
                     'final_rating' => $validated['final_rating'],
-                    'remarks'      => $validated['remarks'] ?? $this->getCollegeRemarks($validated['final_rating']),
-                    'updated_at'   => now()
+                    'remarks'      => $validated['remarks'] ?? $this->getRemarks($validated['final_rating']),
+                    'updated_at'   => now(),
                 ]);
 
             return response()->json([
                 'isSuccess' => true,
                 'message'   => 'Grade submitted successfully.'
-            ]);
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message'   => 'Failed to submit grade.',
-                'error'     => $e->getMessage()
+                'message'   => 'Error submitting grade: ' . $e->getMessage()
             ], 500);
         }
     }

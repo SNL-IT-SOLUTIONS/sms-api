@@ -601,6 +601,50 @@ class StudentsController extends Controller
                 ], 400);
             }
 
+            // 🔽 INSERTED PREREQUISITE CHECK HERE
+            $studentHasRecords = DB::table('student_subjects')
+                ->where('student_id', $student->id)
+                ->exists();
+
+            $failedPrereqs = [];
+
+            foreach ($subjects as $subject) {
+                foreach ($subject->prerequisites as $prereq) {
+                    $hasPassed = DB::table('student_subjects')
+                        ->where('student_id', $student->id)
+                        ->where('subject_id', $prereq->id)
+                        ->where('final_rating', '>=', 75) // passing mark
+                        ->exists();
+
+                    // 🚫 New enrolee trying advanced subject
+                    if (!$studentHasRecords && $subject->prerequisites->count() > 0) {
+                        $failedPrereqs[] = [
+                            'subject' => $subject->subject_name,
+                            'prerequisite' => $prereq->subject_name,
+                            'reason' => 'New enrolee cannot take advanced subject without prerequisites.'
+                        ];
+                    }
+
+                    // 🚫 Returning student missing prereq
+                    if ($studentHasRecords && !$hasPassed) {
+                        $failedPrereqs[] = [
+                            'subject' => $subject->subject_name,
+                            'prerequisite' => $prereq->subject_name,
+                            'reason' => 'Prerequisite not passed.'
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($failedPrereqs)) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Some prerequisites are not satisfied.',
+                    'failed'    => $failedPrereqs
+                ], 400);
+            }
+            // 🔼 END PREREQUISITE CHECK
+
             //  Curriculum check
             $curriculum = DB::table('curriculums')
                 ->where('course_id', $student->course_id)
@@ -624,7 +668,7 @@ class StudentsController extends Controller
             $miscFees = DB::table('fees')
                 ->where('is_active', 1)
                 ->where('is_archived', 0)
-                ->where('school_year_id', $student->academic_year_id) // 
+                ->where('school_year_id', $student->academic_year_id)
                 ->get();
 
             //  If no misc fees for this school year, stop enrollment
