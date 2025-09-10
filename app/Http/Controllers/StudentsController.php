@@ -554,7 +554,6 @@ class StudentsController extends Controller
         }
     }
 
-
     public function enrollNow(Request $request)
     {
         try {
