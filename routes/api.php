@@ -193,7 +193,7 @@ Route::get('getfacultyschedule', [FacultyController::class, 'getMySchedules'])->
 Route::get('getfaculties', [ScheduleController::class, 'getFaculty']);
 Route::get('getmystudents', [FacultyController::class, 'getStudents'])->middleware('auth:sanctum');
 Route::get('getmyclassgrades', [ScheduleController::class, 'getMyClassGrades'])->middleware('auth:sanctum');
-Route::post('submitgrades', [FacultyController::class, 'submitGrades'])->middleware('auth:sanctum');
+Route::post('submitgrades', [FacultyController::class, 'submitGrade'])->middleware('auth:sanctum');
 Route::post('updategrades', [ScheduleController::class, 'updateGrades'])->middleware('auth:sanctum');
 
 
