@@ -99,8 +99,8 @@ class CollegesController extends Controller
             $college = colleges::findOrFail($id);
 
             $validated = $request->validate([
-                'college_name' => 'required|string|max:255|unique:colleges,college_name,' . $college->id,
-                'abbreviation' => 'required|string|max:50|unique:colleges,abbreviation,' . $college->id,
+                'college_name' => 'sometimes|string|max:255|unique:colleges,college_name,' . $college->id,
+                'abbreviation' => 'sometimes|string|max:50|unique:colleges,abbreviation,' . $college->id,
                 'description'  => 'nullable|string|max:500',
                 'course_ids'   => 'nullable|array',
                 'course_ids.*' => 'exists:courses,id',
