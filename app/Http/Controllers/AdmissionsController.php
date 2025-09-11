@@ -46,6 +46,9 @@ class AdmissionsController extends Controller
 
         $query = exam_schedules::with(['applicant', 'campus', 'building', 'room']);
 
+        // ✅ Exclude already scored schedules
+        $query->whereNull('exam_score'); // or ->where('exam_score', '=', 0) if you default to 0
+
         // Search filter (by applicant or schedule fields)
         if ($search = $request->input('search')) {
             $query->whereHas('applicant', function ($q) use ($search) {
@@ -62,42 +65,42 @@ class AdmissionsController extends Controller
         // Transform into flat table rows
         $examInfo = $paginated->getCollection()->map(function ($schedule) {
             return [
-                'schedule_id' => $schedule->id,
-                'campus_id' => $schedule->campus->id ?? null,
-                'campus_name' => $schedule->campus->campus_name ?? null,
-                'building_id' => $schedule->building->id ?? null,
-                'building_name' => $schedule->building->building_name ?? null,
-                'room_id' => $schedule->room->id ?? null,
-                'room_name' => $schedule->room->room_name ?? null,
-                'admission_id' => $schedule->applicant->admission_id ?? null,
-                'test_permit_no' => $schedule->test_permit_no ?? null,
-                'first_name' => $schedule->applicant->first_name ?? null,
-                'last_name' => $schedule->applicant->last_name ?? null,
-                'email' => $schedule->applicant->email ?? null,
-                'contact_number' => $schedule->applicant->contact_number ?? null,
-                'exam_date' => $schedule->exam_date,
-                'exam_time_from' => $schedule->exam_time_from,
-                'exam_time_to' => $schedule->exam_time_to,
-                'exam_score' => $schedule->exam_score,
-                'exam_status' => $schedule->exam_status,
+                'schedule_id'      => $schedule->id,
+                'campus_id'        => $schedule->campus->id ?? null,
+                'campus_name'      => $schedule->campus->campus_name ?? null,
+                'building_id'      => $schedule->building->id ?? null,
+                'building_name'    => $schedule->building->building_name ?? null,
+                'room_id'          => $schedule->room->id ?? null,
+                'room_name'        => $schedule->room->room_name ?? null,
+                'admission_id'     => $schedule->applicant->admission_id ?? null,
+                'test_permit_no'   => $schedule->test_permit_no ?? null,
+                'first_name'       => $schedule->applicant->first_name ?? null,
+                'last_name'        => $schedule->applicant->last_name ?? null,
+                'email'            => $schedule->applicant->email ?? null,
+                'contact_number'   => $schedule->applicant->contact_number ?? null,
+                'exam_date'        => $schedule->exam_date,
+                'exam_time_from'   => $schedule->exam_time_from,
+                'exam_time_to'     => $schedule->exam_time_to,
+                'exam_status'      => $schedule->exam_status,
                 'academic_program_id' => $schedule->academic_program_id,
-                'course_name' => $schedule->course_name,
-                'created_at' => $schedule->created_at,
+                'course_name'      => $schedule->course_name,
+                'created_at'       => $schedule->created_at,
             ];
         });
 
         return response()->json([
             'isSuccess' => true,
-            'message' => 'Exam schedules list ordered by creation date.',
+            'message'   => 'Exam schedules list ordered by creation date (excluding scored exams).',
             'exam_info' => $examInfo,
-            'meta' => [
+            'meta'      => [
                 'current_page' => $paginated->currentPage(),
-                'per_page' => $paginated->perPage(),
-                'total' => $paginated->total(),
-                'last_page' => $paginated->lastPage(),
+                'per_page'     => $paginated->perPage(),
+                'total'        => $paginated->total(),
+                'last_page'    => $paginated->lastPage(),
             ]
         ]);
     }
+
 
 
     public function getAdmissions(Request $request)
