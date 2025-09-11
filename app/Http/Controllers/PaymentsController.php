@@ -68,7 +68,7 @@ class PaymentsController extends Controller
 
             // ✅ Payment calculation
             $totalPaid = $student->payments()->sum('paid_amount');
-            $totalDue  = (float) $enrollment->tuition_fee + $miscFees + $unitsFee;
+            $totalDue  = (float) $enrollment->tuition_fee + $miscFees;
             $paidAmount = $validated['amount'];
             $newOutstanding = $totalDue - ($totalPaid + $paidAmount);
             $paymentStatus = ($newOutstanding <= 0) ? 'paid' : 'partial';
@@ -89,8 +89,8 @@ class PaymentsController extends Controller
             // ✅ Create payment record
             $payment = payments::create([
                 'student_id'        => $student->id,
-                'amount'            => $totalDue,
-                'paid_amount'       => $paidAmount,
+                'amount'            => $totalDue,         // full bill (for reference)
+                'paid_amount'       => $paidAmount,       // what they actually gave now
                 'school_year_id'    => $student->school_year_id,
                 'payment_method'    => $validated['payment_method'] ?? 'cash',
                 'status'            => $paymentStatus,
@@ -101,8 +101,9 @@ class PaymentsController extends Controller
                 'paid_at'           => now(),
                 'validated_at'      => now(),
                 'received_by'       => auth()->id(),
-                'remaining_balance' => $newOutstanding,
+                'remaining_balance' => max(0, $newOutstanding),
             ]);
+
 
             // ✅ Update student payment status
             $student->payment_status = $paymentStatus;
