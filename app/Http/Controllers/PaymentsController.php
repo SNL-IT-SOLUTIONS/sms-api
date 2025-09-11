@@ -63,7 +63,7 @@ class PaymentsController extends Controller
 
             // ✅ Compute units fee (per unit × subject units)
             $totalUnits = $student->subjects()->sum('units') ?? 0;
-            $perUnitRate = config('school.per_unit_rate', 1000); // 👈 you can store per-unit rate in config or db
+            $perUnitRate = config('school.per_unit_rate', 200); // 👈 you can store per-unit rate in config or db
             $unitsFee = $totalUnits * $perUnitRate;
 
             // ✅ Payment calculation
