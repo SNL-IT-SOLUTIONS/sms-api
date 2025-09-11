@@ -16,6 +16,7 @@ class CollegesController extends Controller
     {
         try {
             $includeArchived = $request->query('include_archived', false);
+            $perPage = $request->query('per_page', 10); // default 10 per page
 
             $query = colleges::with('courses'); // eager load courses
 
@@ -23,20 +24,28 @@ class CollegesController extends Controller
                 $query->where('is_archive', 0);
             }
 
-            $colleges = $query->get();
+            $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
             return response()->json([
                 'isSuccess' => true,
-                'data' => $colleges,
+                'message'   => 'Colleges list ordered by creation date.',
+                'data'      => $paginated->items(),
+                'meta'      => [
+                    'current_page' => $paginated->currentPage(),
+                    'per_page'     => $paginated->perPage(),
+                    'total'        => $paginated->total(),
+                    'last_page'    => $paginated->lastPage(),
+                ],
             ], 200);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to fetch colleges.',
-                'error' => $e->getMessage(),
+                'message'   => 'Failed to fetch colleges.',
+                'error'     => $e->getMessage(),
             ], 500);
         }
     }
+
 
     /**
      * Create a new college with courses

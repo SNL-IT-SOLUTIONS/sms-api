@@ -18,7 +18,7 @@ class ScheduleController extends Controller
                 'section',
                 'subject',
                 'teacher',
-                'room.building.campus' // ✅ eager load room → building → campus
+                'room.building.campus'
             ]);
 
             if ($request->has('section_id')) {
@@ -41,9 +41,10 @@ class ScheduleController extends Controller
                 $query->where('campus_id', $request->campus_id);
             }
 
-            $schedules = $query->where('is_archived', 0)->get();
+            $perPage   = $request->query('per_page', 10); // default 10
+            $paginated = $query->where('is_archived', 0)->orderBy('created_at', 'desc')->paginate($perPage);
 
-            if ($schedules->isEmpty()) {
+            if ($paginated->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
                     'message' => 'No schedules found.'
@@ -52,17 +53,25 @@ class ScheduleController extends Controller
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Schedules retrieved successfully.',
-                'schedules' => $schedules
+                'message'   => 'Schedules list ordered by creation date.',
+                'schedules' => $paginated->items(), // just the data
+                'meta'      => [
+                    'current_page' => $paginated->currentPage(),
+                    'per_page'     => $paginated->perPage(),
+                    'total'        => $paginated->total(),
+                    'last_page'    => $paginated->lastPage(),
+                ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve schedules.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to retrieve schedules.',
+                'error'     => $e->getMessage()
             ]);
         }
     }
+
+
 
 
     public function assignSchedule(Request $request)
