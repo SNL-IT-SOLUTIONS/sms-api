@@ -16,7 +16,7 @@ class CollegesController extends Controller
     {
         try {
             $includeArchived = $request->query('include_archived', false);
-            $perPage = $request->query('per_page', 10); // default 10 per page
+            $perPage = $request->query('per_page', 5); // default 10 per page
 
             $query = colleges::with('courses'); // eager load courses
 

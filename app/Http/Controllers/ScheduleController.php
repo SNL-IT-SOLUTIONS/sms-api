@@ -41,7 +41,7 @@ class ScheduleController extends Controller
                 $query->where('campus_id', $request->campus_id);
             }
 
-            $perPage   = $request->query('per_page', 10); // default 10
+            $perPage   = $request->query('per_page', 5); // default 10
             $paginated = $query->where('is_archived', 0)->orderBy('created_at', 'desc')->paginate($perPage);
 
             if ($paginated->isEmpty()) {
