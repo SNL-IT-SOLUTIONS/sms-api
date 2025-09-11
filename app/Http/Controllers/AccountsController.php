@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Throwable;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class AccountsController extends Controller
 {
@@ -92,7 +93,20 @@ class AccountsController extends Controller
                 'mobile_number' => 'nullable|string|max:15',
 
                 // Account Info
-                'email' => 'nullable|email|max:100|unique:accounts,email',
+                'email' => [
+                    'nullable',
+                    'email',
+                    'max:100',
+                    function ($attribute, $value, $fail) {
+                        if (
+                            DB::table('accounts')->where('email', $value)->exists() ||
+                            DB::table('admissions')->where('email', $value)->exists()
+                        ) {
+                            $fail('The email has already been taken.');
+                        }
+                    },
+                ],
+
                 'is_4ps_member' => 'nullable|string',
                 'is_insurance_member' => 'nullable|string',
                 'is_vaccinated' => 'nullable|string',

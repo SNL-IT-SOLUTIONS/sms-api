@@ -13,6 +13,7 @@ use App\Models\students;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Models\admissions;
 
 use App\Models\accounts;
 
@@ -136,7 +137,15 @@ class AuthController extends Controller
                 'email' => 'required|email',
             ]);
 
+            // Try to find in accounts first
             $user = accounts::where('email', $request->email)->first();
+            $table = 'accounts';
+
+            // If not found, try admissions (students)
+            if (!$user) {
+                $user = admissions::where('email', $request->email)->first();
+                $table = 'admissions';
+            }
 
             if (!$user) {
                 return response()->json([
@@ -148,15 +157,15 @@ class AuthController extends Controller
             // Generate a temporary password
             $tempPassword = Str::random(8);
 
-            // Update the user's password with the hashed temporary password
+            // Update password depending on table
             $user->update([
                 'password' => Hash::make($tempPassword)
             ]);
 
-            // Send email directly without Mailable class
+            // Send email
             Mail::html("
             <h1>Password Reset</h1>
-            <p>Hello {$user->name},</p>
+            <p>Hello {$user->first_name} {$user->last_name},</p>
             <p>Your temporary password is: <strong>{$tempPassword}</strong></p>
             <p>Please log in and change it immediately.</p>
         ", function ($message) use ($user) {
@@ -166,7 +175,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'A temporary password has been sent to your email.',
+                'message' => "A temporary password has been sent to your email ($table).",
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
@@ -176,6 +185,7 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
 
 
 

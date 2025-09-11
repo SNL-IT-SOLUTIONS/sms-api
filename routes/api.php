@@ -17,6 +17,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CampusBuildingsController;
 use App\Http\Controllers\BuildingRoomsController;
+use App\Http\Controllers\CollegesController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\FeesController;
 use App\Http\Controllers\GradeLevelsController;
@@ -84,10 +85,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //Manage Department
 
-Route::get('getdepartments', [DepartmentsController::class, 'getDepartments']);
-Route::post('adddepartment', [DepartmentsController::class, 'addDepartment']);
-Route::post('updatedepartment/{id}', [DepartmentsController::class, 'updateDepartment']);
-Route::post('deletedepartment/{id}', [DepartmentsController::class, 'deleteDepartment']);
+Route::get('getcolleges', [CollegesController::class, 'getColleges']);
+Route::post('addcollege', [CollegesController::class, 'createCollege']);
+Route::post('updatecollege/{id}', [CollegesController::class, 'updateCollege']);
+Route::post('deletecollege/{id}', [CollegesController::class, 'deleteCollege']);
 
 
 //Fees Management
