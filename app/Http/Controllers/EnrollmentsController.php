@@ -1185,7 +1185,6 @@ class EnrollmentsController extends Controller
                 ], 404);
             }
 
-            // Find the student's curriculum
             $curriculumId = $student->curriculum_id;
 
             if (!$curriculumId) {
@@ -1195,11 +1194,16 @@ class EnrollmentsController extends Controller
                 ], 404);
             }
 
-            // 🔽 Base query
+            // 🔽 Base query with left join to student_subjects
             $query = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+                ->leftJoin('student_subjects as ss', function ($join) use ($student) {
+                    $join->on('s.id', '=', 'ss.subject_id')
+                        ->where('ss.student_id', $student->id);
+                })
                 ->where('cs.curriculum_id', $curriculumId)
                 ->where('s.grade_level_id', $student->grade_level_id)
+                ->whereNull('ss.final_rating') // ✅ only show subjects with no grade yet
                 ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
 
             // 🔽 Search filter
@@ -1225,6 +1229,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
 
 
 
