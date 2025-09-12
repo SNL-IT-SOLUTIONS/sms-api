@@ -523,7 +523,7 @@ class StudentsController extends Controller
     }
 
 
-    public function getMyGrades()
+    public function getMyGrades(Request $request)
     {
         try {
             $student = auth()->user();
@@ -531,21 +531,25 @@ class StudentsController extends Controller
             if (!$student) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'Unauthorized.'
+                    'message'   => 'Unauthorized.'
                 ], 401);
             }
 
-            // Load student subjects with pivot data (grades)
-            $student->load('subjects');
+            // ✅ Build query for subjects with pivot
+            $student->load(['subjects' => function ($q) use ($request) {
+                if ($request->has('school_year_id')) {
+                    $q->wherePivot('school_year_id', $request->school_year_id);
+                }
+            }]);
 
             if ($student->subjects->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'No grades found for this student.'
+                    'message'   => 'No grades found for this student.'
                 ]);
             }
 
-            // Format response
+            // ✅ Format response
             $grades = $student->subjects->map(function ($sub) {
                 return [
                     'subject_code'   => $sub->subject_code,
@@ -553,19 +557,20 @@ class StudentsController extends Controller
                     'units'          => $sub->units,
                     'final_rating'   => $sub->pivot->final_rating ?? null,
                     'remarks'        => $sub->pivot->remarks ?? null,
+                    'school_year_id' => $sub->pivot->school_year_id,
                 ];
             });
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Student grades retrieved successfully.',
-                'grades' => $grades
+                'message'   => 'Student grades retrieved successfully.',
+                'grades'    => $grades
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve grades.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to retrieve grades.',
+                'error'     => $e->getMessage()
             ], 500);
         }
     }

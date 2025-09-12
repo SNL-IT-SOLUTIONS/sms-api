@@ -45,4 +45,8 @@ class subjects extends Model
     {
         return $this->belongsToMany(subjects::class, 'subject_prerequisites', 'subject_id', 'prerequisite_id');
     }
+    public function schoolYear()
+    {
+        return $this->belongsTo(school_years::class, 'school_year_id');
+    }
 }

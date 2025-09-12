@@ -14,23 +14,25 @@ class SubjectsController extends Controller
     public function getSubjects(Request $request)
     {
         try {
-            $subjects = subjects::with(['gradeLevel', 'prerequisites'])
+            $subjects = subjects::with(['gradeLevel', 'prerequisites', 'schoolYear'])
                 ->where('is_archived', 0)
                 ->paginate(5);
 
             $formattedSubjects = $subjects->getCollection()->map(function ($subject) {
                 return [
-                    'id' => $subject->id,
-                    'subject_code' => $subject->subject_code,
-                    'subject_name' => $subject->subject_name,
-                    'units' => $subject->units,
-                    'grade_level_id' => $subject->grade_level_id,
+                    'id'               => $subject->id,
+                    'subject_code'     => $subject->subject_code,
+                    'subject_name'     => $subject->subject_name,
+                    'units'            => $subject->units,
+                    'grade_level_id'   => $subject->grade_level_id,
                     'grade_level_name' => $subject->gradeLevel ? $subject->gradeLevel->grade_level : null,
-                    'subject_type' => $subject->subject_type,
-                    'school_year_id' => $subject->school_year_id, // ✅ added
-                    'prerequisites' => $subject->prerequisites->map(function ($pre) {
+                    'subject_type'     => $subject->subject_type,
+                    'school_year_id'   => $subject->school_year_id,
+                    'school_year_name' => $subject->schoolYear ? $subject->schoolYear->school_year : null,
+                    'semester'         => $subject->schoolYear ? $subject->schoolYear->semester : null,
+                    'prerequisites'    => $subject->prerequisites->map(function ($pre) {
                         return [
-                            'id' => $pre->id,
+                            'id'           => $pre->id,
                             'subject_code' => $pre->subject_code,
                             'subject_name' => $pre->subject_name,
                         ];
@@ -40,22 +42,23 @@ class SubjectsController extends Controller
 
             return response()->json([
                 'isSuccess' => true,
-                'subjects' => $formattedSubjects,
+                'subjects'  => $formattedSubjects,
                 'pagination' => [
                     'current_page' => $subjects->currentPage(),
-                    'per_page' => $subjects->perPage(),
-                    'total' => $subjects->total(),
-                    'last_page' => $subjects->lastPage(),
+                    'per_page'     => $subjects->perPage(),
+                    'total'        => $subjects->total(),
+                    'last_page'    => $subjects->lastPage(),
                 ],
             ], 200);
         } catch (Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve subjects.',
-                'error' => $e->getMessage(),
+                'message'   => 'Failed to retrieve subjects.',
+                'error'     => $e->getMessage(),
             ], 500);
         }
     }
+
 
     public function addSubject(Request $request)
     {

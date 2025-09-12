@@ -21,6 +21,7 @@ class ScheduleController extends Controller
                 'room.building.campus'
             ]);
 
+            // ✅ Filtering
             if ($request->has('section_id')) {
                 $query->where('section_id', $request->section_id);
             }
@@ -41,20 +42,43 @@ class ScheduleController extends Controller
                 $query->where('campus_id', $request->campus_id);
             }
 
-            $perPage   = $request->query('per_page', 5); // default 10
-            $paginated = $query->where('is_archived', 0)->orderBy('created_at', 'desc')->paginate($perPage);
+            // ✅ Search filter
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('subject', function ($q2) use ($search) {
+                        $q2->where('subject_name', 'like', "%$search%");
+                    })
+                        ->orWhereHas('teacher', function ($q2) use ($search) {
+                            $q2->where('first_name', 'like', "%$search%")
+                                ->orWhere('last_name', 'like', "%$search%");
+                        })
+                        ->orWhereHas('section', function ($q2) use ($search) {
+                            $q2->where('section_name', 'like', "%$search%");
+                        })
+                        ->orWhereHas('room', function ($q2) use ($search) {
+                            $q2->where('room_name', 'like', "%$search%");
+                        });
+                });
+            }
+
+            // ✅ Pagination
+            $perPage   = $request->query('per_page', 5);
+            $paginated = $query->where('is_archived', 0)
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
             if ($paginated->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'No schedules found.'
+                    'message'   => 'No schedules found.'
                 ]);
             }
 
             return response()->json([
                 'isSuccess' => true,
                 'message'   => 'Schedules list ordered by creation date.',
-                'schedules' => $paginated->items(), // just the data
+                'schedules' => $paginated->items(),
                 'meta'      => [
                     'current_page' => $paginated->currentPage(),
                     'per_page'     => $paginated->perPage(),
@@ -70,6 +94,7 @@ class ScheduleController extends Controller
             ]);
         }
     }
+
 
 
 
