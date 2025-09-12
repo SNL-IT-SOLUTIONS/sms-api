@@ -79,7 +79,7 @@ class StudentsController extends Controller
                     'subj.subject_code',
                     'subj.subject_name',
                     'subj.units',
-                    'sched.day as schedule_day',
+                    DB::raw("IFNULL(sched.day, 'TBA') as schedule_day"),
                     DB::raw("IFNULL(CONCAT(sched.start_time, ' - ', sched.end_time), 'TBA') as schedule_time"),
                     DB::raw("IFNULL(CONCAT(t.given_name, ' ', t.surname), 'TBA') as teacher_name"),
                     'ss.final_rating',
