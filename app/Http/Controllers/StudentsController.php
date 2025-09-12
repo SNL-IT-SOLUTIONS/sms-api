@@ -331,7 +331,6 @@ class StudentsController extends Controller
 
             // 👉 Use "amount" instead of "paid_amount"
             $totalPaid = $payments->sum('paid_amount');
-            $remainingBalance = max(0, $enrollment->total_tuition_fee - $totalPaid);
 
             // ✅ Subjects (from relationship)
             $subjects = $student->subjects->map(function ($sub) {
@@ -367,17 +366,14 @@ class StudentsController extends Controller
                         'description' => 'Original Total Fee',
                         'amount'      => number_format((float) $enrollment->original_tuition_fee, 2)
                     ],
-                    [
-                        'description' => 'Total Fee',
-                        'amount'      => number_format((float) $enrollment->total_tuition_fee, 2)
-                    ],
+
                     [
                         'description' => 'Total Paid',
                         'amount'      => number_format($totalPaid, 2)
                     ],
                     [
                         'description' => 'Remaining Balance',
-                        'amount'      => number_format($remainingBalance, 2)
+                        'amount'      => number_format((float) $enrollment->total_tuition_fee, 2)
                     ]
                 ],
 
