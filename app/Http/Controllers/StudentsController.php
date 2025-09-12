@@ -368,7 +368,7 @@ class StudentsController extends Controller
                         'amount'      => number_format((float) $enrollment->original_tuition_fee, 2)
                     ],
                     [
-                        'description' => 'Total Fee (with adjustments)',
+                        'description' => 'Total Fee',
                         'amount'      => number_format((float) $enrollment->total_tuition_fee, 2)
                     ],
                     [
