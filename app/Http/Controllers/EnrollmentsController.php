@@ -1200,7 +1200,7 @@ class EnrollmentsController extends Controller
             $query = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
                 ->where('cs.curriculum_id', $curriculumId)
-                ->where('s.school_year_id', $student->academic_year_id)
+                ->where('s.grade_level_id', $student->grade_level_id)
                 ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
 
             // 🔽 Search filter
