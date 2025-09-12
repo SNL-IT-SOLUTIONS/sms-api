@@ -607,6 +607,63 @@ class StudentsController extends Controller
                 ], 400);
             }
 
+            // ✅ Determine school_year_id automatically
+            $lastEnrollment = enrollments::where('student_id', $student->id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($lastEnrollment) {
+                // Get next semester
+                $nextSchoolYear = DB::table('school_years')
+                    ->where('id', '>', $lastEnrollment->school_year_id)
+                    ->orderBy('id')
+                    ->first();
+
+                if (!$nextSchoolYear) {
+                    return response()->json([
+                        'isSuccess' => false,
+                        'message'   => 'No next semester available. Contact registrar.'
+                    ], 400);
+                }
+
+                $schoolYearId = $nextSchoolYear->id;
+
+                // 🔽 GRADES CHECK
+                $hasFailed = DB::table('student_subjects')
+                    ->where('student_id', $student->id)
+                    ->where(function ($q) {
+                        $q->whereNull('final_rating')   // INC / no grade
+                            ->orWhere('final_rating', '>', 3.0); // Failed
+                    })
+                    ->exists();
+
+                if ($hasFailed) {
+                    return response()->json([
+                        'isSuccess' => false,
+                        'message'   => 'You cannot enroll next semester because you have failing/INC grades.'
+                    ], 400);
+                }
+            } else {
+                // First enrollment → active school year
+                $schoolYear = DB::table('school_years')
+                    ->where('is_active', 1)
+                    ->where('is_archived', 0)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if (!$schoolYear) {
+                    return response()->json([
+                        'isSuccess' => false,
+                        'message'   => 'No active school year available.'
+                    ], 400);
+                }
+
+                $schoolYearId = $schoolYear->id;
+            }
+
+            // 🔽 Update student’s current academic year
+            $student->update(['academic_year_id' => $schoolYearId]);
+
             //  Validate subjects
             $validated = $request->validate([
                 'subjects'   => 'required|array|min:1',
@@ -621,22 +678,20 @@ class StudentsController extends Controller
                 ], 400);
             }
 
-            // 🔽 INSERTED PREREQUISITE CHECK HERE
+            // 🔽 PREREQUISITE CHECK
             $studentHasRecords = DB::table('student_subjects')
                 ->where('student_id', $student->id)
                 ->exists();
 
             $failedPrereqs = [];
-
             foreach ($subjects as $subject) {
                 foreach ($subject->prerequisites as $prereq) {
                     $hasPassed = DB::table('student_subjects')
                         ->where('student_id', $student->id)
                         ->where('subject_id', $prereq->id)
-                        ->where('final_rating', '<= ', 3.0) // passing mark
+                        ->where('final_rating', '<=', 3.0) // passing mark
                         ->exists();
 
-                    // 🚫 New enrolee trying advanced subject
                     if (!$studentHasRecords && $subject->prerequisites->count() > 0) {
                         $failedPrereqs[] = [
                             'subject' => $subject->subject_name,
@@ -645,7 +700,6 @@ class StudentsController extends Controller
                         ];
                     }
 
-                    // 🚫 Returning student missing prereq
                     if ($studentHasRecords && !$hasPassed) {
                         $failedPrereqs[] = [
                             'subject' => $subject->subject_name,
@@ -678,31 +732,30 @@ class StudentsController extends Controller
                 ], 400);
             }
 
-            //  Fee computation (units + misc fees)
+            //  Fee computation
             $totalUnits = $subjects->sum('units');
             $unitRate   = 200;
             $unitsFee   = $totalUnits * $unitRate;
             $tuitionFee = $unitsFee;
 
-            //  Get all active misc fees for the student's school year ONLY
+            // ✅ Fees tied to this determined school year
             $miscFees = DB::table('fees')
                 ->where('is_active', 1)
                 ->where('is_archived', 0)
-                ->where('school_year_id', $student->academic_year_id)
+                ->where('school_year_id', $schoolYearId)
                 ->get();
 
-            //  If no misc fees for this school year, stop enrollment
             if ($miscFees->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message'   => 'No applicable fees found for your school year. Please contact the registrar.'
+                    'message'   => 'No applicable fees found for this school year. Please contact the registrar.'
                 ], 400);
             }
 
             $miscFeeTotal = $miscFees->sum('default_amount');
             $totalFee     = $tuitionFee + $miscFeeTotal;
 
-            //  Determine enrollment_status
+            //  Enrollment status
             $hasAllRequirements = $student->has_form137
                 && $student->has_form138
                 && $student->has_good_moral
@@ -711,28 +764,26 @@ class StudentsController extends Controller
 
             $enrollmentStatus = $hasAllRequirements ? 'Officially Enrolled' : 'Unofficial Enrolled';
 
-            //  Unique reference number
+            //  Reference number
             do {
                 $referenceNumber = mt_rand(1000000, 9999999);
             } while (enrollments::where('reference_number', $referenceNumber)->exists());
 
-            $transactions = 'Enrollment';
-
             // Create enrollment
             $enrollment = enrollments::create([
                 'student_id'           => $student->id,
-                'school_year_id'       => $student->academic_year_id,
+                'school_year_id'       => $schoolYearId,
                 'tuition_fee'          => $tuitionFee,
                 'misc_fee'             => $miscFeeTotal,
                 'original_tuition_fee' => $totalFee,
                 'total_tuition_fee'    => $totalFee,
                 'payment_status'       => 'Unpaid',
-                'transaction'          => $transactions,
+                'transaction'          => 'Enrollment',
                 'reference_number'     => $referenceNumber,
                 'created_by'           => $student->id
             ]);
 
-            // Insert misc fees into pivot (enrollment_fees)
+            // Insert misc fees into pivot
             foreach ($miscFees as $fee) {
                 DB::table('enrollment_fees')->insert([
                     'enrollment_id' => $enrollment->id,
@@ -743,14 +794,14 @@ class StudentsController extends Controller
                 ]);
             }
 
-            //  Sync subjects to pivot (student_subjects with school_year_id)
+            // Sync subjects
             $pivotData = [];
             foreach ($validated['subjects'] as $subjectId) {
-                $pivotData[$subjectId] = ['school_year_id' => $student->academic_year_id];
+                $pivotData[$subjectId] = ['school_year_id' => $schoolYearId];
             }
-            $student->subjects()->sync($pivotData);
+            $student->subjects()->syncWithoutDetaching($pivotData);
 
-            //  Update student record
+            // Update student
             $student->update([
                 'curriculum_id' => $curriculum->id,
                 'is_assess'     => 1
