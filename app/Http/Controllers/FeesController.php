@@ -61,6 +61,8 @@ class FeesController extends Controller
             'is_active'      => 1,
         ]);
 
+
+
         return response()->json([
             'isSuccess' => true,
             'message'   => 'Fee created successfully',
