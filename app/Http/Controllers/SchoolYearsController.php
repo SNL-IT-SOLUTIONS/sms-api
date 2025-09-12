@@ -64,7 +64,7 @@ class SchoolYearsController extends Controller
             students::query()->update([
                 'is_enrolled' => 0,
                 'is_assess'   => 0,
-                'academic_year_id' => $schoolYear->id, // if you track it here
+
             ]);
 
             return response()->json([

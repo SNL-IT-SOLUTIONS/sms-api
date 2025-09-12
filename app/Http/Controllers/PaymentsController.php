@@ -25,7 +25,7 @@ class PaymentsController extends Controller
             $validated = $request->validate([
                 'receipt_no'      => 'nullable|numeric',
                 'transaction'     => 'nullable|string|max:100',
-                'amount'          => 'required|numeric',
+                'amount'          => 'required|numeric|min:1',
                 'payment_method'  => 'nullable|string|in:cash,card,online',
                 'references'      => 'nullable|array',
                 'references.*'    => 'string|max:50|exists:enrollments,reference_number',
@@ -36,8 +36,11 @@ class PaymentsController extends Controller
             $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus', 'subjects'])
                 ->findOrFail($studentId);
 
-            // ✅ Fetch enrollment
-            $enrollment = enrollments::where('student_id', $student->id)->firstOrFail();
+            // ✅ Fetch the latest enrollment (or you can specify a logic to pick which one)
+            $enrollment = enrollments::where('student_id', $student->id)
+                ->where('payment_status', '!=', 'paid')
+                ->orderBy('created_at', 'desc')
+                ->firstOrFail();
 
             // ✅ Validate school year
             if (empty($student->academic_year_id)) {
@@ -47,7 +50,7 @@ class PaymentsController extends Controller
                 ], 400);
             }
 
-            // ✅ Get misc fees from fees table
+            // ✅ Get misc fees
             $miscFees = DB::table('fees')
                 ->where('school_year_id', $student->academic_year_id)
                 ->where('is_active', 1)
@@ -61,17 +64,23 @@ class PaymentsController extends Controller
                 ], 400);
             }
 
-            // ✅ Compute units fee (per unit × subject units)
+            // ✅ Compute units fee
             $totalUnits = $student->subjects()->sum('units') ?? 0;
-            $perUnitRate = config('school.per_unit_rate', 200); // 👈 you can store per-unit rate in config or db
+            $perUnitRate = config('school.per_unit_rate', 200);
             $unitsFee = $totalUnits * $perUnitRate;
 
-            // ✅ Payment calculation
-            $totalPaid = $student->payments()->sum('paid_amount');
-            $totalDue  = (float) $enrollment->tuition_fee + $miscFees;
+            // ✅ Payment calculation (per enrollment)
+            $totalDue = $enrollment->tuition_fee + $miscFees;
+
+            $totalPaidForEnrollment = $student->payments()
+                ->where('reference_no', $enrollment->reference_number)
+                ->sum('paid_amount');
+
             $paidAmount = $validated['amount'];
-            $newOutstanding = $totalDue - ($totalPaid + $paidAmount);
-            $paymentStatus = ($newOutstanding <= 0) ? 'paid' : 'partial';
+            $newOutstanding = $totalDue - ($totalPaidForEnrollment + $paidAmount);
+            $newOutstanding = max(0, $newOutstanding); // prevent negative
+
+            $paymentStatus = ($newOutstanding == 0) ? 'paid' : 'partial';
 
             // ✅ Generate unique OR number
             $receiptNo = $validated['receipt_no'] ?? 'RCPT-' . str_pad(
@@ -84,13 +93,13 @@ class PaymentsController extends Controller
             // ✅ Group Reference Numbers
             $groupReference = !empty($validated['references'])
                 ? implode(',', $validated['references'])
-                : mt_rand(100000, 999999);
+                : $enrollment->reference_number;
 
             // ✅ Create payment record
             $payment = payments::create([
                 'student_id'        => $student->id,
-                'amount'            => $totalDue,         // full bill (for reference)
-                'paid_amount'       => $paidAmount,       // what they actually gave now
+                'amount'            => $totalDue,
+                'paid_amount'       => $paidAmount,
                 'school_year_id'    => $student->academic_year_id,
                 'payment_method'    => $validated['payment_method'] ?? 'cash',
                 'status'            => $paymentStatus,
@@ -101,9 +110,8 @@ class PaymentsController extends Controller
                 'paid_at'           => now(),
                 'validated_at'      => now(),
                 'received_by'       => auth()->id(),
-                'remaining_balance' => max(0, $newOutstanding),
+                'remaining_balance' => $newOutstanding,
             ]);
-
 
             // ✅ Update student payment status
             $student->payment_status = $paymentStatus;
@@ -112,24 +120,14 @@ class PaymentsController extends Controller
 
             // ✅ Update enrollment balance and status
             $enrollment->total_tuition_fee = $newOutstanding;
-
-            if ($newOutstanding <= 0) {
-                $enrollment->payment_status = 'paid';
-            } elseif ($totalPaid + $paidAmount > 0) {
-                $enrollment->payment_status = 'partial';
-            } else {
-                $enrollment->payment_status = 'pending';
-            }
+            $enrollment->payment_status = $paymentStatus;
             $enrollment->save();
 
             // ✅ Generate Receipt PDF
             $receiptDir = storage_path('app/receipts');
-            if (!file_exists($receiptDir)) {
-                mkdir($receiptDir, 0777, true);
-            }
+            if (!file_exists($receiptDir)) mkdir($receiptDir, 0777, true);
 
             $pdfPath = $receiptDir . "/receipt_{$student->student_number}.pdf";
-
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.receipt', [
                 'studentNumber'    => $student->student_number,
                 'courseName'       => $student->examSchedule?->applicant?->course?->course_name ?? '—',
@@ -145,7 +143,9 @@ class PaymentsController extends Controller
                 'tuitionFee'       => number_format((float) $enrollment->tuition_fee, 2),
                 'miscFee'          => number_format((float) $miscFees, 2),
                 'unitsFee'         => number_format((float) $unitsFee, 2),
-                'paidAmount'       => number_format($student->payments()->sum('paid_amount'), 2),
+                'paidAmount'       => number_format($student->payments()
+                    ->where('reference_no', $enrollment->reference_number)
+                    ->sum('paid_amount'), 2),
                 'remainingBalance' => number_format($newOutstanding, 2),
             ]);
             $pdf->save($pdfPath);
@@ -190,6 +190,7 @@ class PaymentsController extends Controller
             ], 500);
         }
     }
+
 
 
 
