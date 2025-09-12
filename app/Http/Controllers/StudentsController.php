@@ -535,31 +535,33 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ Build query for subjects with pivot
-            $student->load(['subjects' => function ($q) use ($request) {
-                if ($request->has('school_year_id')) {
-                    $q->wherePivot('school_year_id', $request->school_year_id);
-                }
-            }]);
+            // ✅ Build query with join on pivot + school_years
+            $query = DB::table('student_subject as ss')
+                ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
+                ->where('ss.student_id', $student->id)
+                ->select(
+                    's.subject_code',
+                    's.subject_name',
+                    's.units',
+                    'ss.final_rating',
+                    'ss.remarks',
+                    'ss.school_year_id',
+                    DB::raw("CONCAT(sy.school_year, ' - ', sy.semester) as school_year_name")
+                );
 
-            if ($student->subjects->isEmpty()) {
+            if ($request->has('school_year_id')) {
+                $query->where('ss.school_year_id', $request->school_year_id);
+            }
+
+            $grades = $query->get();
+
+            if ($grades->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
                     'message'   => 'No grades found for this student.'
                 ]);
             }
-
-            // ✅ Format response
-            $grades = $student->subjects->map(function ($sub) {
-                return [
-                    'subject_code'   => $sub->subject_code,
-                    'subject_name'   => $sub->subject_name,
-                    'units'          => $sub->units,
-                    'final_rating'   => $sub->pivot->final_rating ?? null,
-                    'remarks'        => $sub->pivot->remarks ?? null,
-                    'school_year_id' => $sub->pivot->school_year_id,
-                ];
-            });
 
             return response()->json([
                 'isSuccess' => true,
@@ -574,6 +576,7 @@ class StudentsController extends Controller
             ], 500);
         }
     }
+
 
     public function enrollNow(Request $request)
     {
