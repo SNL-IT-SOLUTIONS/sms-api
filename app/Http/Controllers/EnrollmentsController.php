@@ -1173,7 +1173,7 @@ class EnrollmentsController extends Controller
     //It checks if the student has an admission record and fetches the curriculum based on the course ID.
     //It returns a JSON response with the subjects or an error message if not found.
 
-    public function getCurriculumSubjects()
+    public function getCurriculumSubjects(Request $request)
     {
         try {
             // Logged-in student
@@ -1186,7 +1186,7 @@ class EnrollmentsController extends Controller
                 ], 404);
             }
 
-            // Find the student's curriculum (you also have curriculum_id in students)
+            // Find the student's curriculum
             $curriculumId = $student->curriculum_id;
 
             if (!$curriculumId) {
@@ -1196,13 +1196,23 @@ class EnrollmentsController extends Controller
                 ], 404);
             }
 
-            // ✅ Fetch subjects for that curriculum & filter by student's academic_year_id
-            $subjects = DB::table('curriculum_subject as cs')
+            // 🔽 Base query
+            $query = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
                 ->where('cs.curriculum_id', $curriculumId)
-                ->where('s.school_year_id', $student->academic_year_id) // filter by student's year
-                ->select('s.id', 's.subject_code', 's.subject_name', 's.units')
-                ->get();
+                ->where('s.school_year_id', $student->academic_year_id)
+                ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
+
+            // 🔽 Search filter
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('s.subject_code', 'LIKE', "%{$search}%")
+                        ->orWhere('s.subject_name', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $subjects = $query->get();
 
             return response()->json([
                 'isSuccess'     => true,
@@ -1216,6 +1226,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
 
 
 
