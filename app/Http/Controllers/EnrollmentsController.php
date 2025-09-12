@@ -708,7 +708,6 @@ class EnrollmentsController extends Controller
                 'payments',
                 'enrollment.fees'
             ])
-                ->where('is_assess', 1)
                 ->whereHas('enrollments', function ($q) {
                     $q->where('total_tuition_fee', '>', 0);
                 })
