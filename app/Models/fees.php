@@ -16,6 +16,7 @@ class fees extends Model
         'description',
         'default_amount',
         'is_active',
+        'school_year_id',
     ];
 
     public function schoolYear()

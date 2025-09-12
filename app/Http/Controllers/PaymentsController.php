@@ -91,7 +91,7 @@ class PaymentsController extends Controller
                 'student_id'        => $student->id,
                 'amount'            => $totalDue,         // full bill (for reference)
                 'paid_amount'       => $paidAmount,       // what they actually gave now
-                'school_year_id'    => $student->school_year_id,
+                'school_year_id'    => $student->academic_year_id,
                 'payment_method'    => $validated['payment_method'] ?? 'cash',
                 'status'            => $paymentStatus,
                 'receipt_no'        => $receiptNo,

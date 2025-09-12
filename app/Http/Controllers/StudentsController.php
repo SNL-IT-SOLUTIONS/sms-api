@@ -120,11 +120,6 @@ class StudentsController extends Controller
 
 
 
-
-
-
-
-
     public function getStudentProfile()
     {
         try {
@@ -302,11 +297,11 @@ class StudentsController extends Controller
             if (!$student) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'Unauthorized.'
+                    'message'   => 'Unauthorized.'
                 ], 401);
             }
 
-            // Load latest enrollment
+            // ✅ Load latest enrollment for this student
             $enrollment = enrollments::where('student_id', $student->id)
                 ->latest()
                 ->first();
@@ -314,13 +309,12 @@ class StudentsController extends Controller
             if (!$enrollment) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'No enrollment record found.'
+                    'message'   => 'No enrollment record found.'
                 ], 404);
             }
 
-            // Validate misc fee for the school_year_id
-            $miscFee = fees::where('school_year_id', $enrollment->school_year_id)
-                ->first();
+            // ✅ Fetch misc fee for the same school_year_id
+            $miscFee = fees::where('school_year_id', $enrollment->school_year_id)->first();
 
             if (!$miscFee) {
                 return response()->json([
@@ -329,24 +323,26 @@ class StudentsController extends Controller
                 ], 422);
             }
 
-            // Payments
+            // ✅ Payments history (filter per SY)
             $payments = payments::where('student_id', $student->id)
+                ->where('school_year_id', $enrollment->school_year_id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            // 👉 Use "amount" instead of "paid_amount"
             $totalPaid = $payments->sum('paid_amount');
-            $totalFee = (float) $enrollment->original_tuition_fee; // includes misc + tuition
-            $remainingBalance = (float) $enrollment->total_tuition_fee; // what’s left
+            $remainingBalance = max(0, $enrollment->total_tuition_fee - $totalPaid);
 
-            // Subjects
+            // ✅ Subjects (from relationship)
             $subjects = $student->subjects->map(function ($sub) {
                 return [
-                    'code' => $sub->subject_code,
-                    'name' => $sub->subject_name,
+                    'code'  => $sub->subject_code,
+                    'name'  => $sub->subject_name,
                     'units' => $sub->units
                 ];
             });
 
+            // ✅ Assessment summary
             $assessment = [
                 'student_name'   => $student->examSchedule?->admission?->first_name . ' ' . $student->examSchedule?->admission?->last_name,
                 'student_number' => $student->student_number,
@@ -361,15 +357,19 @@ class StudentsController extends Controller
                 'billing' => [
                     [
                         'description' => 'Miscellaneous Fee',
-                        'amount'      => number_format((float) $miscFee->amount, 2)
+                        'amount'      => number_format((float) $enrollment->misc_fee, 2)
                     ],
                     [
                         'description' => 'Tuition Fee',
                         'amount'      => number_format((float) $enrollment->tuition_fee, 2)
                     ],
                     [
-                        'description' => 'Total Fee',
-                        'amount'      => number_format($totalFee, 2)
+                        'description' => 'Original Total Fee',
+                        'amount'      => number_format((float) $enrollment->original_tuition_fee, 2)
+                    ],
+                    [
+                        'description' => 'Total Fee (with adjustments)',
+                        'amount'      => number_format((float) $enrollment->total_tuition_fee, 2)
                     ],
                     [
                         'description' => 'Total Paid',
@@ -379,7 +379,20 @@ class StudentsController extends Controller
                         'description' => 'Remaining Balance',
                         'amount'      => number_format($remainingBalance, 2)
                     ]
-                ]
+                ],
+
+                'payment_history' => $payments->map(function ($p) {
+                    return [
+                        'transaction' => $p->transaction,
+                        'amount'      => number_format((float) $p->amount, 2),
+                        'method'      => $p->payment_method,
+                        'reference'   => $p->reference_no,
+                        'receipt_no'  => $p->receipt_no,
+                        'remarks'     => $p->remarks,
+                        'paid_at'     => $p->paid_at,
+                        'status'      => $p->status,
+                    ];
+                })
             ];
 
             return response()->json([
@@ -393,6 +406,9 @@ class StudentsController extends Controller
             ], 500);
         }
     }
+
+
+
 
 
 

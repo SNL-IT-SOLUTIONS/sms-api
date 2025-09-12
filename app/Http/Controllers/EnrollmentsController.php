@@ -1186,29 +1186,28 @@ class EnrollmentsController extends Controller
                 ], 404);
             }
 
-            // Find the student's curriculum
-            $curriculum = DB::table('curriculums')
-                ->where('course_id', $student->course_id)
-                ->first();
+            // Find the student's curriculum (you also have curriculum_id in students)
+            $curriculumId = $student->curriculum_id;
 
-            if (!$curriculum) {
+            if (!$curriculumId) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message'   => 'No curriculum found for this course.',
+                    'message'   => 'No curriculum assigned to this student.',
                 ], 404);
             }
 
-            // Get subjects linked to that curriculum
+            // ✅ Fetch subjects for that curriculum & filter by student's academic_year_id
             $subjects = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
-                ->where('cs.curriculum_id', $curriculum->id)
+                ->where('cs.curriculum_id', $curriculumId)
+                ->where('s.school_year_id', $student->academic_year_id) // filter by student's year
                 ->select('s.id', 's.subject_code', 's.subject_name', 's.units')
                 ->get();
 
             return response()->json([
-                'isSuccess' => true,
-                'curriculum_id' => $curriculum->id,
-                'subjects' => $subjects
+                'isSuccess'     => true,
+                'curriculum_id' => $curriculumId,
+                'subjects'      => $subjects
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -1217,6 +1216,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
 
 
     //DROPDOWN

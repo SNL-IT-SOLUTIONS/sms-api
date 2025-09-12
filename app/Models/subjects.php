@@ -14,6 +14,7 @@ class subjects extends Model
         'curriculum_id',
         'subject_code',
         'subject_type',
+        'school_year_id',
         'subject_name',
         'units',
     ];
