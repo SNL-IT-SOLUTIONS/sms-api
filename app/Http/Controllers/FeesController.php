@@ -37,7 +37,7 @@ class FeesController extends Controller
                     'is_active'      => $fee->is_active,
                     'created_at'     => $fee->created_at,
                     'updated_at'     => $fee->updated_at,
-                    'schoolyear'     => $fee->schoolYear ? $fee->schoolYear->year : null,
+                    'schoolyear'     => $fee->schoolYear ? $fee->schoolYear->school_year : null,
                     'semester'       => $fee->schoolYear ? $fee->schoolYear->semester : null,
                 ];
             })

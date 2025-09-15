@@ -21,6 +21,6 @@ class fees extends Model
 
     public function schoolYear()
     {
-        return $this->belongsTo(school_years::class, 'schoolyear_id');
+        return $this->belongsTo(school_years::class, 'school_year_id');
     }
 }

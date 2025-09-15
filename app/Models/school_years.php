@@ -17,4 +17,8 @@ class school_years extends Model
         'is_archive',
         'is_recent'
     ];
+    public function fees()
+    {
+        return $this->hasMany(fees::class, 'school_year_id', 'id');
+    }
 }

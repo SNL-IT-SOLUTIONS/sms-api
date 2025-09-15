@@ -139,11 +139,9 @@ Route::get('getprocesspayment', [EnrollmentsController::class, 'getProcessPaymen
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
     Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
-    // Route::post('enrollnow', [EnrollmentsController::class, 'enrollNow']);
     Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);
     Route::post('choosesubjects', [EnrollmentsController::class, 'chooseSubjects']);
     Route::get('getexamresult', [EnrollmentsController::class, 'getExamineesResult']);
-    // Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
     Route::post('reconsiderstudent/{id}', [EnrollmentsController::class, 'markAsPassed']);
     Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
     Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
