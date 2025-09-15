@@ -134,87 +134,6 @@ class ScheduleController extends Controller
                 'teacher_id' => 'nullable|exists:accounts,id',
             ]);
 
-            // ⚡ Extra custom validation rules
-            $day = $validated['day'];
-            $start = $validated['start_time'];
-            $end = $validated['end_time'];
-
-            // 1. Check if room is free
-            $roomConflict = SectionSubjectSchedule::where('room_id', $validated['room_id'])
-                ->where('day', $day)
-                ->where(function ($q) use ($start, $end) {
-                    $q->whereBetween('start_time', [$start, $end])
-                        ->orWhereBetween('end_time', [$start, $end])
-                        ->orWhere(function ($q2) use ($start, $end) {
-                            $q2->where('start_time', '<=', $start)
-                                ->where('end_time', '>=', $end);
-                        });
-                })
-                ->exists();
-
-            if ($roomConflict) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'Room is already booked for this time slot.'
-                ], 422);
-            }
-
-            // 2. Check if teacher is free
-            if (!empty($validated['teacher_id'])) {
-                $teacherConflict = SectionSubjectSchedule::where('teacher_id', $validated['teacher_id'])
-                    ->where('day', $day)
-                    ->where(function ($q) use ($start, $end) {
-                        $q->whereBetween('start_time', [$start, $end])
-                            ->orWhereBetween('end_time', [$start, $end])
-                            ->orWhere(function ($q2) use ($start, $end) {
-                                $q2->where('start_time', '<=', $start)
-                                    ->where('end_time', '>=', $end);
-                            });
-                    })
-                    ->exists();
-
-                if ($teacherConflict) {
-                    return response()->json([
-                        'isSuccess' => false,
-                        'message'   => 'Teacher already has a class during this time.'
-                    ], 422);
-                }
-            }
-
-            // 3. Check if section is free
-            $sectionConflict = SectionSubjectSchedule::where('section_id', $validated['section_id'])
-                ->where('day', $day)
-                ->where(function ($q) use ($start, $end) {
-                    $q->whereBetween('start_time', [$start, $end])
-                        ->orWhereBetween('end_time', [$start, $end])
-                        ->orWhere(function ($q2) use ($start, $end) {
-                            $q2->where('start_time', '<=', $start)
-                                ->where('end_time', '>=', $end);
-                        });
-                })
-                ->exists();
-
-            if ($sectionConflict) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'This section already has a schedule during this time.'
-                ], 422);
-            }
-
-            // 4. Optional: Prevent duplicate section+subject+day
-            $duplicate = SectionSubjectSchedule::where('section_id', $validated['section_id'])
-                ->where('subject_id', $validated['subject_id'])
-                ->where('day', $day)
-                ->exists();
-
-            if ($duplicate) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'This subject is already scheduled for this section on this day.'
-                ], 422);
-            }
-
-            // 🚀 Save schedule
             $schedule = SectionSubjectSchedule::create($validated);
 
             return response()->json([
@@ -230,7 +149,6 @@ class ScheduleController extends Controller
             ]);
         }
     }
-
 
     public function updateSchedule(Request $request, $id)
     {
