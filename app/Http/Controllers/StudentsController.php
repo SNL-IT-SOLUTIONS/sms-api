@@ -20,6 +20,99 @@ use Illuminate\Http\Request;
 
 class StudentsController extends Controller
 {
+    public function studentDashboard()
+    {
+        try {
+            $student = auth()->user();
+
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Unauthorized.'
+                ], 401);
+            }
+
+            // Get current school year
+            $currentSchoolYear = DB::table('school_years')
+                ->where('is_active', 1)
+                ->first();
+
+            if (!$currentSchoolYear) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'No active school year found.'
+                ], 404);
+            }
+
+            // Get enrolled units for current semester
+            $enrolledUnits = DB::table('student_subjects as ss')
+                ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                ->where('ss.student_id', $student->id)
+                ->where('ss.school_year_id', $currentSchoolYear->id)
+                ->sum('s.units');
+
+            // Calculate GWA for current semester
+            $grades = DB::table('student_subjects as ss')
+                ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                ->where('ss.student_id', $student->id)
+                ->where('ss.school_year_id', $currentSchoolYear->id)
+                ->whereNotNull('ss.final_rating')
+                ->select('ss.final_rating', 's.units')
+                ->get();
+
+            $totalUnits = 0;
+            $weightedSum = 0;
+            $gwa = null;
+
+            foreach ($grades as $grade) {
+                if ($grade->final_rating !== null) {
+                    $weightedSum += $grade->final_rating * $grade->units;
+                    $totalUnits += $grade->units;
+                }
+            }
+
+            if ($totalUnits > 0) {
+                $gwa = round($weightedSum / $totalUnits, 2);
+            }
+
+            // Get outstanding balance
+            $latestEnrollment = enrollments::where('student_id', $student->id)
+                ->where('school_year_id', $currentSchoolYear->id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $outstandingBalance = 0;
+            if ($latestEnrollment) {
+                $totalPaid = payments::where('student_id', $student->id)
+                    ->where('school_year_id', $currentSchoolYear->id)
+                    ->sum('paid_amount');
+
+                $outstandingBalance = $latestEnrollment->total_tuition_fee;
+            }
+
+            // Get payment status
+            $paymentStatus = $latestEnrollment->payment_status ?? 'Not Enrolled';
+
+            return response()->json([
+                'isSuccess' => true,
+                'dashboard' => [
+                    'enrolled_units' => $enrolledUnits,
+                    'gwa' => $gwa,
+                    'outstanding_balance' => number_format($outstandingBalance, 2),
+                    'payment_status' => $paymentStatus,
+                    'school_year' => $currentSchoolYear->school_year,
+                    'semester' => $currentSchoolYear->semester
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to retrieve dashboard data.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getCOR()
     {
         try {
