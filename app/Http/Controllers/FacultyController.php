@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\SectionSubjectSchedule;
-use App\Models\Accounts;
+use App\Models\accounts;
 use Illuminate\Support\Facades\Auth;
 
 class FacultyController extends Controller

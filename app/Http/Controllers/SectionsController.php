@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use Illuminate\Validation\Rule;
 
 class SectionsController extends Controller
 {
@@ -69,6 +70,8 @@ class SectionsController extends Controller
     }
 
 
+
+
     public function addSection(Request $request)
     {
         try {
@@ -79,33 +82,24 @@ class SectionsController extends Controller
                     'message' => 'Unauthorized.',
                 ], 401);
             }
-            // Validate the request data
+
+            // Validate the request data with unique rule
             $validated = $request->validate([
-                'section_name' => 'required|string|max:100',
+                'section_name' => [
+                    'required',
+                    'string',
+                    'max:100',
+                    Rule::unique('sections')->where(function ($query) use ($request) {
+                        return $query->where('course_id', $request->course_id)
+                            ->where('campus_id', $request->campus_id);
+                    }),
+                ],
                 'students_size' => 'required|integer|min:1|max:100',
                 'course_id' => 'required|exists:courses,id',
                 'campus_id' => 'required|exists:school_campus,id',
             ]);
 
-            // Check for duplicate section under same course
-            $duplicate = sections::where('section_name', $validated['section_name'])
-                ->where('course_id', $validated['course_id'])
-                ->where('campus_id', $validated['campus_id'])
-                ->first();
-
-            if ($duplicate) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'Section already exists under this course.',
-                ], 409); //
-            }
-
-            $section = sections::create([
-                'section_name' => $validated['section_name'],
-                'students_size' => $validated['students_size'],
-                'course_id' => $validated['course_id'],
-                'campus_id' => $validated['campus_id'],
-            ]);
+            $section = sections::create($validated);
 
             return response()->json([
                 'isSuccess' => true,
@@ -141,28 +135,21 @@ class SectionsController extends Controller
             }
 
             $validated = $request->validate([
-                'section_name' => 'sometimes|string|max:100',
+                'section_name' => [
+                    'sometimes',
+                    'string',
+                    'max:100',
+                    Rule::unique('sections')->ignore($id)->where(function ($query) use ($request, $section) {
+                        return $query->where('course_id', $request->course_id ?? $section->course_id)
+                            ->where('campus_id', $request->campus_id ?? $section->campus_id);
+                    }),
+                ],
                 'course_id' => 'sometimes|exists:courses,id',
                 'campus_id' => 'sometimes|exists:school_campus,id',
                 'students_size' => 'sometimes|integer|min:1|max:100',
             ]);
 
-            // Check for duplicates excluding current section
-            $duplicate = sections::where('section_name', $validated['section_name'] ?? $section->section_name)
-                ->where('course_id', $validated['course_id'] ?? $section->course_id)
-                ->where('campus_id', $validated['campus_id'] ?? $section->campus_id)
-                ->where('id', '!=', $id)
-                ->first();
-
-            if ($duplicate) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message' => 'A section with the same name already exists under this course and campus.',
-                ], 409);
-            }
-
             $currentEnrolled = $section->students()->count();
-
             if (isset($validated['students_size']) && $validated['students_size'] < $currentEnrolled) {
                 return response()->json([
                     'isSuccess' => false,
