@@ -26,6 +26,21 @@ class SubjectsController extends Controller
                 });
             }
 
+            // 🎯 Grade Level filter
+            if ($request->has('grade_level_id') && !empty($request->grade_level_id)) {
+                $query->where('grade_level_id', $request->grade_level_id);
+            }
+
+            // 🎯 Subject Type filter
+            if ($request->has('subject_type') && !empty($request->subject_type)) {
+                $query->where('subject_type', $request->subject_type);
+            }
+
+            // 🎯 Units filter (exact match)
+            if ($request->has('units') && !empty($request->units)) {
+                $query->where('units', $request->units);
+            }
+
             $subjects = $query->paginate(5);
 
             $formattedSubjects = $subjects->getCollection()->map(function ($subject) {
@@ -65,6 +80,7 @@ class SubjectsController extends Controller
             ], 500);
         }
     }
+
 
 
 
