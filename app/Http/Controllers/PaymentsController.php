@@ -192,6 +192,47 @@ class PaymentsController extends Controller
     }
 
 
+    public function getPayments(Request $request)
+    {
+        try {
+            $query = DB::table('payments as p')
+                ->join('students as st', 'st.id', '=', 'p.student_id')
+                ->join('admissions as a', 'a.id', '=', 'st.admission_id')
+                ->select(
+                    'p.id',
+                    'p.receipt_no',
+                    'st.id as student_id',
+                    DB::raw("CONCAT(a.first_name, ' ', a.last_name) as student_name"),
+                    'p.amount as amount_billed', // ✅ use amount
+                    'p.paid_amount',
+                    'p.remaining_balance',
+                    DB::raw('p.remaining_balance as latest_balance'), // ✅ fallback
+                    'p.status',
+                    'p.payment_method',
+                    'p.paid_at',
+                    'p.school_year_id'
+                )
+                ->where('p.is_archived', 0);
+
+            // 🎓 Filter by school year
+            if ($request->has('school_year_id') && !empty($request->school_year_id)) {
+                $query->where('p.school_year_id', $request->school_year_id);
+            }
+
+            $payments = $query->orderBy('p.created_at', 'desc')->get();
+
+            return response()->json([
+                'isSuccess' => true,
+                ''      => $payments,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Error fetching payments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
 
     public function getAllPayments(Request $request)
