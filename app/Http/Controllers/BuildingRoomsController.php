@@ -12,121 +12,130 @@ use Throwable;
 
 class BuildingRoomsController extends Controller
 {
-    
-  public function getRooms(Request $request)
-{
-    try {
-        // Paginate with 5 per page
-        $rooms = building_rooms::with(['building:id,building_name']) // load only id + name from building
-            ->where('is_archived', 0) // only non-archived
-            ->paginate(5);
 
-        return response()->json([
-            'isSuccess' => true,
-            'rooms' => $rooms->items(),
-            'pagination' => [
-                'current_page' => $rooms->currentPage(),
-                'per_page' => $rooms->perPage(),
-                'total' => $rooms->total(),
-                'last_page' => $rooms->lastPage(),
-            ],
-        ], 200);
+    public function getRooms(Request $request)
+    {
+        try {
+            $perPage = 5;
 
-    } catch (Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to retrieve rooms.',
-            'error' => $e->getMessage(),
-        ], 500);
+            $query = building_rooms::with(['building:id,building_name'])
+                ->where('is_archived', 0);
+
+            // 🔍 Search filter
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('room_name', 'LIKE', "%{$search}%")
+                        ->orWhere('room_number', 'LIKE', "%{$search}%")
+                        ->orWhereHas('building', function ($q2) use ($search) {
+                            $q2->where('building_name', 'LIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            $rooms = $query->paginate($perPage);
+
+            return response()->json([
+                'isSuccess' => true,
+                'rooms' => $rooms->items(),
+                'pagination' => [
+                    'current_page' => $rooms->currentPage(),
+                    'per_page'     => $rooms->perPage(),
+                    'total'        => $rooms->total(),
+                    'last_page'    => $rooms->lastPage(),
+                ],
+            ], 200);
+        } catch (Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to retrieve rooms.',
+                'error'     => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
-   public function createRoom(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'room_name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('building_rooms', 'room_name')
-                    ->where('building_id', $request->building_id)
-            ],
-            'building_id' => 'required|exists:campus_buildings,id',
-            'description' => 'nullable|string|max:500',
-            'room_size' => 'nullable|numeric|min:0',
-        ]);
-        
-        $room = building_rooms::create($validated); 
-        return response()->json([
-            'isSuccess' => true,
-            'room' => $room,
-        ], 201);
 
-    } catch (ValidationException $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Validation failed.',
-            'errors' => $e->errors(),
-        ], 422);
+    public function createRoom(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'room_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('building_rooms', 'room_name')
+                        ->where('building_id', $request->building_id)
+                ],
+                'building_id' => 'required|exists:campus_buildings,id',
+                'description' => 'nullable|string|max:500',
+                'room_size' => 'nullable|numeric|min:0',
+            ]);
 
-    } catch (Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to create room.',
-            'error' => $e->getMessage(),
-        ], 500);
+            $room = building_rooms::create($validated);
+            return response()->json([
+                'isSuccess' => true,
+                'room' => $room,
+            ], 201);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to create room.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
-public function updateRoom(Request $request, $id)
-{
-    try {
-        $room = building_rooms::findOrFail($id);
+    public function updateRoom(Request $request, $id)
+    {
+        try {
+            $room = building_rooms::findOrFail($id);
 
-        $validated = $request->validate([
-            'room_name' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('building_rooms', 'room_name')
-                    ->where('building_id', $request->building_id ?? $room->building_id)
-                    ->ignore($id)
-            ],
-            'building_id' => 'sometimes|required|exists:campus_buildings,id',
-            'description' => 'nullable|string|max:500',
-            'room_size' => 'nullable|numeric|min:0',
-        ]);
+            $validated = $request->validate([
+                'room_name' => [
+                    'sometimes',
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('building_rooms', 'room_name')
+                        ->where('building_id', $request->building_id ?? $room->building_id)
+                        ->ignore($id)
+                ],
+                'building_id' => 'sometimes|required|exists:campus_buildings,id',
+                'description' => 'nullable|string|max:500',
+                'room_size' => 'nullable|numeric|min:0',
+            ]);
 
-        $room->update($validated);
+            $room->update($validated);
 
-        return response()->json([
-            'isSuccess' => true,
-            'room' => $room,
-        ], 200);
-
-    } catch (ModelNotFoundException $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Room not found.',
-        ], 404);
-
-    } catch (ValidationException $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Validation failed.',
-            'errors' => $e->errors(),
-        ], 422);
-
-    } catch (Throwable $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message' => 'Failed to update room.',
-            'error' => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'isSuccess' => true,
+                'room' => $room,
+            ], 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Room not found.',
+            ], 404);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to update room.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
     public function deleteRoom($id)
     {
@@ -153,6 +162,4 @@ public function updateRoom(Request $request, $id)
             ], 500);
         }
     }
-
-    
 }
