@@ -14,9 +14,19 @@ class SubjectsController extends Controller
     public function getSubjects(Request $request)
     {
         try {
-            $subjects = subjects::with(['gradeLevel', 'prerequisites'])
-                ->where('is_archived', 0)
-                ->paginate(5);
+            $query = subjects::with(['gradeLevel', 'prerequisites'])
+                ->where('is_archived', 0);
+
+            // 🔍 Search filter
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('subject_code', 'LIKE', "%{$search}%")
+                        ->orWhere('subject_name', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $subjects = $query->paginate(5);
 
             $formattedSubjects = $subjects->getCollection()->map(function ($subject) {
                 return [
@@ -55,6 +65,7 @@ class SubjectsController extends Controller
             ], 500);
         }
     }
+
 
 
     public function addSubject(Request $request)
