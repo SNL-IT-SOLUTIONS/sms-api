@@ -17,12 +17,12 @@ class AccountsController extends Controller
 {
 
     // Method to register a new account
-    public function getusers(Request $request)
+    public function getUsers(Request $request)
     {
         try {
             $query = accounts::with('userType'); // Eager load userType
 
-            // Search
+            // 🔍 Search across multiple fields
             if ($search = $request->input('search')) {
                 $query->where(function ($q) use ($search) {
                     $q->where('given_name', 'like', "%{$search}%")
@@ -33,12 +33,24 @@ class AccountsController extends Controller
                 });
             }
 
-            // Filter by user_type
+            // 🎯 Filters
             if ($request->filled('user_type')) {
                 $query->where('user_type', $request->user_type);
             }
 
-            // Apply pagination and hide field
+            if ($request->filled('is_verified')) {
+                $query->where('is_verified', $request->is_verified);
+            }
+
+            // Optional: Date range filter
+            if ($request->filled('from_date') && $request->filled('to_date')) {
+                $query->whereBetween('created_at', [
+                    $request->from_date . ' 00:00:00',
+                    $request->to_date . ' 23:59:59'
+                ]);
+            }
+
+            // 📄 Pagination + hide fields
             $users = $query->paginate(5)->through(function ($user) {
                 return $user->makeHidden(['is_verified']);
             });
@@ -61,6 +73,7 @@ class AccountsController extends Controller
             ], 500);
         }
     }
+
 
 
     public function createUser(Request $request)
