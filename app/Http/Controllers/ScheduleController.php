@@ -49,10 +49,6 @@ class ScheduleController extends Controller
                     $q->whereHas('subject', function ($q2) use ($search) {
                         $q2->where('subject_name', 'like', "%$search%");
                     })
-                        ->orWhereHas('teacher', function ($q2) use ($search) {
-                            $q2->where('first_name', 'like', "%$search%")
-                                ->orWhere('last_name', 'like', "%$search%");
-                        })
                         ->orWhereHas('section', function ($q2) use ($search) {
                             $q2->where('section_name', 'like', "%$search%");
                         })
