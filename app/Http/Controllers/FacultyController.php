@@ -17,7 +17,7 @@ class FacultyController extends Controller
     {
         try {
             $teacherId = Auth::id(); // ✅ logged-in teacher
-            $perPage = $request->input('per_page', 5); // ✅ default 10 per page
+            $perPage = $request->input('per_page', 10); // ✅ default 10 per page
 
             $students = DB::table('section_subject_schedule as secsub')
                 ->join('students as s', 's.section_id', '=', 'secsub.section_id')
