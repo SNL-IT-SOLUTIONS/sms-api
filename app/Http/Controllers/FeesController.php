@@ -17,18 +17,30 @@ class FeesController extends Controller
 
     public function getFees(Request $request)
     {
-        $query = fees::with('schoolYear'); // ✅ eager load school year relation
-
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->is_active)
+        try {
+            $perPage = $request->input('per_page', 10); // ✅ default 10 per page
+            $query = fees::with('schoolYear')
                 ->where('is_archived', 0);
-        }
 
-        $fees = $query->orderBy('created_at', 'desc')->get();
+            // 🎯 Active status filter
+            if ($request->has('is_active') && $request->is_active !== null) {
+                $query->where('is_active', $request->is_active);
+            }
 
-        return response()->json([
-            'isSuccess' => true,
-            'fees'      => $fees->map(function ($fee) {
+            // 🔍 Search filter
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('fee_name', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // 📌 Order newest first
+            $fees = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+            // ✅ Format response
+            $formattedFees = $fees->getCollection()->map(function ($fee) {
                 return [
                     'id'             => $fee->id,
                     'fee_name'       => $fee->fee_name,
@@ -40,9 +52,27 @@ class FeesController extends Controller
                     'schoolyear'     => $fee->schoolYear ? $fee->schoolYear->school_year : null,
                     'semester'       => $fee->schoolYear ? $fee->schoolYear->semester : null,
                 ];
-            })
-        ]);
+            });
+
+            return response()->json([
+                'isSuccess'  => true,
+                'fees'       => $formattedFees,
+                'pagination' => [
+                    'current_page' => $fees->currentPage(),
+                    'per_page'     => $fees->perPage(),
+                    'total'        => $fees->total(),
+                    'last_page'    => $fees->lastPage(),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to retrieve fees.',
+                'error'     => $e->getMessage()
+            ], 500);
+        }
     }
+
 
     public function createFees(Request $request)
     {
