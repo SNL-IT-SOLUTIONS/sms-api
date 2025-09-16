@@ -13,10 +13,11 @@ class FacultyController extends Controller
 
 
 
-    public function getStudents()
+    public function getStudents(Request $request)
     {
         try {
             $teacherId = Auth::id(); // ✅ logged-in teacher
+            $perPage = $request->input('per_page', 10); // ✅ default 10 per page
 
             $students = DB::table('section_subject_schedule as secsub')
                 ->join('students as s', 's.section_id', '=', 'secsub.section_id')
@@ -40,12 +41,11 @@ class FacultyController extends Controller
                     'ss.remarks'
                 )
                 ->where('secsub.teacher_id', $teacherId)
-                ->get();
+                ->paginate($perPage); // ✅ built-in pagination
 
             return response()->json([
                 'isSuccess' => true,
                 'message' => 'Students retrieved successfully.',
-                'count' => $students->count(),
                 'data' => $students
             ], 200);
         } catch (\Exception $e) {
@@ -56,6 +56,7 @@ class FacultyController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Get all schedules for a specific faculty (teacher).
