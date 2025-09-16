@@ -14,7 +14,7 @@ class SubjectsController extends Controller
     public function getSubjects(Request $request)
     {
         try {
-            $query = subjects::with(['gradeLevel', 'prerequisites'])
+            $query = subjects::with(['gradeLevel', 'prerequisites', 'schoolYear']) // ✅ added schoolYear
                 ->where('is_archived', 0);
 
             // 🔍 Search filter
@@ -31,6 +31,11 @@ class SubjectsController extends Controller
                 $query->where('grade_level_id', $request->grade_level_id);
             }
 
+            // 🎯 School Year filter
+            if ($request->has('school_year_id') && !empty($request->school_year_id)) {
+                $query->where('school_year_id', $request->school_year_id);
+            }
+
             // 🎯 Subject Type filter
             if ($request->has('subject_type') && !empty($request->subject_type)) {
                 $query->where('subject_type', $request->subject_type);
@@ -45,14 +50,17 @@ class SubjectsController extends Controller
 
             $formattedSubjects = $subjects->getCollection()->map(function ($subject) {
                 return [
-                    'id'               => $subject->id,
-                    'subject_code'     => $subject->subject_code,
-                    'subject_name'     => $subject->subject_name,
-                    'units'            => $subject->units,
-                    'grade_level_id'   => $subject->grade_level_id,
-                    'grade_level_name' => $subject->gradeLevel ? $subject->gradeLevel->grade_level : null,
-                    'subject_type'     => $subject->subject_type,
-                    'prerequisites'    => $subject->prerequisites->map(function ($pre) {
+                    'id'                => $subject->id,
+                    'subject_code'      => $subject->subject_code,
+                    'subject_name'      => $subject->subject_name,
+                    'units'             => $subject->units,
+                    'grade_level_id'    => $subject->grade_level_id,
+                    'grade_level_name'  => $subject->gradeLevel ? $subject->gradeLevel->grade_level : null,
+                    'school_year_id'    => $subject->school_year_id,
+                    'school_year_name'  => $subject->schoolYear ? $subject->schoolYear->school_year : null, // ✅ return label
+                    'school_year_semester'  => $subject->schoolYear ? $subject->schoolYear->semester : null,
+                    'subject_type'      => $subject->subject_type,
+                    'prerequisites'     => $subject->prerequisites->map(function ($pre) {
                         return [
                             'id'           => $pre->id,
                             'subject_code' => $pre->subject_code,
@@ -63,8 +71,8 @@ class SubjectsController extends Controller
             });
 
             return response()->json([
-                'isSuccess' => true,
-                'subjects'  => $formattedSubjects,
+                'isSuccess'  => true,
+                'subjects'   => $formattedSubjects,
                 'pagination' => [
                     'current_page' => $subjects->currentPage(),
                     'per_page'     => $subjects->perPage(),
@@ -84,25 +92,28 @@ class SubjectsController extends Controller
 
 
 
+
     public function addSubject(Request $request)
     {
         try {
             $request->validate([
-                'subject_code' => 'required|string|max:20|unique:subjects,subject_code',
-                'subject_name' => 'required|string|max:255',
-                'units' => 'required|numeric|min:0',
-                'grade_level_id' => 'required|exists:grade_levels,id',
-                'subject_type' => 'required|string',
-                'prerequisites' => 'array',   // optional
-                'prerequisites.*' => 'exists:subjects,id',
+                'subject_code'     => 'required|string|max:20|unique:subjects,subject_code',
+                'subject_name'     => 'required|string|max:255',
+                'units'            => 'required|numeric|min:0',
+                'grade_level_id'   => 'required|exists:grade_levels,id',
+                'school_year_id'   => 'required|exists:school_years,id', // ✅ added validation
+                'subject_type'     => 'required|string',
+                'prerequisites'    => 'array',   // optional
+                'prerequisites.*'  => 'exists:subjects,id',
             ]);
 
             $subject = subjects::create([
-                'subject_code' => $request->subject_code,
-                'subject_name' => $request->subject_name,
-                'units' => $request->units,
-                'grade_level_id' => $request->grade_level_id,
-                'subject_type' => $request->subject_type,
+                'subject_code'    => $request->subject_code,
+                'subject_name'    => $request->subject_name,
+                'units'           => $request->units,
+                'grade_level_id'  => $request->grade_level_id,
+                'school_year_id'  => $request->school_year_id, // ✅ included in create
+                'subject_type'    => $request->subject_type,
             ]);
 
             if ($request->has('prerequisites')) {
@@ -111,14 +122,14 @@ class SubjectsController extends Controller
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Subject added successfully.',
-                'subject' => $subject
+                'message'   => 'Subject added successfully.',
+                'subject'   => $subject
             ]);
         } catch (Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to add subject.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to add subject.',
+                'error'     => $e->getMessage()
             ]);
         }
     }
@@ -127,12 +138,13 @@ class SubjectsController extends Controller
     {
         try {
             $request->validate([
-                'subject_code' => 'sometimes|string|max:20|unique:subjects,subject_code,' . $id,
-                'subject_name' => 'sometimes|string|max:255',
-                'units' => 'sometimes|numeric|min:0',
-                'grade_level_id' => 'sometimes|exists:grade_levels,id',
-                'subject_type' => 'sometimes',
-                'prerequisites' => 'array',
+                'subject_code'    => 'sometimes|string|max:20|unique:subjects,subject_code,' . $id,
+                'subject_name'    => 'sometimes|string|max:255',
+                'units'           => 'sometimes|numeric|min:0',
+                'grade_level_id'  => 'sometimes|exists:grade_levels,id',
+                'school_year_id'  => 'sometimes|exists:school_years,id', // ✅ added validation
+                'subject_type'    => 'sometimes',
+                'prerequisites'   => 'array',
                 'prerequisites.*' => 'exists:subjects,id',
             ]);
 
@@ -141,7 +153,7 @@ class SubjectsController extends Controller
             if (!$subject) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'Subject not found.'
+                    'message'   => 'Subject not found.'
                 ]);
             }
 
@@ -150,6 +162,7 @@ class SubjectsController extends Controller
                 'subject_name',
                 'units',
                 'grade_level_id',
+                'school_year_id', // ✅ allow updating
                 'subject_type',
             ]);
 
@@ -162,17 +175,18 @@ class SubjectsController extends Controller
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Subject updated successfully.',
-                'subject' => $subject
+                'message'   => 'Subject updated successfully.',
+                'subject'   => $subject
             ]);
         } catch (Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to update subject.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to update subject.',
+                'error'     => $e->getMessage()
             ]);
         }
     }
+
 
 
 
