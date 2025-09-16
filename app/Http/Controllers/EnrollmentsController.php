@@ -38,7 +38,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class EnrollmentsController extends Controller
 {
 
-    public function resetStudents()
+    public function resetEnrollment()
     {
         try {
             students::query()->update([
