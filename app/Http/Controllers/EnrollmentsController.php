@@ -1215,6 +1215,16 @@ class EnrollmentsController extends Controller
                 ], 404);
             }
 
+            // ✅ Get latest enrollment to decide the next school year
+            $lastEnrollment = DB::table('enrollments')
+                ->where('student_id', $student->id)
+                ->orderByDesc('school_year_id')
+                ->first();
+
+            $targetSchoolYearId = $lastEnrollment
+                ? $lastEnrollment->school_year_id + 1
+                : $student->academic_year_id; // fallback if no enrollment yet
+
             // 🔽 Base query with left join to student_subjects
             $query = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
@@ -1223,7 +1233,7 @@ class EnrollmentsController extends Controller
                         ->where('ss.student_id', $student->id);
                 })
                 ->where('cs.curriculum_id', $curriculumId)
-                ->where('s.school_year_id', $student->academic_year_id)
+                ->where('s.school_year_id', $targetSchoolYearId) // ✅ use next school year
                 ->whereNull('ss.final_rating') // ✅ only show subjects with no grade yet
                 ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
 
@@ -1239,9 +1249,10 @@ class EnrollmentsController extends Controller
             $subjects = $query->get();
 
             return response()->json([
-                'isSuccess'     => true,
-                'curriculum_id' => $curriculumId,
-                'subjects'      => $subjects
+                'isSuccess'          => true,
+                'curriculum_id'      => $curriculumId,
+                'eligible_year_id'   => $targetSchoolYearId, // ✅ just so you know what year it used
+                'subjects'           => $subjects
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
