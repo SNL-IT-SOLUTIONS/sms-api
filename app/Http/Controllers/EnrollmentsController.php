@@ -38,6 +38,27 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class EnrollmentsController extends Controller
 {
 
+    public function resetStudents()
+    {
+        try {
+            students::query()->update([
+                'is_enrolled' => 0,
+                'is_assess'   => 0,
+            ]);
+
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'All students have been reset successfully.'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to reset students.',
+                'error'     => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getExamineesResult(Request $request)
     {
         try {

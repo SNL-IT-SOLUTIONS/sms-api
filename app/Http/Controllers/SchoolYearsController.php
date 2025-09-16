@@ -60,13 +60,6 @@ class SchoolYearsController extends Controller
                 'semester'    => $request->semester,
             ]);
 
-            // ✅ Reset enrollment flags for all students (for the new school year)
-            students::query()->update([
-                'is_enrolled' => 0,
-                'is_assess'   => 0,
-
-            ]);
-
             return response()->json([
                 'isSuccess'   => true,
                 'message'     => "New school year created and enrollment flags reset.",

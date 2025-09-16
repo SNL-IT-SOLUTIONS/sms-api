@@ -136,6 +136,7 @@ Route::get('getreconsideredstudents', [EnrollmentsController::class, 'getReconsi
 Route::get('getenrollments', [EnrollmentsController::class, 'getAllEnrollments']);
 Route::get('getprocesspayment', [EnrollmentsController::class, 'getProcessPayments']);
 
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
     Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
@@ -146,6 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('getsubjectstudents', [EnrollmentsController::class, 'getCurriculumSubjectsByAdmin']);
     Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
     Route::get('getstudentcurriculums/{id}', [EnrollmentsController::class, 'getStudentCurriculums']);
+    Route::post('resetenrollment', [EnrollmentsController::class, 'resetEnrollment']);
 });
 
 //Payments
