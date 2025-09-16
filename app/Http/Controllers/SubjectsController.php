@@ -275,25 +275,36 @@ class SubjectsController extends Controller
     public function getSubjectsDropdown()
     {
         try {
-            $subjects = subjects::where('is_archived', 0)
-                ->get(['id', 'subject_name', 'subject_type'])
+            $subjects = subjects::where('subjects.is_archived', 0)
+                ->leftJoin('school_years as sy', 'sy.id', '=', 'subjects.school_year_id')
+                ->get([
+                    'subjects.id',
+                    'subjects.subject_name',
+                    'subjects.subject_type',
+                    'subjects.school_year_id',
+                    'sy.school_year as school_year_name', // ✅ adjust to your actual column name
+                    'sy.semester',
+                ])
                 ->map(function ($subject) {
                     return [
-                        'id' => $subject->id,
-                        'subject_name' => $subject->subject_name,
-                        'subject_type' => $subject->subject_type, // <-- added
+                        'id'               => $subject->id,
+                        'subject_name'     => $subject->subject_name,
+                        'subject_type'     => $subject->subject_type,
+                        'school_year_id'   => $subject->school_year_id,
+                        'school_year_name' => $subject->school_year_name,
+                        'semester'         => $subject->semester,
                     ];
                 });
 
             return response()->json([
                 'isSuccess' => true,
-                'subjects' => $subjects,
+                'subjects'  => $subjects,
             ]);
         } catch (Throwable $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve subjects.',
-                'error' => $e->getMessage(),
+                'message'   => 'Failed to retrieve subjects.',
+                'error'     => $e->getMessage(),
             ], 500);
         }
     }
