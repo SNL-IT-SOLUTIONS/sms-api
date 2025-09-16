@@ -60,7 +60,7 @@ class FacultyController extends Controller
 
             return response()->json([
                 'isSuccess'  => true,
-                'students'   => $formattedStudents,
+                'data'   => $formattedStudents,
                 'pagination' => [
                     'current_page' => $students->currentPage(),
                     'per_page'     => $students->perPage(),
