@@ -26,12 +26,30 @@ class SectionsController extends Controller
                 ], 401);
             }
 
-            // Paginate sections - only non-archived
-            $sections = sections::with(['course', 'campus'])
-                ->where('is_archived', 0)
-                ->paginate(5);
+            $perPage = $request->input('per_page', 5);
 
-            // Map after pagination
+            // Base query - only non-archived
+            $query = sections::with(['course', 'campus'])
+                ->where('is_archived', 0);
+
+            // 🔍 Search filter
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('section_name', 'LIKE', "%{$search}%")
+                        ->orWhereHas('course', function ($q2) use ($search) {
+                            $q2->where('course_name', 'LIKE', "%{$search}%");
+                        })
+                        ->orWhereHas('campus', function ($q2) use ($search) {
+                            $q2->where('campus_name', 'LIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            // 📌 Order by latest
+            $sections = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+            // Format results
             $formattedSections = $sections->getCollection()->map(function ($section) {
                 return [
                     'id' => $section->id,
@@ -68,6 +86,7 @@ class SectionsController extends Controller
             ], 500);
         }
     }
+
 
 
 
