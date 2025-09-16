@@ -20,7 +20,7 @@ use Illuminate\Http\Request;
 
 class StudentsController extends Controller
 {
-    public function studentDashboard()
+    public function studentDashboard(Request $request)
     {
         try {
             $student = auth()->user();
@@ -32,26 +32,33 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // Get current school year
-            $currentSchoolYear = DB::table('school_years')
-                ->where('is_active', 1)
-                ->first();
+            // 🎯 Allow filtering by school_year_id
+            if ($request->has('school_year_id') && !empty($request->school_year_id)) {
+                $currentSchoolYear = DB::table('school_years')
+                    ->where('id', $request->school_year_id)
+                    ->first();
+            } else {
+                // Default → active school year
+                $currentSchoolYear = DB::table('school_years')
+                    ->where('is_active', 1)
+                    ->first();
+            }
 
             if (!$currentSchoolYear) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'No active school year found.'
+                    'message' => 'No school year found.'
                 ], 404);
             }
 
-            // Get enrolled units for current semester
+            // ✅ Enrolled units
             $enrolledUnits = DB::table('student_subjects as ss')
                 ->join('subjects as s', 'ss.subject_id', '=', 's.id')
                 ->where('ss.student_id', $student->id)
                 ->where('ss.school_year_id', $currentSchoolYear->id)
                 ->sum('s.units');
 
-            // Calculate GWA for current semester
+            // ✅ GWA
             $grades = DB::table('student_subjects as ss')
                 ->join('subjects as s', 'ss.subject_id', '=', 's.id')
                 ->where('ss.student_id', $student->id)
@@ -75,7 +82,7 @@ class StudentsController extends Controller
                 $gwa = round($weightedSum / $totalUnits, 2);
             }
 
-            // Get outstanding balance
+            // ✅ Enrollment & Outstanding balance
             $latestEnrollment = enrollments::where('student_id', $student->id)
                 ->where('school_year_id', $currentSchoolYear->id)
                 ->orderBy('created_at', 'desc')
@@ -90,7 +97,6 @@ class StudentsController extends Controller
                 $outstandingBalance = $latestEnrollment->total_tuition_fee;
             }
 
-            // Get payment status
             $paymentStatus = $latestEnrollment->payment_status ?? 'Not Enrolled';
 
             return response()->json([
@@ -112,6 +118,7 @@ class StudentsController extends Controller
             ], 500);
         }
     }
+
 
     public function getCOR()
     {
