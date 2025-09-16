@@ -41,21 +41,42 @@ class FacultyController extends Controller
                     'ss.remarks'
                 )
                 ->where('secsub.teacher_id', $teacherId)
-                ->paginate($perPage); // ✅ built-in pagination
+                ->paginate($perPage);
+
+            // ✅ Format the collection
+            $formattedStudents = $students->getCollection()->map(function ($student) {
+                return [
+                    'student_id'    => $student->student_id,
+                    'student_number' => $student->student_number,
+                    'student_name'  => $student->student_name,
+                    'section_id'    => $student->section_id,
+                    'section_name'  => $student->section_name,
+                    'subject_id'    => $student->subject_id,
+                    'subject_name'  => $student->subject_name,
+                    'final_rating'  => $student->final_rating,
+                    'remarks'       => $student->remarks,
+                ];
+            });
 
             return response()->json([
-                'isSuccess' => true,
-                'message' => 'Students retrieved successfully.',
-                'data' => $students
+                'isSuccess'  => true,
+                'students'   => $formattedStudents,
+                'pagination' => [
+                    'current_page' => $students->currentPage(),
+                    'per_page'     => $students->perPage(),
+                    'total'        => $students->total(),
+                    'last_page'    => $students->lastPage(),
+                ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve students.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to retrieve students.',
+                'error'     => $e->getMessage()
             ], 500);
         }
     }
+
 
 
     /**
