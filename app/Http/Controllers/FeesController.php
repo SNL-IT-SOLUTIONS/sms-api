@@ -18,7 +18,7 @@ class FeesController extends Controller
     public function getFees(Request $request)
     {
         try {
-            $perPage = $request->input('per_page', 10); // ✅ default 10 per page
+            $perPage = $request->input('per_page', 5); // ✅ default 10 per page
             $query = fees::with('schoolYear')
                 ->where('is_archived', 0);
 
