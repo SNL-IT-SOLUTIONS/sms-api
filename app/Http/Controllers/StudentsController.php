@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\fees;
 
 
+
 use Illuminate\Http\Request;
 
 class StudentsController extends Controller
@@ -564,7 +565,7 @@ class StudentsController extends Controller
     }
 
     //SCHEDULE
-    public function getMySchedule()
+    public function getMySchedule(Request $request)
     {
         try {
             $student = auth()->user();
@@ -572,51 +573,59 @@ class StudentsController extends Controller
             if (!$student) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'Unauthorized.'
+                    'message'   => 'Unauthorized.'
                 ], 401);
             }
 
-            // Load schedules through section
-            $schedules = $student->schedules;
+            $schoolYearId = $request->input('school_year_id');
+
+            // ✅ Query schedules with school year filtering + include school year
+            $schedules = DB::table('student_subjects as ss')
+                ->join('section_subject_schedule as sched', 'sched.subject_id', '=', 'ss.subject_id')
+                ->leftJoin('subjects as subj', 'subj.id', '=', 'sched.subject_id')
+                ->leftJoin('building_rooms as r', 'r.id', '=', 'sched.room_id')
+                ->leftJoin('accounts as t', 't.id', '=', 'sched.teacher_id')
+                ->leftJoin('school_years as sy', 'sy.id', '=', 'ss.school_year_id')
+                ->where('ss.student_id', $student->id)
+                ->when($schoolYearId, function ($q) use ($schoolYearId) {
+                    $q->where('ss.school_year_id', $schoolYearId);
+                })
+                ->select(
+                    'subj.subject_code',
+                    'subj.subject_name',
+                    'sched.day',
+                    'sched.start_time',
+                    'sched.end_time',
+                    'r.room_name as room',
+                    DB::raw("CONCAT(t.given_name, ' ', t.surname) as teacher"),
+                    'sy.id as school_year_id',
+                    DB::raw("CONCAT(sy.school_year, ' ', sy.semester)as school_year") // <- adjust if your column is different (like year_start/year_end)
+
+                )
+                ->get();
 
             if ($schedules->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message' => 'No schedules found for this student.'
+                    'message'   => 'No schedules found for this student.'
                 ]);
             }
 
-            // Format response
-            $formatted = $schedules->map(function ($sched) {
-                $teacher = $sched->teacher
-                    ? $sched->teacher->given_name . ' ' . $sched->teacher->surname
-                    : null;
-
-                return [
-                    'subject_code' => $sched->subject->subject_code ?? null,
-                    'subject_name' => $sched->subject->subject_name ?? null,
-                    'day'          => $sched->day,
-                    'start_time'   => $sched->start_time,
-                    'end_time'     => $sched->end_time,
-                    'room'         => $sched->room->room_name ?? null,
-                    'teacher'      => $teacher,
-                ];
-            });
-
-
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Student schedule retrieved successfully.',
-                'schedules' => $formatted
+                'message'   => 'Student schedule retrieved successfully.',
+                'schedules' => $schedules
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve schedule.',
-                'error' => $e->getMessage()
+                'message'   => 'Failed to retrieve schedule.',
+                'error'     => $e->getMessage()
             ], 500);
         }
     }
+
+
 
 
     public function getMyGrades(Request $request)
