@@ -249,6 +249,12 @@ class EnrollmentsController extends Controller
                     $q->where('campus_id', $request->campus_id);
                 });
             }
+
+            if ($request->filled('academic_year')) {
+                $query->where('academic_year', $request->academic_year);
+            }
+
+
             $query->orderBy('created_at', 'desc');
 
             $schedules = $query->paginate($perPage, ['*'], 'page', $page);
