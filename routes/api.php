@@ -135,6 +135,7 @@ Route::get('getpassedexaminees', [EnrollmentsController::class, 'getPassedStuden
 Route::get('getreconsideredstudents', [EnrollmentsController::class, 'getReconsideredStudents']);
 Route::get('getenrollments', [EnrollmentsController::class, 'getAllEnrollments']);
 Route::get('getprocesspayment', [EnrollmentsController::class, 'getProcessPayments']);
+Route::get('getallstudents', [EnrollmentsController::class, 'getAllStudents']);
 
 
 Route::middleware('auth:sanctum')->group(function () {
