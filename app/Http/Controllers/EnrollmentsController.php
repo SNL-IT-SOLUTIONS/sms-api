@@ -243,11 +243,6 @@ class EnrollmentsController extends Controller
                     $q->where('campus_id', $request->campus_id);
                 });
             }
-
-            if ($request->filled('exam_date')) {
-                $query->whereDate('exam_date', $request->exam_date);
-            }
-
             $query->orderBy('created_at', 'desc');
 
             $schedules = $query->paginate($perPage, ['*'], 'page', $page);
