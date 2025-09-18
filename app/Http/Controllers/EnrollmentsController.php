@@ -68,15 +68,16 @@ class EnrollmentsController extends Controller
     // ✅ Get current active schedule
     public function getActiveSchedule()
     {
+        $now = now();
+
         $schedule = enrollmentschedule::where('status', 'open')
-            ->whereDate('start_date', '<=', now())
-            ->whereDate('end_date', '>=', now())
+            ->whereDate('end_date', '>=', $now)
             ->first();
 
         if (!$schedule) {
             return response()->json([
                 'isSuccess' => false,
-                'message'   => 'No active enrollment schedule.'
+                'message'   => 'No active or upcoming enrollment schedule.'
             ], 404);
         }
 
@@ -85,6 +86,7 @@ class EnrollmentsController extends Controller
             'data'      => $schedule
         ]);
     }
+
 
     public function getExamineesResult(Request $request)
     {

@@ -140,7 +140,7 @@ Route::get('getallstudents', [EnrollmentsController::class, 'getAllStudents']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('createschedule', [EnrollmentsController::class, 'saveSchedule']);
-    Route::post('getactiveschedule', [EnrollmentsController::class, 'getActiveSchedule']);
+    Route::get('getactiveschedule', [EnrollmentsController::class, 'getActiveSchedule']);
 
     Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
     Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
