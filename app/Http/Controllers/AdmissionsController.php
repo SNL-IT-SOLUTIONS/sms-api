@@ -116,6 +116,7 @@ class AdmissionsController extends Controller
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('academic_year', 'like', "%$search%")
+                        ->orWhere('applicant_number', 'like', "%$search%")
                         ->orWhere('first_name', 'like', "%$search%")
                         ->orWhere('last_name', 'like', "%$search%");
                 });
