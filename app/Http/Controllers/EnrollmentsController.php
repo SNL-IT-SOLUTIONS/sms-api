@@ -219,7 +219,7 @@ class EnrollmentsController extends Controller
                 ->where('exam_status', 'passed')   // Only passed students
                 ->where('is_approved', 0);        // Only not approved
 
-            // Optional search filter
+            // ✅ Search filter
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->whereHas('applicant', function ($q) use ($search) {
@@ -228,6 +228,23 @@ class EnrollmentsController extends Controller
                         ->orWhere('email', 'like', "%$search%")
                         ->orWhere('contact_number', 'like', "%$search%");
                 });
+            }
+
+            // ✅ Filter (example: by course_id, campus_id, exam_date, etc.)
+            if ($request->filled('course_id')) {
+                $query->whereHas('applicant', function ($q) use ($request) {
+                    $q->where('course_id', $request->course_id);
+                });
+            }
+
+            if ($request->filled('campus_id')) {
+                $query->whereHas('applicant', function ($q) use ($request) {
+                    $q->where('campus_id', $request->campus_id);
+                });
+            }
+
+            if ($request->filled('exam_date')) {
+                $query->whereDate('exam_date', $request->exam_date);
             }
 
             $query->orderBy('created_at', 'desc');
@@ -304,6 +321,7 @@ class EnrollmentsController extends Controller
                     'is_enrolled'     => optional($admission->student)->is_enrolled ?? null,
                 ];
             });
+
             return response()->json([
                 'isSuccess' => true,
                 'message'   => 'List of students who passed but not yet approved.',
@@ -323,6 +341,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
 
 
     public function getallStudents(Request $request)
@@ -337,9 +356,8 @@ class EnrollmentsController extends Controller
                 'building:id,building_name',
                 'campus:id,campus_name'
             ]);
-            // Only not approved
 
-            // Optional search filter
+            // ✅ Search filter
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->whereHas('applicant', function ($q) use ($search) {
@@ -348,6 +366,23 @@ class EnrollmentsController extends Controller
                         ->orWhere('email', 'like', "%$search%")
                         ->orWhere('contact_number', 'like', "%$search%");
                 });
+            }
+
+            // ✅ Filter options
+            if ($request->filled('course_id')) {
+                $query->whereHas('applicant', function ($q) use ($request) {
+                    $q->where('course_id', $request->course_id);
+                });
+            }
+
+            if ($request->filled('campus_id')) {
+                $query->whereHas('applicant', function ($q) use ($request) {
+                    $q->where('campus_id', $request->campus_id);
+                });
+            }
+
+            if ($request->filled('exam_date')) {
+                $query->whereDate('exam_date', $request->exam_date);
             }
 
             $query->orderBy('created_at', 'desc');
@@ -424,6 +459,7 @@ class EnrollmentsController extends Controller
                     'is_enrolled'     => optional($admission->student)->is_enrolled ?? null,
                 ];
             });
+
             return response()->json([
                 'isSuccess' => true,
                 'message'   => 'List of students who passed but not yet approved.',
@@ -443,6 +479,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
     //RECONSIDERED STUDENTS
     public function getReconsideredStudents(Request $request)
     {
