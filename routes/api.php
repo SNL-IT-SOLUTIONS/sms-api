@@ -138,6 +138,9 @@ Route::get('getprocesspayment', [EnrollmentsController::class, 'getProcessPaymen
 
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('saveschedule', [EnrollmentsController::class, 'saveSchedule']);
+    Route::post('getactiveschedule', [EnrollmentsController::class, 'getActiveSchedule']);
+
     Route::post('approvestudent', [EnrollmentsController::class, 'approveStudent']);
     Route::post('updatestudentdoc/{id}', [EnrollmentsController::class, 'updateStudentDocuments']);
     Route::get('getcurriculumsubject', [EnrollmentsController::class, 'getCurriculumSubjects']);

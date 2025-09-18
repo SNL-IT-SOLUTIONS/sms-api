@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Models\accounts;
 use App\Models\courses;
+use App\Models\enrollmentschedule;
 use App\Models\students;
 use App\Models\exam_schedules;
 use App\Models\payments;
@@ -38,25 +39,51 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class EnrollmentsController extends Controller
 {
 
-    public function resetEnrollment()
+    public function saveSchedule(Request $request)
     {
-        try {
-            students::query()->update([
-                'is_enrolled' => 0,
-                'is_assess'   => 0,
-            ]);
+        $validated = $request->validate([
+            'school_year_id' => 'required|exists:school_years,id',
+            'start_date'     => 'required|date',
+            'end_date'       => 'required|date|after_or_equal:start_date',
+        ]);
 
-            return response()->json([
-                'isSuccess' => true,
-                'message'   => 'All students have been reset successfully.'
-            ], 200);
-        } catch (\Exception $e) {
+        $schedule = enrollmentschedule::updateOrCreate(
+            [
+                'school_year_id' => $validated['school_year_id']
+            ],
+            [
+                'start_date' => $validated['start_date'],
+                'end_date'   => $validated['end_date'],
+                'status'     => 'open'
+            ]
+        );
+
+        return response()->json([
+            'isSuccess' => true,
+            'message'   => 'Enrollment schedule saved successfully.',
+            'data'      => $schedule
+        ]);
+    }
+
+    // ✅ Get current active schedule
+    public function getActiveSchedule()
+    {
+        $schedule = enrollmentschedule::where('status', 'open')
+            ->whereDate('start_date', '<=', now())
+            ->whereDate('end_date', '>=', now())
+            ->first();
+
+        if (!$schedule) {
             return response()->json([
                 'isSuccess' => false,
-                'message'   => 'Failed to reset students.',
-                'error'     => $e->getMessage()
-            ], 500);
+                'message'   => 'No active enrollment schedule.'
+            ], 404);
         }
+
+        return response()->json([
+            'isSuccess' => true,
+            'data'      => $schedule
+        ]);
     }
 
     public function getExamineesResult(Request $request)
@@ -188,9 +215,8 @@ class EnrollmentsController extends Controller
                 'room:id,room_name',
                 'building:id,building_name',
                 'campus:id,campus_name'
-            ])
-                ->where('exam_status', 'passed')   // Only passed students
-                ->where('is_approved', 0);        // Only not approved
+            ]);
+
 
             // Optional search filter
             if ($request->has('search') && !empty($request->search)) {

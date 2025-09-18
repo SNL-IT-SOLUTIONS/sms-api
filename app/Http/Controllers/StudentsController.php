@@ -11,6 +11,7 @@ use App\Models\campuses;
 use App\Models\subjects;
 use App\Models\payments;
 use App\Models\enrollments;
+use App\Models\enrollmentschedule;
 use Luigel\Paymongo\Facades\Paymongo;
 use Illuminate\Support\Facades\DB;
 use App\Models\fees;
@@ -703,6 +704,21 @@ class StudentsController extends Controller
                 ], 404);
             }
 
+            // 🔽 1. Check Active Enrollment Schedule
+            $activeSchedule = enrollmentschedule::where('status', 'open')
+                ->whereDate('start_date', '<=', now())
+                ->whereDate('end_date', '>=', now())
+                ->first();
+
+            if (!$activeSchedule) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No active enrollment schedule. Please wait until enrollment period opens.'
+                ], 400);
+            }
+
+            $schoolYearId = $activeSchedule->school_year_id;
+
             // 🔽 Check unpaid enrollments
             $hasUnpaid = enrollments::where('student_id', $student->id)
                 ->where('payment_status', 'Unpaid')
@@ -715,27 +731,12 @@ class StudentsController extends Controller
                 ], 400);
             }
 
-            // ✅ Determine school_year_id automatically
+            // 🔽 Determine school_year_id automatically (but align with active schedule)
             $lastEnrollment = enrollments::where('student_id', $student->id)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
             if ($lastEnrollment) {
-                // 🔽 Continuing student → get next semester
-                $nextSchoolYear = DB::table('school_years')
-                    ->where('id', '>', $lastEnrollment->school_year_id)
-                    ->orderBy('id')
-                    ->first();
-
-                if (!$nextSchoolYear) {
-                    return response()->json([
-                        'isSuccess' => false,
-                        'message'   => 'No next semester available. Contact registrar.'
-                    ], 400);
-                }
-
-                $schoolYearId = $nextSchoolYear->id;
-
                 // 🔽 GRADES CHECK
                 $hasFailed = DB::table('student_subjects')
                     ->where('student_id', $student->id)
@@ -897,7 +898,7 @@ class StudentsController extends Controller
             $enrollment = enrollments::create([
                 'student_id'           => $student->id,
                 'school_year_id'       => $schoolYearId,
-                'grade_level_id'       => $currentGrade, // ✅ include grade level here
+                'grade_level_id'       => $currentGrade,
                 'tuition_fee'          => $tuitionFee,
                 'misc_fee'             => $miscFeeTotal,
                 'original_tuition_fee' => $totalFee,

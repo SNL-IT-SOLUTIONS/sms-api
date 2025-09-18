@@ -110,9 +110,6 @@ class students extends Model
 
 
 
-
-
-
     public function schedules()
     {
         return $this->hasManyThrough(
