@@ -141,11 +141,6 @@ class AdmissionsController extends Controller
                 });
             }
 
-            if ($request->has('semester')) {
-                $query->whereHas('school_years', function ($q) use ($request) {
-                    $q->where('semester', $request->semester);
-                });
-            }
 
             $admissions = $query->paginate(10);
 
