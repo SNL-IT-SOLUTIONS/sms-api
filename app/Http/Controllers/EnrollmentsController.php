@@ -222,12 +222,18 @@ class EnrollmentsController extends Controller
             // ✅ Search filter
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
-                $query->whereHas('applicant', function ($q) use ($search) {
-                    $q->where('first_name', 'like', "%$search%")
-                        ->orWhere('test_permit_no', 'like', "%$search%")
-                        ->orWhere('last_name', 'like', "%$search%")
-                        ->orWhere('email', 'like', "%$search%")
-                        ->orWhere('contact_number', 'like', "%$search%");
+
+                $query->where(function ($q) use ($search) {
+                    // Search on exam_schedules table
+                    $q->where('test_permit_no', 'like', "%$search%");
+
+                    // Search on applicant relation
+                    $q->orWhereHas('applicant', function ($q2) use ($search) {
+                        $q2->where('first_name', 'like', "%$search%")
+                            ->orWhere('last_name', 'like', "%$search%")
+                            ->orWhere('email', 'like', "%$search%")
+                            ->orWhere('contact_number', 'like', "%$search%");
+                    });
                 });
             }
 
@@ -269,6 +275,7 @@ class EnrollmentsController extends Controller
                     'has_birth_certificate' => $schedule->has_birth_certificate ?? null,
 
                     // Admission Info (guarded)
+                    'course_id'          => $admission->academic_program_id ?? null,
                     'course'          => optional($admission->academic_program)->course_name ?? null,
                     'course_code'     => optional($admission->course)->course_code ?? null,
                     'campus_name'     => optional(optional($admission)->campus)->campus_name,
