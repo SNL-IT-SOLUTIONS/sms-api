@@ -216,8 +216,8 @@ class EnrollmentsController extends Controller
                 'building:id,building_name',
                 'campus:id,campus_name'
             ])
-                ->where('exam_status', 'passed')   // Only passed students
-                ->where('is_approved', 0);        // Only not approved
+                ->where('exam_status', 'passed')
+                ->where('is_approved', 0);
 
             // ✅ Search filter
             if ($request->has('search') && !empty($request->search)) {
