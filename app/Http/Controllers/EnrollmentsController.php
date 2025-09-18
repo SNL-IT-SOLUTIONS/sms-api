@@ -224,6 +224,7 @@ class EnrollmentsController extends Controller
                 $search = $request->search;
                 $query->whereHas('applicant', function ($q) use ($search) {
                     $q->where('first_name', 'like', "%$search%")
+                        ->orWhere('test_permit_no', 'like', "%$search%")
                         ->orWhere('last_name', 'like', "%$search%")
                         ->orWhere('email', 'like', "%$search%")
                         ->orWhere('contact_number', 'like', "%$search%");
