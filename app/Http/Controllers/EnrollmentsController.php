@@ -57,6 +57,12 @@ class EnrollmentsController extends Controller
                 'status'     => 'open'
             ]
         );
+        DB::table('students')->update([
+            'is_enrolled' => 0,
+            'is_assess'   => 0,
+        ]);
+
+
 
         return response()->json([
             'isSuccess' => true,
