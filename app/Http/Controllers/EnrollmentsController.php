@@ -396,8 +396,8 @@ class EnrollmentsController extends Controller
                 });
             }
 
-            if ($request->filled('exam_date')) {
-                $query->whereDate('exam_date', $request->exam_date);
+            if ($request->filled('academic_year')) {
+                $query->where('academic_year', $request->academic_year);
             }
 
             $query->orderBy('created_at', 'desc');
