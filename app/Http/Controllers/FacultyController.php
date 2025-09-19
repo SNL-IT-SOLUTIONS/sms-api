@@ -24,9 +24,10 @@ class FacultyController extends Controller
                 ->join('admissions as a', 'a.id', '=', 's.admission_id') // ✅ student names
                 ->join('subjects as subj', 'subj.id', '=', 'secsub.subject_id')
                 ->join('sections as sec', 'sec.id', '=', 's.section_id')
-                ->leftJoin('student_subjects as ss', function ($join) {
+                ->join('student_subjects as ss', function ($join) use ($request) {
                     $join->on('ss.student_id', '=', 's.id')
-                        ->on('ss.subject_id', '=', 'subj.id');
+                        ->on('ss.subject_id', '=', 'subj.id')
+                        ->where('ss.school_year_id', $request->input('school_year_id')); // filter by school year
                 })
                 ->select(
                     's.id as student_id',
