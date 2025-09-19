@@ -94,7 +94,7 @@ class ReportsController extends Controller
             $perPage = $request->get('per_page', 5);
             $page    = $request->get('page', 1);
 
-            $query = Students::with([
+            $query = students::with([
                 'examSchedule',
                 'course',
                 'curriculum',
