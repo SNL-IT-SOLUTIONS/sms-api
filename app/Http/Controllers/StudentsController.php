@@ -200,7 +200,7 @@ class StudentsController extends Controller
 
             $fees = DB::table('enrollments')
                 ->where('student_id', $authStudent->id)
-                ->where('academic_year_id', $student->school_year_id) // 👈 only for current school year
+                ->where('school_year_id', $student->school_year_id) // 👈 only for current school year
                 ->orderBy('created_at', 'desc')
                 ->select('tuition_fee', 'misc_fee', 'total_tuition_fee', 'payment_status')
                 ->first();
