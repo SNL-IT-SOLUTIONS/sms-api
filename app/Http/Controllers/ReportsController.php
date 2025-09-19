@@ -155,17 +155,24 @@ class ReportsController extends Controller
             $perPage = $request->get('per_page', 5);
             $page    = $request->get('page', 1);
 
-            $query = DB::table('exam_schedules')
-                ->join('admissions', 'exam_schedules.admission_id', '=', 'admissions.id')
-                ->where('exam_schedules.exam_status', 'reconsider');
+            $query = exam_schedules::with([
+                'admission.course',
+                'room',
+                'building',
+                'campus',
+                'academicYear',
+            ])->where('exam_status', 'reconsider');
 
-            // 🔍 Search (name or test permit no)
+            // 🔍 Search (student name or test permit no)
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    $q->where('admissions.first_name', 'like', "%$search%")
-                        ->orWhere('admissions.last_name', 'like', "%$search%")
-                        ->orWhere('exam_schedules.test_permit_no', 'like', "%$search%");
+                    $q->whereHas('admission', function ($q2) use ($search) {
+                        $q2->where('first_name', 'like', "%$search%")
+                            ->orWhere('last_name', 'like', "%$search%")
+                            ->orWhere('applicant_numer', 'like', "%$search%");
+                    })
+                        ->orWhere('test_permit_no', 'like', "%$search%");
                 });
             }
 
@@ -174,46 +181,31 @@ class ReportsController extends Controller
                 $query->where('academic_year_id', $request->academic_year_id);
             }
             if ($request->has('campus_id')) {
-                $query->where('exam_schedules.campus_id', $request->campus_id);
+                $query->where('campus_id', $request->campus_id);
             }
-            if ($request->filled('course_id')) {
-                $query->whereHas('applicant', function ($q) use ($request) {
-                    $q->where('course_id', $request->course_id);
+            if ($request->filled('academic_program_id')) {
+                $query->whereHas('admission', function ($q) use ($request) {
+                    $q->where('academic_program_id', $request->academic_program_id);
                 });
             }
 
-            $reconsideredStudents = $query->select([
-                'exam_schedules.id as exam_schedule_id',
-                'exam_schedules.test_permit_no',
-                'exam_schedules.exam_date',
-                'exam_schedules.exam_time_from',
-                'exam_schedules.exam_time_to',
-                'exam_schedules.academic_year',
-                'exam_schedules.exam_score',
-                'exam_schedules.room_id',
-                'exam_schedules.building_id',
-                'exam_schedules.campus_id',
-                'admissions.id as admission_id',
-                'admissions.first_name',
-                'admissions.last_name',
-                'admissions.middle_name',
-                'admissions.gender',
-                'admissions.email',
-                'admissions.contact_number',
-                'admissions.city',
-            ])->paginate($perPage, ['*'], 'page', $page);
+            // 📊 Paginate results
+            $reconsideredStudents = $query->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
-                'isSuccess'        => true,
-                'message'          => 'Reconsider exam report generated successfully',
-                'total_reconsider' => $reconsideredStudents->total(),
-                'students'         => $reconsideredStudents->items(),
-                'pagination'       => [
+                'isSuccess'          => true,
+                'message'            => 'Reconsider exam report generated successfully',
+                'total_reconsider'   => $reconsideredStudents->total(),
+                'students'           => $reconsideredStudents->items(),
+                'pagination'         => [
                     'total'        => $reconsideredStudents->total(),
                     'per_page'     => $reconsideredStudents->perPage(),
                     'current_page' => $reconsideredStudents->currentPage(),
                     'last_page'    => $reconsideredStudents->lastPage(),
                 ],
+                'academic_year' => $reconsideredStudents->first()->academicYear->school_year ?? null,
+                'semester'      => $reconsideredStudents->first()->academicYear->semester ?? null,
+                'course_name'   => $reconsideredStudents->first()->admission->course->course_name ?? null,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
