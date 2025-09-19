@@ -16,12 +16,11 @@ class ReportsController extends Controller
             $page    = $request->get('page', 1);
 
             $query = exam_schedules::with([
-                'admission',
+                'admission.course',
                 'room',
                 'building',
                 'campus',
                 'academicYear',
-                'academicProgram'
             ])->where('exam_status', 'passed');
 
             // 🔍 Search (student name or test permit no)
@@ -75,7 +74,7 @@ class ReportsController extends Controller
 
                 'academic_year' => $students->first()->academicYear->school_year ?? null,
                 'semester'      => $students->first()->academicYear->semester ?? null,
-                'course_name' => $students->first()->academicProgram->course_name ?? null,
+                'course_name'   => $students->first()->admission->course->course_name ?? null, // 👈 added here
 
             ], 200);
         } catch (\Throwable $e) {
