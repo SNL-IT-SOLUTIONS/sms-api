@@ -73,7 +73,7 @@ class EnrollmentsController extends Controller
         ]);
     }
 
-    public function closeSchedule(Request $request)
+    public function closeSchedule(Request $request, $id)
     {
 
         $validated = $request->validate([
