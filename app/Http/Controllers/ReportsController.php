@@ -203,8 +203,8 @@ class ReportsController extends Controller
                     'current_page' => $reconsideredStudents->currentPage(),
                     'last_page'    => $reconsideredStudents->lastPage(),
                 ],
-                'academic_year' => $reconsideredStudents->first()->admission->academicYear->school_year ?? null,
-                'semester'      => $reconsideredStudents->first()->admission->academicYear->semester ?? null,
+                'academic_year' => $reconsideredStudents->first()->academicYear->school_year ?? null,
+                'semester'      => $reconsideredStudents->first()->academicYear->semester ?? null,
                 'course_name'   => $reconsideredStudents->first()->admission->course->course_name ?? null,
             ], 200);
         } catch (\Throwable $e) {

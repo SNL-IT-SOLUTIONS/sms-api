@@ -13,6 +13,7 @@ class exam_schedules extends Model
     protected $fillable = [
 
         'admission_id',
+        'academic_year_id',
         'is_approved',
         'academic_program_id',
         'test_permit_no',

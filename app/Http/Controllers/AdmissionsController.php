@@ -743,7 +743,7 @@ class AdmissionsController extends Controller
                             'exam_time_from' => $request->exam_time_from,
                             'exam_time_to' => $request->exam_time_to,
                             'exam_date' => $examDate,
-                            'academic_year_id' => $admission->academic_year_id,
+                            'academic_year_id' => $admission->academic_year_id ?? $request->academic_year_id,
                             'exam_sent' => $wasAlreadySent,
                         ]
                     );
