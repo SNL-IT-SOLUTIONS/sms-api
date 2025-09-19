@@ -258,8 +258,9 @@ class EnrollmentsController extends Controller
                 });
             }
 
-            if ($request->filled('academic_year')) {
-                $query->where('academic_year', $request->academic_year);
+
+            if ($request->filled('academic_year_id')) {
+                $query->where('academic_year_id', $request->academic_year_id);
             }
 
 

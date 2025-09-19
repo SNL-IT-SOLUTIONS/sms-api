@@ -35,8 +35,9 @@ class ReportsController extends Controller
             }
 
             // 🎯 Filters
-            if ($request->has('academic_year')) {
-                $query->where('academic_year', $request->academic_year);
+
+            if ($request->filled('academic_year_id')) {
+                $query->where('academic_year_id', $request->academic_year_id);
             }
             if ($request->has('campus_id')) {
                 $query->where('campus_id', $request->campus_id);
