@@ -115,6 +115,9 @@ class ReportsController extends Controller
             }
 
             // 🎯 Filters
+            if ($request->has('section_id')) {
+                $query->where('section_id', $request->section_id);
+            }
             if ($request->has('course_id')) {
                 $query->where('course_id', $request->course_id);
             }
