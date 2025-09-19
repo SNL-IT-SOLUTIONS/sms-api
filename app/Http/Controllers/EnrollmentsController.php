@@ -4,35 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\enrollments;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\validation\Rule;
-use App\Models\admissions;
-use App\Models\sections;
-use App\Models\curriculums;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
-use App\Models\accounts;
-use App\Models\courses;
 use App\Models\enrollmentschedule;
 use App\Models\students;
 use App\Models\exam_schedules;
-use App\Models\payments;
 use App\Models\subjects;
-use App\Models\transactions;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Validation\ValidationException;
-use Throwable;
-
 use Barryvdh\DomPDF\Facade\Pdf;
 
 

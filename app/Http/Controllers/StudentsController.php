@@ -34,13 +34,13 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // 🎯 Allow filtering by school_year_id
+
             if ($request->has('school_year_id') && !empty($request->school_year_id)) {
                 $currentSchoolYear = DB::table('school_years')
                     ->where('id', $request->school_year_id)
                     ->first();
             } else {
-                // Default → active school year
+
                 $currentSchoolYear = DB::table('school_years')
                     ->where('is_active', 1)
                     ->first();
@@ -53,14 +53,14 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // ✅ Enrolled units
+
             $enrolledUnits = DB::table('student_subjects as ss')
                 ->join('subjects as s', 'ss.subject_id', '=', 's.id')
                 ->where('ss.student_id', $student->id)
                 ->where('ss.school_year_id', $currentSchoolYear->id)
                 ->sum('s.units');
 
-            // ✅ GWA
+
             $grades = DB::table('student_subjects as ss')
                 ->join('subjects as s', 'ss.subject_id', '=', 's.id')
                 ->where('ss.student_id', $student->id)
@@ -84,7 +84,7 @@ class StudentsController extends Controller
                 $gwa = round($weightedSum / $totalUnits, 2);
             }
 
-            // ✅ Enrollment & Outstanding balance
+
             $latestEnrollment = enrollments::where('student_id', $student->id)
                 ->where('school_year_id', $currentSchoolYear->id)
                 ->orderBy('created_at', 'desc')
@@ -134,7 +134,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ Student + Admission info with gender & curriculum
+
             $student = DB::table('students as s')
                 ->join('admissions as a', 'a.id', '=', 's.admission_id')
                 ->join('sections as sec', 'sec.id', '=', 's.section_id')
@@ -150,7 +150,7 @@ class StudentsController extends Controller
                     'sec.section_name',
                     'c.course_name as course',
                     'gl.grade_level as grade_level',
-                    'sy.id as school_year_id', // 👈 keep this for filter
+                    'sy.id as school_year_id',
                     'sy.school_year',
                     'sy.semester',
                     'cur.curriculum_name',
@@ -166,7 +166,7 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // ✅ Subjects only for the student's school year
+
             $subjects = DB::table('student_subjects as ss')
                 ->join('subjects as subj', 'subj.id', '=', 'ss.subject_id')
                 ->join('students as stu', 'stu.id', '=', 'ss.student_id')
@@ -190,7 +190,7 @@ class StudentsController extends Controller
                     'ss.remarks'
                 )
                 ->where('ss.student_id', $authStudent->id)
-                ->where('ss.school_year_id', $student->school_year_id) // 👈 restrict by student’s school year
+                ->where('ss.school_year_id', $student->school_year_id)
                 ->orderBy('sy.school_year')
                 ->orderBy('sy.semester')
                 ->get()
@@ -200,12 +200,12 @@ class StudentsController extends Controller
 
             $fees = DB::table('enrollments')
                 ->where('student_id', $authStudent->id)
-                ->where('school_year_id', $student->school_year_id) // 👈 only for current school year
+                ->where('school_year_id', $student->school_year_id)
                 ->orderBy('created_at', 'desc')
                 ->select('tuition_fee', 'misc_fee', 'total_tuition_fee', 'payment_status')
                 ->first();
 
-            // ✅ Total units
+
             $totalUnits = collect($subjects)->flatten()->sum('units');
 
             return response()->json([
@@ -237,7 +237,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ Student + Admission info with gender & curriculum
+
             $student = DB::table('students as s')
                 ->join('admissions as a', 'a.id', '=', 's.admission_id')
                 ->join('sections as sec', 'sec.id', '=', 's.section_id')
@@ -267,7 +267,7 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // ✅ Subjects grouped by school year + semester (fixed with LEFT JOIN)
+
             $subjects = DB::table('student_subjects as ss')
                 ->join('subjects as subj', 'subj.id', '=', 'ss.subject_id')
                 ->join('students as stu', 'stu.id', '=', 'ss.student_id')
