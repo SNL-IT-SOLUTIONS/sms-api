@@ -228,7 +228,7 @@ class EnrollmentsController extends Controller
             // ✅ Filter (example: by course_id, campus_id, exam_date, etc.)
             if ($request->filled('course_id')) {
                 $query->whereHas('applicant', function ($q) use ($request) {
-                    $q->where('course_id', $request->course_id);
+                    $q->where('academic_program_id', $request->course_id);
                 });
             }
 
