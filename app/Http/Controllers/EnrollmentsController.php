@@ -73,6 +73,32 @@ class EnrollmentsController extends Controller
         ]);
     }
 
+    public function closeSchedule(Request $request)
+    {
+
+        $validated = $request->validate([
+            'school_year_id' => 'required|exists:school_years,id',
+        ]);
+
+        $schedule = enrollmentschedule::where('school_year_id', $validated['school_year_id'])->first();
+
+        if (!$schedule) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Enrollment schedule not found.'
+            ], 404);
+        }
+
+        $schedule->status = 'closed';
+        $schedule->save();
+
+        return response()->json([
+            'isSuccess' => true,
+            'message'   => 'Enrollment schedule closed successfully.',
+            'data'      => $schedule
+        ]);
+    }
+
 
     public function getExamineesResult(Request $request)
     {
