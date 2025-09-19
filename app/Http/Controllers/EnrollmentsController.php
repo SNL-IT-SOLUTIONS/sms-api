@@ -75,12 +75,8 @@ class EnrollmentsController extends Controller
 
     public function closeSchedule(Request $request, $id)
     {
-
-        $validated = $request->validate([
-            'school_year_id' => 'required|exists:school_years,id',
-        ]);
-
-        $schedule = enrollmentschedule::where('school_year_id', $validated['school_year_id'])->first();
+        // Validate that the ID exists in the enrollmentschedule table
+        $schedule = enrollmentschedule::find($id);
 
         if (!$schedule) {
             return response()->json([
