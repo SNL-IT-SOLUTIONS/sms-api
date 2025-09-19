@@ -168,13 +168,6 @@ class ScheduleController extends Controller
                             });
                     })
                     ->exists();
-
-                if ($teacherConflict) {
-                    return response()->json([
-                        'isSuccess' => false,
-                        'message'   => 'Teacher already has a class during this time.'
-                    ], 422);
-                }
             }
 
             // 3. Check if section is free
