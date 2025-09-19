@@ -21,6 +21,7 @@ class ReportsController extends Controller
                 'building',
                 'campus',
                 'academicYear'
+                'academicProgram'
             ])->where('exam_status', 'passed');
 
             // 🔍 Search (student name or test permit no)
@@ -44,12 +45,11 @@ class ReportsController extends Controller
             if ($request->has('campus_id')) {
                 $query->where('campus_id', $request->campus_id);
             }
-            if ($request->filled('course_id')) {
-                $query->whereHas('applicant', function ($q) use ($request) {
-                    $q->where('course_id', $request->course_id);
+            if ($request->filled('academic_program_id')) {
+                $query->whereHas('admission', function ($q) use ($request) {
+                    $q->where('academic_program_id', $request->academic_program_id);
                 });
             }
-
             // 🏆 Ranking: Order by score descending
             $query->orderByDesc('exam_score');
 
@@ -75,6 +75,7 @@ class ReportsController extends Controller
 
                 'academic_year' => $students->first()->academicYear->school_year ?? null,
                 'semester'      => $students->first()->academicYear->semester ?? null,
+                'course_name' => $students->first()->academicProgram->course_name ?? null,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
