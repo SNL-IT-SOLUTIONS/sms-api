@@ -20,7 +20,7 @@ class ReportsController extends Controller
                 'room',
                 'building',
                 'campus',
-                'academicYear'
+                'academicYear',
                 'academicProgram'
             ])->where('exam_status', 'passed');
 
@@ -76,6 +76,7 @@ class ReportsController extends Controller
                 'academic_year' => $students->first()->academicYear->school_year ?? null,
                 'semester'      => $students->first()->academicYear->semester ?? null,
                 'course_name' => $students->first()->academicProgram->course_name ?? null,
+
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
