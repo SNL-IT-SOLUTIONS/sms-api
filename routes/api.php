@@ -174,6 +174,7 @@ Route::post('enrollnow', [StudentsController::class, 'enrollNow'])->middleware('
 Route::get('studentsprofile', [StudentsController::class, 'getStudentProfile'])->middleware('auth:sanctum');
 Route::post('updatestudentsprofile', [StudentsController::class, 'updateStudentProfile'])->middleware('auth:sanctum');
 Route::get('getcor', [StudentsController::class, 'getCOR'])->middleware('auth:sanctum');
+Route::get('gettor', [StudentsController::class, 'getTOR'])->middleware('auth:sanctum');
 
 
 

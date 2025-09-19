@@ -150,6 +150,109 @@ class StudentsController extends Controller
                     'sec.section_name',
                     'c.course_name as course',
                     'gl.grade_level as grade_level',
+                    'sy.id as school_year_id', // 👈 keep this for filter
+                    'sy.school_year',
+                    'sy.semester',
+                    'cur.curriculum_name',
+                    's.curriculum_id'
+                )
+                ->where('s.id', $authStudent->id)
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Student not found.'
+                ], 404);
+            }
+
+            // ✅ Subjects only for the student's school year
+            $subjects = DB::table('student_subjects as ss')
+                ->join('subjects as subj', 'subj.id', '=', 'ss.subject_id')
+                ->join('students as stu', 'stu.id', '=', 'ss.student_id')
+                ->leftJoin('section_subject_schedule as sched', function ($join) {
+                    $join->on('sched.subject_id', '=', 'ss.subject_id')
+                        ->on('sched.section_id', '=', 'stu.section_id');
+                })
+                ->leftJoin('accounts as t', 't.id', '=', 'sched.teacher_id')
+                ->join('school_years as sy', 'sy.id', '=', 'ss.school_year_id')
+                ->select(
+                    'sy.school_year',
+                    'sy.semester',
+                    'subj.id as subject_id',
+                    'subj.subject_code',
+                    'subj.subject_name',
+                    'subj.units',
+                    DB::raw("IFNULL(sched.day, 'TBA') as schedule_day"),
+                    DB::raw("IFNULL(CONCAT(sched.start_time, ' - ', sched.end_time), 'TBA') as schedule_time"),
+                    DB::raw("IFNULL(CONCAT(t.given_name, ' ', t.surname), 'TBA') as teacher_name"),
+                    'ss.final_rating',
+                    'ss.remarks'
+                )
+                ->where('ss.student_id', $authStudent->id)
+                ->where('ss.school_year_id', $student->school_year_id) // 👈 restrict by student’s school year
+                ->orderBy('sy.school_year')
+                ->orderBy('sy.semester')
+                ->get()
+                ->groupBy(function ($row) {
+                    return $row->school_year . ' - ' . $row->semester;
+                });
+
+            $fees = DB::table('enrollments')
+                ->where('student_id', $authStudent->id)
+                ->where('academic_year_id', $student->school_year_id) // 👈 only for current school year
+                ->orderBy('created_at', 'desc')
+                ->select('tuition_fee', 'misc_fee', 'total_tuition_fee', 'payment_status')
+                ->first();
+
+            // ✅ Total units
+            $totalUnits = collect($subjects)->flatten()->sum('units');
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'COR retrieved successfully.',
+                'student'  => $student,
+                'subjects_by_term' => $subjects,
+                'total_units' => $totalUnits,
+                'fees' => $fees
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to retrieve COR.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getTOR()
+    {
+        try {
+            $authStudent = auth()->user();
+
+            if (!$authStudent) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Unauthorized.'
+                ], 401);
+            }
+
+            // ✅ Student + Admission info with gender & curriculum
+            $student = DB::table('students as s')
+                ->join('admissions as a', 'a.id', '=', 's.admission_id')
+                ->join('sections as sec', 'sec.id', '=', 's.section_id')
+                ->leftJoin('courses as c', 'c.id', '=', 'a.academic_program_id')
+                ->leftJoin('grade_levels as gl', 'gl.id', '=', 's.grade_level_id')
+                ->leftJoin('school_years as sy', 'sy.id', '=', 's.academic_year_id')
+                ->leftJoin('curriculums as cur', 'cur.id', '=', 's.curriculum_id')
+                ->select(
+                    's.id as student_id',
+                    's.student_number',
+                    DB::raw("CONCAT(a.first_name, ' ', a.last_name) as student_name"),
+                    'a.gender',
+                    'sec.section_name',
+                    'c.course_name as course',
+                    'gl.grade_level as grade_level',
                     'sy.school_year',
                     'cur.curriculum_name',
                     's.curriculum_id'
@@ -205,7 +308,7 @@ class StudentsController extends Controller
 
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'COR retrieved successfully.',
+                'message' => 'TOR retrieved successfully.',
                 'student'  => $student,
                 'subjects_by_term' => $subjects,
                 'total_units' => $totalUnits,
@@ -214,7 +317,7 @@ class StudentsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Failed to retrieve COR.',
+                'message' => 'Failed to retrieve TOR.',
                 'error' => $e->getMessage()
             ], 500);
         }
