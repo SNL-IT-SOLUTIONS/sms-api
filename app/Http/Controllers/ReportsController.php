@@ -170,7 +170,7 @@ class ReportsController extends Controller
                     $q->whereHas('admission', function ($q2) use ($search) {
                         $q2->where('first_name', 'like', "%$search%")
                             ->orWhere('last_name', 'like', "%$search%")
-                            ->orWhere('applicant_numer', 'like', "%$search%");
+                            ->orWhere('applicant_number', 'like', "%$search%");
                     })
                         ->orWhere('test_permit_no', 'like', "%$search%");
                 });
