@@ -57,4 +57,8 @@ class exam_schedules extends Model
     {
         return $this->belongsTo(admissions::class, 'admission_id');
     }
+    public function academicYear()
+    {
+        return $this->belongsTo(school_years::class, 'academic_year_id');
+    }
 }

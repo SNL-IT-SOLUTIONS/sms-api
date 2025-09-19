@@ -20,6 +20,7 @@ class ReportsController extends Controller
                 'room',
                 'building',
                 'campus',
+                'academicYear'
             ])->where('exam_status', 'passed');
 
             // 🔍 Search (student name or test permit no)
@@ -71,6 +72,9 @@ class ReportsController extends Controller
                     'current_page' => $passedStudents->currentPage(),
                     'last_page'    => $passedStudents->lastPage(),
                 ],
+
+                'academic_year' => $students->first()->academicYear->school_year ?? null,
+                'semester'      => $students->first()->academicYear->semester ?? null,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
