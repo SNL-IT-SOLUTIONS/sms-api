@@ -42,6 +42,11 @@ class ReportsController extends Controller
             if ($request->has('campus_id')) {
                 $query->where('campus_id', $request->campus_id);
             }
+            if ($request->filled('course_id')) {
+                $query->whereHas('applicant', function ($q) use ($request) {
+                    $q->where('course_id', $request->course_id);
+                });
+            }
 
             // 🏆 Ranking: Order by score descending
             $query->orderByDesc('exam_score');
@@ -159,11 +164,16 @@ class ReportsController extends Controller
             }
 
             // 🎯 Filters
-            if ($request->has('academic_year')) {
-                $query->where('exam_schedules.academic_year', $request->academic_year);
+            if ($request->filled('academic_year_id')) {
+                $query->where('academic_year_id', $request->academic_year_id);
             }
             if ($request->has('campus_id')) {
                 $query->where('exam_schedules.campus_id', $request->campus_id);
+            }
+            if ($request->filled('course_id')) {
+                $query->whereHas('applicant', function ($q) use ($request) {
+                    $q->where('course_id', $request->course_id);
+                });
             }
 
             $reconsideredStudents = $query->select([
