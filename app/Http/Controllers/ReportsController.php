@@ -180,7 +180,7 @@ class ReportsController extends Controller
             if ($request->filled('academic_year_id')) {
                 $query->where('academic_year_id', $request->academic_year_id);
             }
-            if ($request->has('campus_id')) {
+            if ($request->filled('campus_id')) {
                 $query->where('campus_id', $request->campus_id);
             }
             if ($request->filled('academic_program_id')) {
