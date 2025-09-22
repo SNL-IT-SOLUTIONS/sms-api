@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Validators\ValidationException;
 
 
 class EnrollmentsController extends Controller
@@ -793,12 +794,12 @@ class EnrollmentsController extends Controller
             $rawPassword        = $studentNumber . $birthdateFormatted;
             $hashedPassword     = Hash::make($rawPassword);
 
-            // Assign section
+            // Assign section base on course
             $sections = DB::table('sections')
                 ->where('campus_id', $admission->school_campus_id)
-                ->where('course_id', $admission->academic_program_id) // ✅ match course
+                ->where('course_id', $admission->academic_program_id) //match course
                 ->where('is_archived', 0)
-                ->orderBy('id') // sequential fill, or use inRandomOrder() for random
+                ->orderBy('id')
                 ->get();
 
             $section = null;
@@ -890,6 +891,12 @@ class EnrollmentsController extends Controller
                 'section_id'     => $section->id,
                 'enrollment_status' => $enrollmentStatus,
             ], 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Validation failed',
+                'errors'    => $e->errors(), // 👈 shows the exact problem field
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'isSuccess' => false,
