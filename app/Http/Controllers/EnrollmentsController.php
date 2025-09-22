@@ -794,17 +794,23 @@ class EnrollmentsController extends Controller
             $hashedPassword     = Hash::make($rawPassword);
 
             // Assign section
-            $section = DB::table('sections')
+            $sections = DB::table('sections')
                 ->where('campus_id', $admission->school_campus_id)
+                ->where('course_id', $admission->academic_program_id) // ✅ match course
                 ->where('is_archived', 0)
-                ->get()
-                ->filter(function ($sec) {
-                    $currentCount = DB::table('students')
-                        ->where('section_id', $sec->id)
-                        ->count();
-                    return $currentCount < $sec->students_size;
-                })
-                ->first();
+                ->orderBy('id') // sequential fill, or use inRandomOrder() for random
+                ->get();
+
+            $section = null;
+            foreach ($sections as $sec) {
+                $currentCount = DB::table('students')
+                    ->where('section_id', $sec->id)
+                    ->count();
+                if ($currentCount < $sec->students_size) {
+                    $section = $sec;
+                    break;
+                }
+            }
 
             $curriculum = DB::table('curriculums')
                 ->where('course_id', $admission->academic_program_id)
