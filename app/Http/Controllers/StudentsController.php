@@ -305,6 +305,10 @@ class StudentsController extends Controller
                 ->groupBy(function ($row) {
                     return ($row->school_year ?? 'Unassigned') . ' - ' . ($row->semester ?? 'N/A');
                 });
+            if ($subjects->has('Unassigned - N/A')) {
+                $unassigned = $subjects->pull('Unassigned - N/A'); // take it out
+                $subjects = $subjects->put('Unassigned - N/A', $unassigned); // re-add at the end
+            }
 
             $fees = DB::table('enrollments')
                 ->where('student_id', $authStudent->id)
