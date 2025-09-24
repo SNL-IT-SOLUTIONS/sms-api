@@ -74,6 +74,9 @@ class EnrollmentsController extends Controller
         ]);
     }
 
+
+
+
     public function closeSchedule(Request $request, $id)
     {
         // Validate that the ID exists in the enrollmentschedule table
@@ -509,6 +512,9 @@ class EnrollmentsController extends Controller
         }
     }
 
+
+
+
     //RECONSIDERED STUDENTS
     public function getReconsideredStudents(Request $request)
     {
@@ -703,6 +709,136 @@ class EnrollmentsController extends Controller
         });
     }
     //
+
+    public function enrollStudent(Request $request)
+    {
+        try {
+            $registrar = auth()->user();
+
+            if (!$registrar) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Unauthorized. Only registrar can perform this action.'
+                ], 403);
+            }
+
+            // 🔽 Registrar specifies which student to enroll
+            $validated = $request->validate([
+                'student_id'   => 'required|exists:students,id',
+                'subjects'     => 'required|array|min:1',
+                'subjects.*'   => 'exists:subjects,id',
+                'school_year_id' => 'required|exists:school_years,id',
+                'grade_level_id' => 'nullable|exists:grade_levels,id'
+            ]);
+
+            $student = students::findOrFail($validated['student_id']);
+            $schoolYearId = $validated['school_year_id'];
+
+            // 🔽 Still check for unpaid enrollments unless registrar wants to override
+            $hasUnpaid = enrollments::where('student_id', $student->id)
+                ->where('payment_status', 'Unpaid')
+                ->exists();
+
+            if ($hasUnpaid) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'This student has unpaid enrollment(s). Please settle first or override manually.'
+                ], 400);
+            }
+
+            // 🔽 Curriculum
+            $curriculum = DB::table('curriculums')
+                ->where('course_id', $student->course_id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$curriculum) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No curriculum found for this course.'
+                ], 400);
+            }
+
+            // 🔽 Fee computation
+            $subjects = subjects::whereIn('id', $validated['subjects'])->get();
+            $totalUnits = $subjects->sum('units');
+            $unitRate   = 200;
+            $unitsFee   = $totalUnits * $unitRate;
+            $tuitionFee = $unitsFee;
+
+            $miscFees = DB::table('fees')
+                ->where('is_active', 1)
+                ->where('is_archived', 0)
+                ->where('school_year_id', $schoolYearId)
+                ->get();
+
+            $miscFeeTotal = $miscFees->sum('default_amount');
+            $totalFee     = $tuitionFee + $miscFeeTotal;
+
+            // 🔽 Generate reference number
+            do {
+                $referenceNumber = mt_rand(1000000, 9999999);
+            } while (enrollments::where('reference_number', $referenceNumber)->exists());
+
+            // 🔽 Enrollment
+            $enrollment = enrollments::create([
+                'student_id'           => $student->id,
+                'school_year_id'       => $schoolYearId,
+                'grade_level_id'       => $validated['grade_level_id'] ?? $student->grade_level_id,
+                'tuition_fee'          => $tuitionFee,
+                'misc_fee'             => $miscFeeTotal,
+                'original_tuition_fee' => $totalFee,
+                'total_tuition_fee'    => $totalFee,
+                'payment_status'       => 'Unpaid',
+                'transaction'          => 'Enrollment',
+                'reference_number'     => $referenceNumber,
+                'created_by'           => $registrar->id
+            ]);
+
+            foreach ($miscFees as $fee) {
+                DB::table('enrollment_fees')->insert([
+                    'enrollment_id' => $enrollment->id,
+                    'fee_id'        => $fee->id,
+                    'amount'        => $fee->default_amount,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            // 🔽 Sync subjects
+            $pivotData = [];
+            foreach ($validated['subjects'] as $subjectId) {
+                $pivotData[$subjectId] = ['school_year_id' => $schoolYearId];
+            }
+            $student->subjects()->syncWithoutDetaching($pivotData);
+
+            // 🔽 Update student
+            $student->update([
+                'curriculum_id'     => $curriculum->id,
+                'academic_year_id'  => $schoolYearId,
+                'is_assess'         => 1
+            ]);
+
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Student successfully enrolled.',
+                'data'      => [
+                    'enrollment'       => $enrollment,
+                    'subjects'         => $subjects,
+                    'curriculum_id'    => $curriculum->id,
+                    'total_units'      => $totalUnits,
+                    'misc_fees'        => $miscFees,
+                    'total_amount'     => $totalFee,
+                    'reference_number' => $referenceNumber
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => $e->getMessage()
+            ], 500);
+        }
+    }
 
 
 

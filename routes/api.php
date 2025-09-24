@@ -153,6 +153,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('sendreceipt/{id}', [EnrollmentsController::class, 'sendReceipt']);
     Route::get('getstudentcurriculums/{id}', [EnrollmentsController::class, 'getStudentCurriculums']);
     Route::post('resetenrollment', [EnrollmentsController::class, 'resetEnrollment']);
+    Route::post('enrollstudent', [EnrollmentsController::class, 'enrollStudent']);
 });
 
 //Payments
