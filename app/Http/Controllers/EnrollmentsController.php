@@ -1652,26 +1652,83 @@ class EnrollmentsController extends Controller
 
 
     //HELPERS
-    public function getAvailableSubjects()
+    public function getAvailableSubjects(Request $request)
     {
-        $student = auth()->user()->student;
+        try {
 
-        if (!$student || !$student->admission) {
-            return response()->json(['message' => 'Student not found or not admitted.'], 404);
+            $studentId = $request->input('student_id');
+
+            if (!$studentId) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Student ID is required.',
+                ], 400);
+            }
+
+
+            $student = DB::table('students')->where('id', $studentId)->first();
+
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Student not found.',
+                ], 404);
+            }
+
+            $curriculumId = $student->curriculum_id;
+
+            if (!$curriculumId) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No curriculum assigned to this student.',
+                ], 404);
+            }
+
+
+            $lastEnrollment = DB::table('enrollments')
+                ->where('student_id', $student->id)
+                ->orderByDesc('school_year_id')
+                ->first();
+
+            $targetSchoolYearId = $lastEnrollment
+                ? $lastEnrollment->school_year_id + 1
+                : $student->academic_year_id;
+
+
+            $query = DB::table('curriculum_subject as cs')
+                ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+                ->leftJoin('student_subjects as ss', function ($join) use ($student) {
+                    $join->on('s.id', '=', 'ss.subject_id')
+                        ->where('ss.student_id', $student->id);
+                })
+                ->where('cs.curriculum_id', $curriculumId)
+                ->where('s.school_year_id', $targetSchoolYearId)
+                ->whereNull('ss.final_rating')
+                ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
+
+
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('s.subject_code', 'LIKE', "%{$search}%")
+                        ->orWhere('s.subject_name', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $subjects = $query->get();
+
+            return response()->json([
+                'isSuccess'          => true,
+                'student_id'         => $student->id,
+                'curriculum_id'      => $curriculumId,
+                'eligible_year_id'   => $targetSchoolYearId,
+                'subjects'           => $subjects
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Error: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $courseId = $student->admission->course_id;
-        $schoolYearId = $student->admission->school_year_id;
-        $semester = $student->admission->semester;
-
-        $subjects = subjects::where('course_id', $courseId)
-            ->where('school_year_id', $schoolYearId)
-            ->where('semester', $semester)
-            ->get();
-
-        return response()->json([
-            'isSuccess' => true,
-            'data' => $subjects
-        ]);
     }
 }
