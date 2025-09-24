@@ -132,6 +132,7 @@ class FacultyController extends Controller
                     'sub.subject_code',
                     'sub.subject_name',
                     'sss.id as schedule_id',
+                    'sss.school_year_id',
                     'sec.section_name',
                     'sss.day',
                     'sss.start_time',
@@ -162,14 +163,13 @@ class FacultyController extends Controller
                 $query->where('sss.school_year_id', $request->school_year_id);
             }
 
-
-
             $schedules = $query
                 ->groupBy(
                     'sub.subject_code',
                     'sub.subject_name',
                     'sss.school_year_id',
                     'sss.id',
+                    'sss.school_year_id',
                     'sec.section_name',
                     'sss.day',
                     'sss.start_time',
@@ -196,7 +196,6 @@ class FacultyController extends Controller
                     'schedule_id'       => $s->schedule_id,
                     'faculty_credit'    => $s->faculty_credit,
                     'enrolled_students' => $s->enrolled_students,
-                    'school_year_id'    => $s->school_year_id,
                 ];
             });
 
@@ -257,7 +256,7 @@ class FacultyController extends Controller
     public function submitGrade(Request $request)
     {
         try {
-            $facultyId = auth()->user(); // ✅ logged-in faculty
+            $facultyId = auth()->user();
 
             // ✅ Validate input
             $validated = $request->validate([
