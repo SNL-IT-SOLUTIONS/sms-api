@@ -489,6 +489,7 @@ class EnrollmentsController extends Controller
                     'certificate_of_completion' => $admission && $admission->certificate_of_completion ? asset($admission->certificate_of_completion) : null,
 
                     'is_enrolled'     => optional($admission->student)->is_enrolled ?? null,
+                    'is_assess'     => optional($admission->student)->is_assess ?? null,
                 ];
             });
 
