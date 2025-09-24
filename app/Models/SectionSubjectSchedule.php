@@ -14,6 +14,7 @@ class SectionSubjectSchedule extends Model
     protected $fillable = [
         'section_id',
         'subject_id',
+        'school_year_id',
         'day',
         'start_time',
         'end_time',
