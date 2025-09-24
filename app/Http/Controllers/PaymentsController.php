@@ -116,6 +116,7 @@ class PaymentsController extends Controller
             // ✅ Update student payment status
             $student->payment_status = $paymentStatus;
             $student->is_enrolled = 1;
+            $student->is_assess = 0;
             $student->save();
 
             // ✅ Update enrollment balance and status
