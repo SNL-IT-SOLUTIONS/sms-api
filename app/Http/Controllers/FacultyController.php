@@ -158,6 +158,9 @@ class FacultyController extends Controller
             if ($request->filled('subject_name')) {
                 $query->where('sub.subject_name', 'LIKE', '%' . $request->subject_name . '%');
             }
+            if ($request->filled('school_year_id')) {
+                $query->where('sss.school_year_id', $request->school_year_id);
+            }
 
 
 
