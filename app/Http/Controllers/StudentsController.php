@@ -268,15 +268,24 @@ class StudentsController extends Controller
             }
 
 
-            $subjects = DB::table('student_subjects as ss')
-                ->join('subjects as subj', 'subj.id', '=', 'ss.subject_id')
-                ->join('students as stu', 'stu.id', '=', 'ss.student_id')
-                ->leftJoin('section_subject_schedule as sched', function ($join) {
-                    $join->on('sched.subject_id', '=', 'ss.subject_id')
-                        ->on('sched.section_id', '=', 'stu.section_id');
+            $subjects = DB::table('curriculum_subject as cs')
+                ->join('subjects as subj', 'subj.id', '=', 'cs.subject_id')
+                ->leftJoin('student_subjects as ss', function ($join) use ($authStudent) {
+                    $join->on('ss.subject_id', '=', 'cs.subject_id')
+                        ->where('ss.student_id', '=', $authStudent->id);
+                })
+                ->leftJoin('section_subject_schedule as sched', function ($join) use ($authStudent) {
+                    $join->on('sched.subject_id', '=', 'cs.subject_id')
+                        ->where('sched.section_id', function ($query) use ($authStudent) {
+                            $query->select('section_id')
+                                ->from('students')
+                                ->where('id', $authStudent->id)
+                                ->limit(1);
+                        });
                 })
                 ->leftJoin('accounts as t', 't.id', '=', 'sched.teacher_id')
-                ->join('school_years as sy', 'sy.id', '=', 'ss.school_year_id')
+                ->leftJoin('school_years as sy', 'sy.id', '=', 'ss.school_year_id')
+                ->where('cs.curriculum_id', $student->curriculum_id) // ✅ pull all subjects in student's curriculum
                 ->select(
                     'sy.school_year',
                     'sy.semester',
@@ -290,13 +299,13 @@ class StudentsController extends Controller
                     'ss.final_rating',
                     'ss.remarks'
                 )
-                ->where('ss.student_id', $authStudent->id)
                 ->orderBy('sy.school_year')
                 ->orderBy('sy.semester')
                 ->get()
                 ->groupBy(function ($row) {
-                    return $row->school_year . ' - ' . $row->semester;
+                    return ($row->school_year ?? 'Unassigned') . ' - ' . ($row->semester ?? 'N/A');
                 });
+
             $fees = DB::table('enrollments')
                 ->where('student_id', $authStudent->id)
                 ->orderBy('created_at', 'desc') // latest enrollment
