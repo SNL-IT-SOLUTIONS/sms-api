@@ -296,6 +296,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('deleteroom/{id}', [BuildingRoomsController::class, 'deleteRoom']);
 });
 
+//HELPER ROUTES
+Route::get('getavailablesubjects', [EnrollmentsController::class, 'getAvailableSubjects']);
+
 //Reports
 Route::get('passedexamreports', [ReportsController::class, 'getPassedExamReport']);
 Route::get('enrolledstudentsreports', [ReportsController::class, 'getEnrolledStudentsReport']);
