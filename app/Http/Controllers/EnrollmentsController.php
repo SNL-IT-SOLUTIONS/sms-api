@@ -722,16 +722,38 @@ class EnrollmentsController extends Controller
                 ], 403);
             }
 
-            // 🔽 Registrar specifies which student to enroll
+            // 🔽 Registrar specifies which student to enroll (via exam_schedules.id)
             $validated = $request->validate([
-                'student_id'   => 'required|exists:students,id',
-                'subjects'     => 'required|array|min:1',
-                'subjects.*'   => 'exists:subjects,id',
+                'student_id'     => 'required|exists:exam_schedules,id',
+                'subjects'       => 'required|array|min:1',
+                'subjects.*'     => 'exists:subjects,id',
                 'school_year_id' => 'required|exists:school_years,id',
                 'grade_level_id' => 'nullable|exists:grade_levels,id'
             ]);
 
-            $student = students::findOrFail($validated['student_id']);
+            $examSchedule = DB::table('exam_schedules')->where('id', $validated['student_id'])->first();
+
+            if (!$examSchedule) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Exam schedule record not found.'
+                ], 404);
+            }
+
+            // 🔽 Find or create student linked to this exam schedule
+            $student = students::where('exam_schedules_id', $examSchedule->id)->first();
+
+            if (!$student) {
+                $student = students::create([
+                    'exam_schedules_id' => $examSchedule->id,
+                    'admission_id'      => $examSchedule->admission_id ?? null,
+                    'grade_level_id'    => $validated['grade_level_id'] ?? null,
+                    'academic_year_id'  => $validated['school_year_id'],
+                    'is_assess'         => 0,
+                    'is_enrolled'       => 0,
+                ]);
+            }
+
             $schoolYearId = $validated['school_year_id'];
 
             // 🔽 Still check for unpaid enrollments unless registrar wants to override
@@ -748,7 +770,7 @@ class EnrollmentsController extends Controller
 
             // 🔽 Curriculum
             $curriculum = DB::table('curriculums')
-                ->where('course_id', $student->course_id)
+                ->where('course_id', $examSchedule->course_id ?? $student->course_id)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
@@ -816,7 +838,8 @@ class EnrollmentsController extends Controller
             $student->update([
                 'curriculum_id'     => $curriculum->id,
                 'academic_year_id'  => $schoolYearId,
-                'is_assess'         => 1
+                'is_assess'         => 1,
+                'is_enrolled'       => 1
             ]);
 
             return response()->json([
