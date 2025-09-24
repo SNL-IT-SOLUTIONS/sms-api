@@ -196,6 +196,7 @@ class FacultyController extends Controller
                     'schedule_id'       => $s->schedule_id,
                     'faculty_credit'    => $s->faculty_credit,
                     'enrolled_students' => $s->enrolled_students,
+                    'school_year_id'    => $s->school_year_id,
                 ];
             });
 
