@@ -1678,24 +1678,37 @@ class EnrollmentsController extends Controller
     public function getAvailableSubjects(Request $request)
     {
         try {
+            $examScheduleId = $request->input('student_id');
 
-            $studentId = $request->input('student_id');
-
-            if (!$studentId) {
+            if (!$examScheduleId) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message'   => 'Student ID is required.',
+                    'message'   => 'Student ID (exam schedule ID) is required.',
                 ], 400);
             }
 
+            // 🔽 Make sure exam schedule exists
+            $examSchedule = DB::table('exam_schedules')->where('id', $examScheduleId)->first();
 
-            $student = DB::table('students')->where('id', $studentId)->first();
-
-            if (!$student) {
+            if (!$examSchedule) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message'   => 'Student not found.',
+                    'message'   => 'Exam schedule not found.',
                 ], 404);
+            }
+
+            // 🔽 Find or create the student linked to exam_schedules
+            $student = students::where('exam_schedules_id', $examSchedule->id)->first();
+
+            if (!$student) {
+                $student = students::create([
+                    'exam_schedules_id' => $examSchedule->id,
+                    'admission_id'      => $examSchedule->admission_id ?? null,
+                    'grade_level_id'    => null,
+                    'academic_year_id'  => $examSchedule->school_year_id ?? null,
+                    'is_assess'         => 0,
+                    'is_enrolled'       => 0,
+                ]);
             }
 
             $curriculumId = $student->curriculum_id;
@@ -1707,7 +1720,7 @@ class EnrollmentsController extends Controller
                 ], 404);
             }
 
-
+            // 🔽 Get latest enrollment of this student
             $lastEnrollment = DB::table('enrollments')
                 ->where('student_id', $student->id)
                 ->orderByDesc('school_year_id')
@@ -1717,7 +1730,7 @@ class EnrollmentsController extends Controller
                 ? $lastEnrollment->school_year_id + 1
                 : $student->academic_year_id;
 
-
+            // 🔽 Base query: subjects tied to curriculum, not yet completed
             $query = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
                 ->leftJoin('student_subjects as ss', function ($join) use ($student) {
@@ -1729,7 +1742,7 @@ class EnrollmentsController extends Controller
                 ->whereNull('ss.final_rating')
                 ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
 
-
+            // 🔽 Optional search filter
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -1741,11 +1754,12 @@ class EnrollmentsController extends Controller
             $subjects = $query->get();
 
             return response()->json([
-                'isSuccess'          => true,
-                'student_id'         => $student->id,
-                'curriculum_id'      => $curriculumId,
-                'eligible_year_id'   => $targetSchoolYearId,
-                'subjects'           => $subjects
+                'isSuccess'        => true,
+                'exam_schedule_id' => $examSchedule->id,
+                'student_id'       => $student->id,
+                'curriculum_id'    => $curriculumId,
+                'eligible_year_id' => $targetSchoolYearId,
+                'subjects'         => $subjects
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
