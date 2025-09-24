@@ -839,7 +839,7 @@ class EnrollmentsController extends Controller
                 'curriculum_id'     => $curriculum->id,
                 'academic_year_id'  => $schoolYearId,
                 'is_assess'         => 1,
-                'is_enrolled'       => 1
+                'is_enrolled'       => 0
             ]);
 
             return response()->json([
