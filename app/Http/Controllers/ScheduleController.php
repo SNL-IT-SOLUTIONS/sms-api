@@ -128,6 +128,7 @@ class ScheduleController extends Controller
                     }
                 ],
                 'teacher_id' => 'nullable|exists:accounts,id',
+                'school_year_id' => 'required|exists:school_years,id',
             ]);
 
             // ⚡ Extra custom validation rules
@@ -258,6 +259,7 @@ class ScheduleController extends Controller
                     }
                 ],
                 'teacher_id' => 'sometimes|exists:accounts,id',
+                'school_year_id' => 'sometimes|exists:school_years,id'
             ]);
 
             $schedule->update($validated);

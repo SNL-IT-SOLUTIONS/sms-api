@@ -13,95 +13,95 @@ class FacultyController extends Controller
 
 
 
-  public function getStudents(Request $request)
-{
-    try {
-        $teacherId = Auth::id(); // ✅ logged-in teacher
-        $perPage   = $request->input('per_page', 10); // ✅ default 10 per page
-        $search    = $request->input('search'); // 🔍 search
-        $sectionId = $request->input('section_id'); // 🎯 filter
-        $subjectId = $request->input('subject_id'); // 🎯 filter
-        $remarks   = $request->input('remarks'); // 🎯 filter
+    public function getStudents(Request $request)
+    {
+        try {
+            $teacherId = Auth::id(); // ✅ logged-in teacher
+            $perPage   = $request->input('per_page', 10); // ✅ default 10 per page
+            $search    = $request->input('search'); // 🔍 search
+            $sectionId = $request->input('section_id'); // 🎯 filter
+            $subjectId = $request->input('subject_id'); // 🎯 filter
+            $remarks   = $request->input('remarks'); // 🎯 filter
 
-        $students = DB::table('section_subject_schedule as secsub')
-            ->join('students as s', 's.section_id', '=', 'secsub.section_id')
-            ->join('admissions as a', 'a.id', '=', 's.admission_id') // ✅ student names
-            ->join('subjects as subj', 'subj.id', '=', 'secsub.subject_id')
-            ->join('sections as sec', 'sec.id', '=', 's.section_id')
-            ->join('student_subjects as ss', function ($join) {
-                $join->on('ss.student_id', '=', 's.id')
-                     ->on('ss.subject_id', '=', 'subj.id');
-            })
-            ->select(
-                's.id as student_id',
-                's.student_number',
-                DB::raw("CONCAT(a.first_name, ' ', a.last_name) as student_name"),
-                'sec.id as section_id',
-                'sec.section_name',
-                'subj.id as subject_id',
-                'subj.subject_name',
-                'secsub.teacher_id',
-                'ss.final_rating',
-                'ss.remarks'
-            )
-            ->where('secsub.teacher_id', $teacherId);
+            $students = DB::table('section_subject_schedule as secsub')
+                ->join('students as s', 's.section_id', '=', 'secsub.section_id')
+                ->join('admissions as a', 'a.id', '=', 's.admission_id') // ✅ student names
+                ->join('subjects as subj', 'subj.id', '=', 'secsub.subject_id')
+                ->join('sections as sec', 'sec.id', '=', 's.section_id')
+                ->join('student_subjects as ss', function ($join) {
+                    $join->on('ss.student_id', '=', 's.id')
+                        ->on('ss.subject_id', '=', 'subj.id');
+                })
+                ->select(
+                    's.id as student_id',
+                    's.student_number',
+                    DB::raw("CONCAT(a.first_name, ' ', a.last_name) as student_name"),
+                    'sec.id as section_id',
+                    'sec.section_name',
+                    'subj.id as subject_id',
+                    'subj.subject_name',
+                    'secsub.teacher_id',
+                    'ss.final_rating',
+                    'ss.remarks'
+                )
+                ->where('secsub.teacher_id', $teacherId);
 
-        // 🔍 Apply search filter
-        if ($search) {
-            $students->where(function ($q) use ($search) {
-                $q->where('s.student_number', 'LIKE', "%{$search}%")
-                  ->orWhere(DB::raw("CONCAT(a.first_name, ' ', a.last_name)"), 'LIKE', "%{$search}%")
-                  ->orWhere('subj.subject_name', 'LIKE', "%{$search}%")
-                  ->orWhere('sec.section_name', 'LIKE', "%{$search}%");
+            // 🔍 Apply search filter
+            if ($search) {
+                $students->where(function ($q) use ($search) {
+                    $q->where('s.student_number', 'LIKE', "%{$search}%")
+                        ->orWhere(DB::raw("CONCAT(a.first_name, ' ', a.last_name)"), 'LIKE', "%{$search}%")
+                        ->orWhere('subj.subject_name', 'LIKE', "%{$search}%")
+                        ->orWhere('sec.section_name', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // 🎯 Apply additional filters
+            if ($sectionId) {
+                $students->where('sec.id', $sectionId);
+            }
+            if ($subjectId) {
+                $students->where('subj.id', $subjectId);
+            }
+            if ($remarks) {
+                $students->where('ss.remarks', $remarks);
+            }
+
+            $students = $students->paginate($perPage);
+
+            // ✅ Format the collection
+            $formattedStudents = $students->getCollection()->map(function ($student) {
+                return [
+                    'student_id'     => $student->student_id,
+                    'student_number' => $student->student_number,
+                    'student_name'   => $student->student_name,
+                    'section_id'     => $student->section_id,
+                    'section_name'   => $student->section_name,
+                    'subject_id'     => $student->subject_id,
+                    'subject_name'   => $student->subject_name,
+                    'final_rating'   => $student->final_rating,
+                    'remarks'        => $student->remarks,
+                ];
             });
-        }
 
-        // 🎯 Apply additional filters
-        if ($sectionId) {
-            $students->where('sec.id', $sectionId);
+            return response()->json([
+                'isSuccess'  => true,
+                'data'       => $formattedStudents,
+                'pagination' => [
+                    'current_page' => $students->currentPage(),
+                    'per_page'     => $students->perPage(),
+                    'total'        => $students->total(),
+                    'last_page'    => $students->lastPage(),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to retrieve students.',
+                'error'     => $e->getMessage()
+            ], 500);
         }
-        if ($subjectId) {
-            $students->where('subj.id', $subjectId);
-        }
-        if ($remarks) {
-            $students->where('ss.remarks', $remarks);
-        }
-
-        $students = $students->paginate($perPage);
-
-        // ✅ Format the collection
-        $formattedStudents = $students->getCollection()->map(function ($student) {
-            return [
-                'student_id'     => $student->student_id,
-                'student_number' => $student->student_number,
-                'student_name'   => $student->student_name,
-                'section_id'     => $student->section_id,
-                'section_name'   => $student->section_name,
-                'subject_id'     => $student->subject_id,
-                'subject_name'   => $student->subject_name,
-                'final_rating'   => $student->final_rating,
-                'remarks'        => $student->remarks,
-            ];
-        });
-
-        return response()->json([
-            'isSuccess'  => true,
-            'data'       => $formattedStudents,
-            'pagination' => [
-                'current_page' => $students->currentPage(),
-                'per_page'     => $students->perPage(),
-                'total'        => $students->total(),
-                'last_page'    => $students->lastPage(),
-            ],
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'isSuccess' => false,
-            'message'   => 'Failed to retrieve students.',
-            'error'     => $e->getMessage()
-        ], 500);
     }
-}
 
 
 
@@ -122,7 +122,7 @@ class FacultyController extends Controller
 
             $facultyId = $faculty->id;
 
-            $schedules = DB::table('section_subject_schedule as sss')
+            $query = DB::table('section_subject_schedule as sss')
                 ->join('sections as sec', 'sec.id', '=', 'sss.section_id')
                 ->join('subjects as sub', 'sub.id', '=', 'sss.subject_id')
                 ->leftJoin('building_rooms as br', 'br.id', '=', 'sss.room_id')
@@ -142,10 +142,30 @@ class FacultyController extends Controller
                     DB::raw('COUNT(st.id) as enrolled_students'),
                     DB::raw('sub.units as faculty_credit')
                 )
-                ->where('sss.teacher_id', $facultyId)
+                ->where('sss.teacher_id', $facultyId);
+
+            // ✅ Apply filters dynamically
+
+
+            if ($request->filled('section_id')) {
+                $query->where('sec.id', $request->section_id);
+            }
+
+            if ($request->filled('course_id')) {
+                $query->where('c.id', $request->course_id);
+            }
+
+            if ($request->filled('subject_name')) {
+                $query->where('sub.subject_name', 'LIKE', '%' . $request->subject_name . '%');
+            }
+
+
+
+            $schedules = $query
                 ->groupBy(
                     'sub.subject_code',
                     'sub.subject_name',
+                    'sss.school_year_id',
                     'sss.id',
                     'sec.section_name',
                     'sss.day',
@@ -165,17 +185,17 @@ class FacultyController extends Controller
                     'subject'           => $s->subject_name,
                     'specialization'    => $s->subject_code,
                     'day'               => $s->day,
-                    'start_time'          =>  $s->start_time,
-                    'end_time'            => $s->end_time,
+                    'start_time'        => $s->start_time,
+                    'end_time'          => $s->end_time,
                     'room'              => $s->room_name ?? '--',
                     'section'           => $s->section_name,
                     'course'            => $s->course_name ?? '--',
                     'schedule_id'       => $s->schedule_id,
                     'faculty_credit'    => $s->faculty_credit,
                     'enrolled_students' => $s->enrolled_students,
+                    'school_year_id'    => $s->school_year_id,
                 ];
             });
-
 
             return response()->json([
                 'isSuccess' => true,
