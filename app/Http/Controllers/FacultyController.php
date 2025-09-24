@@ -16,16 +16,16 @@ class FacultyController extends Controller
     public function getStudents(Request $request)
     {
         try {
-            $teacherId = Auth::id(); // ✅ logged-in teacher
-            $perPage   = $request->input('per_page', 10); // ✅ default 10 per page
-            $search    = $request->input('search'); // 🔍 search
-            $sectionId = $request->input('section_id'); // 🎯 filter
-            $subjectId = $request->input('subject_id'); // 🎯 filter
-            $remarks   = $request->input('remarks'); // 🎯 filter
+            $teacherId = Auth::id();
+            $perPage   = $request->input('per_page', 10);
+            $search    = $request->input('search');
+            $sectionId = $request->input('section_id');
+            $subjectId = $request->input('subject_id');
+            $remarks   = $request->input('remarks');
 
             $students = DB::table('section_subject_schedule as secsub')
                 ->join('students as s', 's.section_id', '=', 'secsub.section_id')
-                ->join('admissions as a', 'a.id', '=', 's.admission_id') // ✅ student names
+                ->join('admissions as a', 'a.id', '=', 's.admission_id')
                 ->join('subjects as subj', 'subj.id', '=', 'secsub.subject_id')
                 ->join('sections as sec', 'sec.id', '=', 's.section_id')
                 ->join('student_subjects as ss', function ($join) {
@@ -46,7 +46,7 @@ class FacultyController extends Controller
                 )
                 ->where('secsub.teacher_id', $teacherId);
 
-            // 🔍 Apply search filter
+
             if ($search) {
                 $students->where(function ($q) use ($search) {
                     $q->where('s.student_number', 'LIKE', "%{$search}%")
@@ -56,7 +56,7 @@ class FacultyController extends Controller
                 });
             }
 
-            // 🎯 Apply additional filters
+
             if ($sectionId) {
                 $students->where('sec.id', $sectionId);
             }
@@ -69,7 +69,7 @@ class FacultyController extends Controller
 
             $students = $students->paginate($perPage);
 
-            // ✅ Format the collection
+
             $formattedStudents = $students->getCollection()->map(function ($student) {
                 return [
                     'student_id'     => $student->student_id,
@@ -146,8 +146,6 @@ class FacultyController extends Controller
                 ->where('sss.teacher_id', $facultyId);
 
             // ✅ Apply filters dynamically
-
-
             if ($request->filled('section_id')) {
                 $query->where('sec.id', $request->section_id);
             }
