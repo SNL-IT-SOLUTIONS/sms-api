@@ -68,6 +68,10 @@ class AuthController extends Controller
                 // create token for student
                 $token = $student->createToken('auth-token')->plainTextToken;
 
+                $enrollmentCount = DB::table('enrollments')
+                    ->where('student_id', $student->id)
+                    ->count();
+
                 $studentData = [
                     'id'               => $student->id,
                     'student_number'   => $student->student_number,
@@ -83,13 +87,16 @@ class AuthController extends Controller
                     'is_enrolled'      => $student->is_enrolled,
 
                     // 👉 Transformed IDs
+                    'academic_year_id' => $student->academicYear->id,
                     'academic_year'    => $student->academicYear->school_year ?? null,
                     'semester'         => $student->academicYear->semester ?? null, // ✅ optional
+                    'grade_level'  => $student->gradeLevel->grade_level ?? null,
                     'grade_desc'       => $student->gradeLevel->description ?? null,
                     'course'           => $student->course->course_name ?? null,
                     'course_code'      => $student->course->course_code ?? null,
                     'section'          => $student->section->section_name ?? null,
                     'curriculum'       => $student->curriculum->curriculum_name ?? null,
+                    'enrollment_count' => $enrollmentCount,
 
                     'user_type'        => $student->user_type,
                 ];

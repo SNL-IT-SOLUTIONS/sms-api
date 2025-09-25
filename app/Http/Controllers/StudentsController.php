@@ -1046,7 +1046,6 @@ class StudentsController extends Controller
             $student->update([
                 'curriculum_id' => $curriculum->id,
                 'is_assess'     => 1,
-                'next_semester' => 1
             ]);
 
             return response()->json([
