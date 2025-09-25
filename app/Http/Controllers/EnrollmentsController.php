@@ -1420,9 +1420,6 @@ class EnrollmentsController extends Controller
 
 
 
-
-
-
     //UPDATED 9/4/2025 //MANAGE ENROLLMENT FRONTEND
     public function getAllEnrollments(Request $request)
     {
