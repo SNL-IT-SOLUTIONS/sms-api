@@ -1617,7 +1617,6 @@ class EnrollmentsController extends Controller
                         ->where('ss.student_id', $student->id);
                 })
                 ->where('cs.curriculum_id', $curriculumId)
-                ->where('s.grade_level_id', $student->grade_level_id)
                 ->whereNull('ss.final_rating')
                 ->select(
                     's.id',
