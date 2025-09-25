@@ -1611,17 +1611,27 @@ class EnrollmentsController extends Controller
                 ? $lastEnrollment->school_year_id + 1
                 : $student->academic_year_id; // fallback if no enrollment yet
 
-            // 🔽 Base query with left join to student_subjects
+            // 🔽 Base query with join to school_years
             $query = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
+                ->join('school_years as sy', 's.school_year_id', '=', 'sy.id') // ✅ join to get semester
                 ->leftJoin('student_subjects as ss', function ($join) use ($student) {
                     $join->on('s.id', '=', 'ss.subject_id')
                         ->where('ss.student_id', $student->id);
                 })
                 ->where('cs.curriculum_id', $curriculumId)
                 ->where('s.grade_level_id', $student->grade_level_id)
-                ->whereNull('ss.final_rating') // ✅ only show subjects with no grade yet
-                ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
+                ->whereNull('ss.final_rating')
+                ->select(
+                    's.id',
+                    's.subject_code',
+                    's.subject_name',
+                    's.units',
+                    's.grade_level_id',
+                    's.school_year_id',
+                    'sy.school_year',
+                    'sy.semester' // ✅ include semester
+                );
 
             // 🔽 Search filter
             if ($request->has('search') && !empty($request->search)) {
@@ -1637,7 +1647,7 @@ class EnrollmentsController extends Controller
             return response()->json([
                 'isSuccess'          => true,
                 'curriculum_id'      => $curriculumId,
-                'eligible_year_id'   => $targetSchoolYearId, // ✅ just so you know what year it used
+                'eligible_year_id'   => $targetSchoolYearId,
                 'subjects'           => $subjects
             ], 200);
         } catch (\Exception $e) {
@@ -1647,6 +1657,7 @@ class EnrollmentsController extends Controller
             ], 500);
         }
     }
+
 
 
 
