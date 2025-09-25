@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Models\admissions;
+use Illuminate\Support\Facades\DB;
 
 use App\Models\accounts;
 
