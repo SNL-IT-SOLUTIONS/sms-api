@@ -889,7 +889,7 @@ class StudentsController extends Controller
                     ->where('grade_level_id', $currentGrade)
                     ->count();
 
-                if ($completedSemesters >= 2) {
+                if ($completedSemesters >= 1) {
                     $nextGrade = DB::table('grade_levels')
                         ->where('id', '>', $currentGrade)
                         ->orderBy('id')
