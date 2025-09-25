@@ -1611,7 +1611,8 @@ class EnrollmentsController extends Controller
             // 🔽 Base query with join to school_years
             $query = DB::table('curriculum_subject as cs')
                 ->join('subjects as s', 'cs.subject_id', '=', 's.id')
-                ->join('school_years as sy', 's.school_year_id', '=', 'sy.id') // ✅ join to get semester
+                ->join('school_years as sy', 's.school_year_id', '=', 'sy.id')
+                ->join('grade_levels as gl', 's.grade_level_id', '=', 'gl.id') // ✅ join to get semester
                 ->leftJoin('student_subjects as ss', function ($join) use ($student) {
                     $join->on('s.id', '=', 'ss.subject_id')
                         ->where('ss.student_id', $student->id);
@@ -1624,6 +1625,7 @@ class EnrollmentsController extends Controller
                     's.subject_name',
                     's.units',
                     's.grade_level_id',
+                    'gl.grade_level',
                     's.school_year_id',
                     'sy.school_year',
                     'sy.semester' // ✅ include semester
