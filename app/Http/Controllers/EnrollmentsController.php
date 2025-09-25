@@ -1619,7 +1619,6 @@ class EnrollmentsController extends Controller
                         ->where('ss.student_id', $student->id);
                 })
                 ->where('cs.curriculum_id', $curriculumId)
-                ->where('s.school_year_id', $targetSchoolYearId) // ✅ use next school year
                 ->where('s.grade_level_id', $student->grade_level_id)
                 ->whereNull('ss.final_rating') // ✅ only show subjects with no grade yet
                 ->select('s.id', 's.subject_code', 's.subject_name', 's.units');
