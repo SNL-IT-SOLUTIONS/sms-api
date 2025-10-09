@@ -743,10 +743,10 @@ class StudentsController extends Controller
     }
 
 
-    public function getStudentGrades(Request $request, $student_id)
+    public function getStudentGrades(Request $request, $exam_schedule_id)
     {
         try {
-            // optional auth check
+            // Optional auth check
             $user = auth()->user();
             if (!$user) {
                 return response()->json([
@@ -755,17 +755,24 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ use `students` instead of `users`
+            // First, get the student linked to the exam schedule
+            $student = DB::table('students')
+                ->where('exam_schedules_id', $exam_schedule_id)
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No student found for the provided exam schedule ID.'
+                ], 404);
+            }
+
+            // Now get grades for this student
             $query = DB::table('student_subjects as ss')
                 ->join('subjects as s', 'ss.subject_id', '=', 's.id')
                 ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
-                ->join('students as st', 'ss.student_id', '=', 'st.id')
-                ->where('ss.student_id', $student_id)
+                ->where('ss.student_id', $student->id)
                 ->select(
-                    'st.id as student_id',
-                    'st.student_number',
-                    'st.section_id',
-                    'st.course_id',
                     's.subject_code',
                     's.subject_name',
                     's.units',
@@ -774,6 +781,7 @@ class StudentsController extends Controller
                     DB::raw("CONCAT(sy.school_year, ' - ', sy.semester) as school_year_name")
                 );
 
+            // Optional: filter by school_year_id
             if ($request->has('school_year_id')) {
                 $query->where('ss.school_year_id', $request->school_year_id);
             }
@@ -783,19 +791,19 @@ class StudentsController extends Controller
             if ($grades->isEmpty()) {
                 return response()->json([
                     'isSuccess' => false,
-                    'message'   => 'No grades found for the selected student.'
+                    'message'   => 'No grades found for the student in this exam schedule.'
                 ], 404);
             }
 
-            // ✅ success response
+            // Return student info + grades
             return response()->json([
                 'isSuccess' => true,
                 'message'   => 'Student grades retrieved successfully.',
                 'student'   => [
-                    'id'             => $grades[0]->student_id,
-                    'student_number' => $grades[0]->student_number,
-                    'section_id'     => $grades[0]->section_id,
-                    'course_id'      => $grades[0]->course_id,
+                    'id'             => $student->id,
+                    'student_number' => $student->student_number,
+                    'section_id'     => $student->section_id,
+                    'course_id'      => $student->course_id,
                 ],
                 'grades' => $grades->map(function ($grade) {
                     return [
@@ -816,6 +824,7 @@ class StudentsController extends Controller
             ], 500);
         }
     }
+
 
 
 
