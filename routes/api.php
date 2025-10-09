@@ -169,6 +169,7 @@ Route::get('studentdashboard', [StudentsController::class, 'studentDashboard'])-
 Route::get('getassessmentbill', [StudentsController::class, 'getAssessmentBilling'])->middleware('auth:sanctum');
 Route::get('getmyschedule', [StudentsController::class, 'getMySchedule'])->middleware('auth:sanctum');
 Route::get('getmygrades', [StudentsController::class, 'getMyGrades'])->middleware('auth:sanctum');
+Route::get('students/{id}/grades', [StudentsController::class, 'getStudentGrades'])->middleware('auth:sanctum');
 Route::get('transactionhistory', [StudentsController::class, 'transactionHistory'])->middleware('auth:sanctum');
 Route::post('/payments/webhook', [StudentsController::class, 'handleWebhook']);
 Route::get('getenrollmentfees', [StudentsController::class, 'getEnrollmentFees'])->middleware('auth:sanctum');

@@ -743,6 +743,81 @@ class StudentsController extends Controller
     }
 
 
+    public function getStudentGrades(Request $request, $student_id)
+    {
+        try {
+            // optional auth check
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Unauthorized.'
+                ], 401);
+            }
+
+            // ✅ use `students` instead of `users`
+            $query = DB::table('student_subjects as ss')
+                ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
+                ->join('students as st', 'ss.student_id', '=', 'st.id')
+                ->where('ss.student_id', $student_id)
+                ->select(
+                    'st.id as student_id',
+                    'st.student_number',
+                    'st.section_id',
+                    'st.course_id',
+                    's.subject_code',
+                    's.subject_name',
+                    's.units',
+                    'ss.final_rating',
+                    'ss.remarks',
+                    DB::raw("CONCAT(sy.school_year, ' - ', sy.semester) as school_year_name")
+                );
+
+            if ($request->has('school_year_id')) {
+                $query->where('ss.school_year_id', $request->school_year_id);
+            }
+
+            $grades = $query->get();
+
+            if ($grades->isEmpty()) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No grades found for the selected student.'
+                ], 404);
+            }
+
+            // ✅ success response
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Student grades retrieved successfully.',
+                'student'   => [
+                    'id'             => $grades[0]->student_id,
+                    'student_number' => $grades[0]->student_number,
+                    'section_id'     => $grades[0]->section_id,
+                    'course_id'      => $grades[0]->course_id,
+                ],
+                'grades' => $grades->map(function ($grade) {
+                    return [
+                        'subject_code'     => $grade->subject_code,
+                        'subject_name'     => $grade->subject_name,
+                        'units'            => $grade->units,
+                        'final_rating'     => $grade->final_rating,
+                        'remarks'          => $grade->remarks,
+                        'school_year_name' => $grade->school_year_name,
+                    ];
+                }),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to retrieve student grades.',
+                'error'     => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
 
 
     public function getMyGrades(Request $request)
