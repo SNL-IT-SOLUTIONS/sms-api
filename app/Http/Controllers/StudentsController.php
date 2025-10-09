@@ -755,7 +755,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // First, get the student linked to the exam schedule
+            // Get the student linked to the exam schedule
             $student = DB::table('students')
                 ->where('exam_schedules_id', $exam_schedule_id)
                 ->first();
@@ -767,7 +767,7 @@ class StudentsController extends Controller
                 ], 404);
             }
 
-            // Now get grades for this student
+            // Get grades for this student
             $query = DB::table('student_subjects as ss')
                 ->join('subjects as s', 'ss.subject_id', '=', 's.id')
                 ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
@@ -778,6 +778,7 @@ class StudentsController extends Controller
                     's.units',
                     'ss.final_rating',
                     'ss.remarks',
+                    'ss.school_year_id', // added this
                     DB::raw("CONCAT(sy.school_year, ' - ', sy.semester) as school_year_name")
                 );
 
@@ -812,6 +813,7 @@ class StudentsController extends Controller
                         'units'            => $grade->units,
                         'final_rating'     => $grade->final_rating,
                         'remarks'          => $grade->remarks,
+                        'school_year_id'   => $grade->school_year_id, // included here
                         'school_year_name' => $grade->school_year_name,
                     ];
                 }),
@@ -824,6 +826,7 @@ class StudentsController extends Controller
             ], 500);
         }
     }
+
 
 
 
