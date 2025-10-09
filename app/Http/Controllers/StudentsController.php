@@ -756,8 +756,14 @@ class StudentsController extends Controller
             }
 
             // Get the student linked to the exam schedule
-            $student = DB::table('students')
-                ->where('exam_schedules_id', $exam_schedule_id)
+            $student = DB::table('students as st')
+                ->leftJoin('grade_levels as gl', 'st.grade_level_id', '=', 'gl.id')
+                ->where('st.exam_schedules_id', $exam_schedule_id)
+                ->select(
+                    'st.*',
+                    'gl.grade_level as year_level',
+                    'gl.description as year_description'
+                )
                 ->first();
 
             if (!$student) {
@@ -778,11 +784,10 @@ class StudentsController extends Controller
                     's.units',
                     'ss.final_rating',
                     'ss.remarks',
-                    'ss.school_year_id', // added this
+                    'ss.school_year_id',
                     DB::raw("CONCAT(sy.school_year, ' - ', sy.semester) as school_year_name")
                 );
 
-            // Optional: filter by school_year_id
             if ($request->has('school_year_id')) {
                 $query->where('ss.school_year_id', $request->school_year_id);
             }
@@ -805,6 +810,9 @@ class StudentsController extends Controller
                     'student_number' => $student->student_number,
                     'section_id'     => $student->section_id,
                     'course_id'      => $student->course_id,
+                    'grade_level_id' => $student->grade_level_id,
+                    'year_level'     => $student->year_level,
+                    'year_description' => $student->year_description
                 ],
                 'grades' => $grades->map(function ($grade) {
                     return [
@@ -813,7 +821,7 @@ class StudentsController extends Controller
                         'units'            => $grade->units,
                         'final_rating'     => $grade->final_rating,
                         'remarks'          => $grade->remarks,
-                        'school_year_id'   => $grade->school_year_id, // included here
+                        'school_year_id'   => $grade->school_year_id,
                         'school_year_name' => $grade->school_year_name,
                     ];
                 }),
