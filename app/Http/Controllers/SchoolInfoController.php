@@ -12,7 +12,7 @@ class SchoolInfoController extends Controller
         // Validate incoming fields
         $validated = $request->validate([
             'school_name'       => 'required|string|max:255',
-            'school_logo'       => 'nullable|string',
+            'school_logo'       => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'slogan'            => 'nullable|string|max:255',
             'address'           => 'required|string|max:255',
             'city'              => 'nullable|string|max:100',
@@ -24,14 +24,21 @@ class SchoolInfoController extends Controller
             'website'           => 'nullable|string|max:255',
         ]);
 
-        // Fetch existing row OR create a new blank one
+        // Get existing or prepare new record
         $schoolInfo = SchoolInfo::first();
 
+        // Handle uploaded school logo
+        $logoPath = $this->saveFileToPublic($request, 'school_logo', 'school_logo');
+
+        if ($logoPath) {
+            $validated['school_logo'] = $logoPath;
+        }
+
         if (!$schoolInfo) {
-            // Create only once — after that, always update
+            // Create only once
             $schoolInfo = SchoolInfo::create($validated);
         } else {
-            // Update existing record
+            // Update existing
             $schoolInfo->update($validated);
         }
 
@@ -46,10 +53,33 @@ class SchoolInfoController extends Controller
     {
         $schoolInfo = SchoolInfo::first();
 
+        if ($schoolInfo && $schoolInfo->school_logo) {
+            $schoolInfo->school_logo = asset($schoolInfo->school_logo);
+        }
+
         return response()->json([
             'isSuccess' => true,
             'message' => 'School information retrieved.',
             'data' => $schoolInfo
         ]);
+    }
+
+    private function saveFileToPublic(Request $request, $field, $prefix)
+    {
+        if ($request->hasFile($field)) {
+            $file = $request->file($field);
+            $directory = public_path('admission_files');
+
+            if (!file_exists($directory)) {
+                mkdir($directory, 0755, true);
+            }
+
+            $filename = $prefix . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($directory, $filename);
+
+            return 'admission_files/' . $filename;
+        }
+
+        return null;
     }
 }
