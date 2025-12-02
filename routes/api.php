@@ -23,6 +23,7 @@ use App\Http\Controllers\FeesController;
 use App\Http\Controllers\GradeLevelsController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\SchoolInfoController;
 use App\Http\Controllers\StudentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -38,7 +39,13 @@ use Barryvdh\DomPDF\Facade\Pdf;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+Route::get('/schoolinfo', [SchoolInfoController::class, 'getSchoolInfo']);
+Route::post('/save/schoolinfo', [SchoolInfoController::class, 'saveSchoolInfo']);
+
 // Done Integration
+
+
 
 
 //IMPORT EXPORT EXCEL
