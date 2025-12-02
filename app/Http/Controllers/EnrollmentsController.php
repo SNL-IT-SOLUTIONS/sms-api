@@ -100,7 +100,7 @@ class EnrollmentsController extends Controller
     }
 
 
-    public function getExamineesResult(Request $request, $id)
+    public function getExamineesResult(Request $request)
     {
         try {
             $perPage = $request->input('per_page', 5); // default 10 per page

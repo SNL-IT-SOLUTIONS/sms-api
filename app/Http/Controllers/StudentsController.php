@@ -4,10 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\students;
 use Illuminate\Support\Facades\Auth;
-use App\Models\admissions;
-use App\Models\exam_schedules;
-use App\Models\courses;
-use App\Models\campuses;
 use App\Models\subjects;
 use App\Models\payments;
 use App\Models\enrollments;
