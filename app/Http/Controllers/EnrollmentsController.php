@@ -57,7 +57,8 @@ class EnrollmentsController extends Controller
     {
         $now = now();
 
-        $schedule = enrollmentschedule::where('status', 'open')
+        $schedule = enrollmentschedule::with('schoolYear') // eager load the relation
+            ->where('status', 'open')
             ->whereDate('end_date', '>=', $now)
             ->first();
 
@@ -70,7 +71,17 @@ class EnrollmentsController extends Controller
 
         return response()->json([
             'isSuccess' => true,
-            'data'      => $schedule
+            'data' => [
+                'id'             => $schedule->id,
+                'school_year_id' => $schedule->school_year_id,
+                'school_year'    => $schedule->schoolYear->school_year ?? null,
+                'semester'       => $schedule->schoolYear->semester ?? null,
+                'start_date'     => $schedule->start_date,
+                'end_date'       => $schedule->end_date,
+                'status'         => $schedule->status,
+                'created_at'     => $schedule->created_at,
+                'updated_at'     => $schedule->updated_at,
+            ]
         ]);
     }
 
