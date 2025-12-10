@@ -537,7 +537,7 @@ class EnrollmentsController extends Controller
 
             $query = exam_schedules::with([
                 'applicant.academic_program:id,course_name',
-                'appilcant.school_years:id,school_year,semester',
+                'academicYear:id,school_year,semester',
                 'room:id,room_name',
                 'building:id,building_name',
                 'campus:id,campus_name'
@@ -587,8 +587,8 @@ class EnrollmentsController extends Controller
                     // Admission Info
                     'admission_id'    => $admission->id ?? null,
                     'academic_year_id'          => $admission->academic_year_id ?? null,
-                    'school_year' => optional($admission->schoolYear)->school_year ?? null,
-                    'semester'    => optional($admission->schoolYear)->semester ?? null,
+                    'school_year' => optional($admission->academicYear)->school_year ?? null,
+                    'semester'    => optional($admission->academicYear)->semester ?? null,
 
                     'first_name'      => $admission->first_name ?? null,
                     'middle_name'     => $admission->middle_name ?? null,
