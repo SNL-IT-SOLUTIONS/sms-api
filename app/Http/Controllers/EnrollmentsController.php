@@ -587,8 +587,9 @@ class EnrollmentsController extends Controller
                     // Admission Info
                     'admission_id'    => $admission->id ?? null,
                     'academic_year_id'          => $admission->academic_year_id ?? null,
-                    'school_year' => optional($admission->academicYear)->school_year ?? null,
-                    'semester'    => optional($admission->academicYear)->semester ?? null,
+                    'school_year' => optional($schedule->academicYear)->school_year ?? null,
+                    'semester'    => optional($schedule->academicYear)->semester ?? null,
+
 
                     'first_name'      => $admission->first_name ?? null,
                     'middle_name'     => $admission->middle_name ?? null,
