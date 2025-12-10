@@ -109,7 +109,7 @@ class EnrollmentsController extends Controller
             // Fetch schedules with applicant/admission details
             $query = exam_schedules::with([
                 'applicant.academic_program:id,course_name',
-                'academicYear:id,school_year,semester', // this is correct
+                'academicYear:id,school_year,semester',
                 'room:id,room_name',
                 'building:id,building_name',
                 'campus:id,campus_name'
@@ -127,12 +127,10 @@ class EnrollmentsController extends Controller
                 });
             }
 
-            if ($request->has('school_year_id')) {
-                $schoolYearId = $request->school_year_id;
-                $query->whereHas('applicant', function ($q) use ($schoolYearId) {
-                    $q->where('academic_year_id', $schoolYearId);
-                });
+            if ($request->filled('school_year_id')) {
+                $query->where('academic_year_id', $request->school_year_id);
             }
+
 
             // Order newest exam first
             $query->orderBy('exam_score', 'desc')
@@ -558,9 +556,7 @@ class EnrollmentsController extends Controller
 
             if ($request->has('school_year_id') && !empty($request->school_year_id)) {
                 $schoolYearId = $request->school_year_id;
-                $query->whereHas('applicant', function ($q) use ($schoolYearId) {
-                    $q->where('academic_year_id', $schoolYearId);
-                });
+                $query->where('academic_year_id', $schoolYearId);
             }
 
             $query->orderBy('created_at', 'desc');
