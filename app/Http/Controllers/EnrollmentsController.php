@@ -109,7 +109,7 @@ class EnrollmentsController extends Controller
             // Fetch schedules with applicant/admission details
             $query = exam_schedules::with([
                 'applicant.academic_program:id,course_name',
-                'applicant.schoolYear:id,school_year,semester',
+                'applicant.academic_year_id:id,school_year,semester',
                 'room:id,room_name',
                 'building:id,building_name',
                 'campus:id,campus_name'
