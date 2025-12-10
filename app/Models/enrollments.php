@@ -22,7 +22,7 @@ class enrollments extends Model
         'total_amount',
         'school_year_id',
         'curriculum_id',
-        'exam_schedule_id', // 🔧 fixed naming
+        'exam_schedule_id',
         'course_code',
         'student_number',
         'password',

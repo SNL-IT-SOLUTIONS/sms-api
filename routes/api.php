@@ -26,6 +26,7 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SchoolInfoController;
 use App\Http\Controllers\StudentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Controllers\DashboardController;
 
 
 
@@ -39,6 +40,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+
+//Dashboard
+Route::get('/dashboard/overview', [DashboardController::class, 'dashboardOverview'])->middleware('auth:sanctum');
 
 Route::get('/schoolinfo', [SchoolInfoController::class, 'getSchoolInfo']);
 Route::post('/save/schoolinfo', [SchoolInfoController::class, 'saveSchoolInfo']);

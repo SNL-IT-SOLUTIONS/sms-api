@@ -18,7 +18,7 @@ class payments extends Model
         'paid_amount',
         'remaining_balance',
         'payment_method',
-        'reference_no',     // 👈 make sure this matches your DB
+        'reference_no',
         'remarks',
         'status',
         'paid_at',
