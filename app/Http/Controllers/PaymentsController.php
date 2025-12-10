@@ -203,7 +203,7 @@ class PaymentsController extends Controller
             $query = payments::with(['student.examSchedule.admission'])
                 ->orderBy('created_at', 'desc');
 
-            // ✅ Filter by school year (if provided)
+            //  Filter by school year (if provided)
             if ($request->has('academic_year_id') || $request->has('school_year_id')) {
                 $schoolYearId = $request->academic_year_id ?? $request->school_year_id;
                 $query->where('school_year_id', $schoolYearId);
@@ -212,7 +212,7 @@ class PaymentsController extends Controller
                 $query->whereNotNull('school_year_id');
             }
 
-            // ✅ Optional search
+            //  Optional search
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -228,7 +228,7 @@ class PaymentsController extends Controller
 
             $payments = $query->paginate($perPage, ['*'], 'page', $page);
 
-            // ✅ Format results
+            //  Format results
             $data = $payments->map(function ($payment) {
                 $student = $payment->student;
                 $examSchedule = $student->examSchedule ?? null;

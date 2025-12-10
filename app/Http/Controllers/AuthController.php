@@ -112,7 +112,7 @@ class AuthController extends Controller
                 ], 200);
             }
 
-            // ❌ If both fail
+            // If both fail
             Log::warning('Login failed for user', ['login' => $login]);
 
             return response()->json([
