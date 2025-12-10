@@ -46,10 +46,12 @@ class AdmissionsController extends Controller
 
         $query = exam_schedules::with(['applicant', 'campus', 'building', 'room']);
 
-        // ✅ Exclude already scored schedules
-        $query->whereNull('exam_score'); // or ->where('exam_score', '=', 0) if you default to 0
+        // Exclude already scored schedules
+        $query->whereNull('exam_score');
 
-        // Search filter (by applicant or schedule fields)
+        // -----------------------------
+        // Search filter
+        // -----------------------------
         if ($search = $request->input('search')) {
             $query->whereHas('applicant', function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -58,7 +60,16 @@ class AdmissionsController extends Controller
             });
         }
 
-        // Order by created_at (latest first)
+        // -----------------------------
+        // School Year filter
+        // -----------------------------
+        if ($schoolYearId = $request->input('school_year_id')) {
+            $query->whereHas('applicant', function ($q) use ($schoolYearId) {
+                $q->where('academic_year_id', $schoolYearId);
+            });
+        }
+
+        // Order by creation date
         $paginated = $query->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
@@ -100,6 +111,7 @@ class AdmissionsController extends Controller
             ]
         ]);
     }
+
 
 
 
