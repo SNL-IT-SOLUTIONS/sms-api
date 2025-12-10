@@ -44,14 +44,18 @@ class AdmissionsController extends Controller
         $perPage = (int) $request->input('per_page', 10);
         $page = (int) $request->input('page', 1);
 
-        $query = exam_schedules::with(['applicant', 'campus', 'building', 'room']);
+        $query = exam_schedules::with([
+            'applicant',
+            'applicant.school_years', // Load AcademicYear
+            'campus',
+            'building',
+            'room'
+        ]);
 
         // Exclude already scored schedules
         $query->whereNull('exam_score');
 
-        // -----------------------------
         // Search filter
-        // -----------------------------
         if ($search = $request->input('search')) {
             $query->whereHas('applicant', function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -60,9 +64,7 @@ class AdmissionsController extends Controller
             });
         }
 
-        // -----------------------------
         // School Year filter
-        // -----------------------------
         if ($schoolYearId = $request->input('school_year_id')) {
             $query->whereHas('applicant', function ($q) use ($schoolYearId) {
                 $q->where('academic_year_id', $schoolYearId);
@@ -95,6 +97,13 @@ class AdmissionsController extends Controller
                 'exam_status'      => $schedule->exam_status,
                 'academic_program_id' => $schedule->academic_program_id,
                 'course_name'      => $schedule->course_name,
+
+                // -----------------------------
+                // Include School Year & Semester
+                // -----------------------------
+                'academic_year_id' => $schedule->applicant->academic_year_id ?? null,
+                'school_year'      => optional($schedule->applicant->school_years)->school_year,
+                'semester'         => optional($schedule->applicant->school_years)->semester,
                 'created_at'       => $schedule->created_at,
             ];
         });
