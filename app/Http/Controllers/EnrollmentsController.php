@@ -109,6 +109,7 @@ class EnrollmentsController extends Controller
             // Fetch schedules with applicant/admission details
             $query = exam_schedules::with([
                 'applicant.academic_program:id,course_name',
+                'applicant.school_years:id,school_year,semester',
                 'room:id,room_name',
                 'building:id,building_name',
                 'campus:id,campus_name'
@@ -123,6 +124,13 @@ class EnrollmentsController extends Controller
                         ->orWhere('last_name', 'like', "%$search%")
                         ->orWhere('email', 'like', "%$search%")
                         ->orWhere('contact_number', 'like', "%$search%");
+                });
+            }
+
+            if ($request->has('school_year_id')) {
+                $schoolYearId = $request->school_year_id;
+                $query->whereHas('applicant', function ($q) use ($schoolYearId) {
+                    $q->where('academic_year_id', $schoolYearId);
                 });
             }
 
@@ -153,7 +161,9 @@ class EnrollmentsController extends Controller
 
                     // Full Admission Details
                     'admission_id'      => $admission->id ?? null,
-
+                    'academic_year_id'    => $admission->academic_year_id ?? null,
+                    'school_year' => optional($admission->schoolYear)->school_year ?? null,
+                    'semester'    => optional($admission->schoolYear)->semester ?? null,
                     'first_name'        => $admission->first_name ?? null,
                     'middle_name'       => $admission->middle_name ?? null,
                     'last_name'         => $admission->last_name ?? null,
@@ -525,6 +535,7 @@ class EnrollmentsController extends Controller
 
             $query = exam_schedules::with([
                 'applicant.academic_program:id,course_name',
+                'appilcant.school_years:id,school_year,semester',
                 'room:id,room_name',
                 'building:id,building_name',
                 'campus:id,campus_name'
@@ -540,6 +551,13 @@ class EnrollmentsController extends Controller
                         ->orWhere('last_name', 'like', "%$search%")
                         ->orWhere('email', 'like', "%$search%")
                         ->orWhere('contact_number', 'like', "%$search%");
+                });
+            }
+
+            if ($request->has('school_year_id') && !empty($request->school_year_id)) {
+                $schoolYearId = $request->school_year_id;
+                $query->whereHas('applicant', function ($q) use ($schoolYearId) {
+                    $q->where('academic_year_id', $schoolYearId);
                 });
             }
 
@@ -566,6 +584,10 @@ class EnrollmentsController extends Controller
 
                     // Admission Info
                     'admission_id'    => $admission->id ?? null,
+                    'academic_year_id'          => $admission->academic_year_id ?? null,
+                    'school_year' => optional($admission->schoolYear)->school_year ?? null,
+                    'semester'    => optional($admission->schoolYear)->semester ?? null,
+
                     'first_name'      => $admission->first_name ?? null,
                     'middle_name'     => $admission->middle_name ?? null,
                     'last_name'       => $admission->last_name ?? null,
