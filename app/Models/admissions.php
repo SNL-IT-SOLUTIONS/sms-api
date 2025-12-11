@@ -60,7 +60,7 @@ class Admissions extends Model
         'remarks',
         'status',
         'exam_score',
-        'average',
+        'last_school_average',
 
         'form_137',
         'form_138',
