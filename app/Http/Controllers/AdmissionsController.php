@@ -484,6 +484,7 @@ class AdmissionsController extends Controller
 
                 'last_school_attended' => 'nullable|string|max:255',
                 'remarks' => 'nullable|string|max:255',
+                'average' => 'nullable|numeric',
 
                 'form_137' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
                 'form_138' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
@@ -497,6 +498,30 @@ class AdmissionsController extends Controller
             $academicYear = school_years::find($validated['academic_year_id'])->year;
             $programName = courses::find($validated['academic_program_id'])->course_name;
 
+
+            // =======================
+            // CHECK REQUIRED AVERAGE
+            // =======================
+            $course = courses::find($validated['academic_program_id']);
+            $requiredAverage = $course->average; // your courses table column
+
+            if (!is_null($requiredAverage)) {
+                $studentAverage = $validated['average'] ?? null;
+
+                if (is_null($studentAverage)) {
+                    return response()->json([
+                        'isSuccess' => false,
+                        'message' => 'Please provide your general average.',
+                    ], 422);
+                }
+
+                if ($studentAverage < $requiredAverage) {
+                    return response()->json([
+                        'isSuccess' => false,
+                        'message' => "Your average ({$studentAverage}) does not meet the required average of {$requiredAverage} for this program.",
+                    ], 422);
+                }
+            }
 
             $applicantNumber = 'APLN-' . now()->format('y') . str_pad(rand(100, 999), 2, '0', STR_PAD_LEFT);
 

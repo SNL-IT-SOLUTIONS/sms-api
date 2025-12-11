@@ -60,6 +60,7 @@ class Admissions extends Model
         'remarks',
         'status',
         'exam_score',
+        'average',
 
         'form_137',
         'form_138',
@@ -100,21 +101,18 @@ class Admissions extends Model
     {
         return $this->belongsTo(courses::class, 'academic_program_id');
     }
-    
+
     public function student()
     {
         return $this->hasOne(students::class, 'admission_id');
     }
 
     public function gradeLevel()
-{
-    return $this->belongsTo(grade__levels::class, 'grade_level_id');
-}
-public function campus()
-{
-    return $this->belongsTo(school_campus::class, 'school_campus_id');
-}
-
-
-
+    {
+        return $this->belongsTo(grade__levels::class, 'grade_level_id');
+    }
+    public function campus()
+    {
+        return $this->belongsTo(school_campus::class, 'school_campus_id');
+    }
 }

@@ -14,18 +14,18 @@ class courses extends Model
         'course_code',
         'curriculum_id',
         'course_description',
+        'average',
         'course_units',
         'is_archive',
     ];
 
-public function subjects()
-{
-    return $this->hasMany(subjects::class, 'course_id'); // NOT courses_id
-}
+    public function subjects()
+    {
+        return $this->hasMany(subjects::class, 'course_id'); // NOT courses_id
+    }
 
-public function curriculums()
-{
-    return $this->hasMany(curriculums::class);
-}
-
+    public function curriculums()
+    {
+        return $this->hasMany(curriculums::class);
+    }
 }

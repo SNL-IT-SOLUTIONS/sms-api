@@ -27,6 +27,7 @@ class CoursesController extends Controller
             $validated = $request->validate([
                 'course_name'       => 'required|string|max:100',
                 'course_code'       => 'required|string|max:100|unique:courses,course_code',
+                'average' => 'nullable|numeric',
                 'course_description' => 'nullable|string|max:255',
             ]);
 
@@ -35,6 +36,7 @@ class CoursesController extends Controller
             $course = courses::create([
                 'course_name' => $validated['course_name'],
                 'course_code' => $validated['course_code'],
+                'average' => $validated['average'] ?? null,
                 'course_description' => $validated['course_description'] ?? null,
             ]);
 
@@ -99,7 +101,9 @@ class CoursesController extends Controller
             $validated = $request->validate([
                 'course_name' => 'sometimes|required|string|max:100',
                 'course_code' => 'sometimes|required|string|max:10|unique:courses,course_code,' . $id,
+                'average' => 'sometimes|nullable|numeric',
                 'course_description' => 'sometimes|nullable|string|max:255',
+
             ]);
             // Find the course by ID
             $course = courses::findOrFail($id);
@@ -107,6 +111,7 @@ class CoursesController extends Controller
             $course->update([
                 'course_name' => $validated['course_name'] ?? $course->course_name,
                 'course_code' => $validated['course_code'] ?? $course->course_code,
+                'average' => $validated['average'] ?? $course->average,
                 'course_description' => $validated['course_description'] ?? $course->course_description,
             ]);
             return response()->json([
