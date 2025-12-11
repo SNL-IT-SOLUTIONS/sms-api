@@ -534,6 +534,7 @@ class AdmissionsController extends Controller
                 'school_campus_id' => $validated['school_campus_id'],
                 'application_type' => $validated['application_type'],
                 'academic_program_id' => $validated['academic_program_id'],
+                'last_school_average' => $validated['last_school_average'] ?? null,
 
                 'lrn' => $validated['lrn'],
                 'first_name' => $validated['given_name'],
@@ -567,6 +568,7 @@ class AdmissionsController extends Controller
                 'mother_contact' => $validated['mother_contact'] ?? null,
                 'father_name' => $validated['father_name'] ?? null,
                 'father_contact' => $validated['father_contact'] ?? null,
+
 
 
                 'last_school_attended' => $validated['last_school_attended'] ?? null,
