@@ -43,7 +43,7 @@ use App\Http\Controllers\DashboardController;
 
 
 //Dashboard
-Route::get('/dashboard/overview', [DashboardController::class, 'dashboardOverview'])->middleware('auth:sanctum');
+Route::get('/dashboard/overview', [DashboardController::class, 'dashboardOverview']);
 
 Route::get('/schoolinfo', [SchoolInfoController::class, 'getSchoolInfo']);
 Route::post('/save/schoolinfo', [SchoolInfoController::class, 'saveSchoolInfo']);
