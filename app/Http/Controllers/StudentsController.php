@@ -854,6 +854,7 @@ class StudentsController extends Controller
                 ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
                 ->where('ss.student_id', $student->id)
                 ->select(
+                    's.id as subject_id',
                     's.subject_code',
                     's.subject_name',
                     's.units',
