@@ -323,7 +323,41 @@ class IrregularSubjectController extends Controller
     }
 
 
+    public function rejectSubject(Request $request, $id)
+    {
+        $user = auth()->user();
 
+        if (!$user) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Unauthorized.'
+            ], 401);
+        }
 
-    public function rejectSubject($id) {}
+        // Validate that a reason is provided
+        $validated = $request->validate([
+            'remarks' => 'required|string|max:255'
+        ]);
+
+        // Find the irregular subject
+        $irregularSubject = IrregularSubject::where('id', $id)
+            ->first();
+
+        if (!$irregularSubject) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Irregular subject not found.'
+            ], 404);
+        }
+        // Update status to rejected with remarks
+        $irregularSubject->status = 'rejected';
+        $irregularSubject->remarks = $validated['remarks'];
+        $irregularSubject->save();
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Irregular subject request rejected successfully.',
+            'data' => $irregularSubject
+        ], 200);
+    }
 }
