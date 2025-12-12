@@ -8,6 +8,7 @@ use App\Models\student_subjects;
 use App\Models\students;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Models\IrregularSubjectFee;
 
 class IrregularSubjectController extends Controller
 {
@@ -153,7 +154,7 @@ class IrregularSubjectController extends Controller
             // Check if already added as irregular
             $irregular = IrregularSubject::where('student_id', $student->id)
                 ->where('subject_id', $subjectId)
-                ->whereNull('remarks') // ignore previously dropped irregulars
+                ->whereNull('remarks')
                 ->exists();
 
             if ($irregular) {
@@ -169,6 +170,22 @@ class IrregularSubjectController extends Controller
                 'school_year_id' => $student->academic_year_id,
                 'final_rating' => null,
                 'remarks' => null,
+            ]);
+
+            // Calculate fee
+            $units = DB::table('subjects')->where('id', $subjectId)->value('units');
+            $perUnitRate = 200; // fixed rate
+            $feeAmount = $units * $perUnitRate;
+
+            // Create fee record
+            IrregularSubjectFee::create([
+                'student_id' => $student->id,
+                'subject_id' => $subjectId,
+                'units' => $units,
+                'fee' => $feeAmount,
+                'school_year_id' => $student->academic_year_id,
+                'status' => 'pending',
+                'created_by' => $user->id,
             ]);
 
             $addedSubjects[] = $irregularSubject;
@@ -354,6 +371,22 @@ class IrregularSubjectController extends Controller
         $irregularSubject->status = 'approved';
         $irregularSubject->remarks = null;
         $irregularSubject->save();
+        $units = DB::table('subjects')->where('id', $subjectId)->value('units');
+
+        $fee = IrregularSubjectFee::updateOrCreate(
+            [
+                'student_id' => $studentId,
+                'subject_id' => $subjectId,
+            ],
+            [
+                'units' => $units,
+                'fee' => $units * 200,
+                'school_year_id' => $irregularSubject->school_year_id,
+                'status' => 'pending',
+                'created_by' => $user->id,
+            ]
+        );
+
 
         return response()->json([
             'isSuccess' => true,
@@ -401,5 +434,30 @@ class IrregularSubjectController extends Controller
             'message' => 'Irregular subject request rejected successfully.',
             'data' => $irregularSubject
         ], 200);
+    }
+
+
+    public function payIrregularSubject(Request $request, $feeId)
+    {
+        $user = auth()->user(); // cashier
+
+        $fee = IrregularSubjectFee::findOrFail($feeId);
+
+        if ($fee->status === 'paid') {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'This irregular subject fee is already paid.'
+            ], 400);
+        }
+
+        $fee->status = 'paid';
+        $fee->approved_by = $user->id;
+        $fee->save();
+
+        return response()->json([
+            'isSuccess' => true,
+            'message' => 'Irregular subject fee payment confirmed.',
+            'data' => $fee
+        ]);
     }
 }

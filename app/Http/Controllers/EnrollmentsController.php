@@ -801,7 +801,7 @@ class EnrollmentsController extends Controller
                 ], 400);
             }
 
-            // 🔽 Curriculum
+            // Curriculum
             $curriculum = DB::table('curriculums')
                 ->where('course_id', $examSchedule->course_id ?? $student->course_id)
                 ->orderBy('created_at', 'desc')
@@ -814,7 +814,7 @@ class EnrollmentsController extends Controller
                 ], 400);
             }
 
-            // 🔽 Fee computation
+            //  Fee computation
             $subjects = subjects::whereIn('id', $validated['subjects'])->get();
             $totalUnits = $subjects->sum('units');
             $unitRate   = 200;
@@ -830,12 +830,12 @@ class EnrollmentsController extends Controller
             $miscFeeTotal = $miscFees->sum('default_amount');
             $totalFee     = $tuitionFee + $miscFeeTotal;
 
-            // 🔽 Generate reference number
+            //  Generate reference number
             do {
                 $referenceNumber = mt_rand(1000000, 9999999);
             } while (enrollments::where('reference_number', $referenceNumber)->exists());
 
-            // 🔽 Enrollment
+            //  Enrollment
             $enrollment = enrollments::create([
                 'student_id'           => $student->id,
                 'school_year_id'       => $schoolYearId,
