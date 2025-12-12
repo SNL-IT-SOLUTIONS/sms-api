@@ -27,7 +27,7 @@ use App\Http\Controllers\SchoolInfoController;
 use App\Http\Controllers\StudentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\DashboardController;
-
+use App\Http\Controllers\IrregularSubjectController;
 
 
 /*
@@ -49,6 +49,13 @@ Route::get('/schoolinfo', [SchoolInfoController::class, 'getSchoolInfo']);
 Route::post('/save/schoolinfo', [SchoolInfoController::class, 'saveSchoolInfo']);
 
 // Done Integration
+
+//IRREGULAR SUBJECTS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/irregularsubjects/curriculum-subjects', [IrregularSubjectController::class, 'getCurriculumSubjects']);
+    Route::post('/irregularsubjects/add-subject', [IrregularSubjectController::class, 'addSubject']);
+    Route::post('/subjects/drop-subject/{id}', [IrregularSubjectController::class, 'dropSubject']);
+});
 
 
 

@@ -52,7 +52,7 @@ class EnrollmentsController extends Controller
         ]);
     }
 
-    // ✅ Get current active schedule
+    //  Get current active schedule
     public function getActiveSchedule()
     {
         $now = now();
