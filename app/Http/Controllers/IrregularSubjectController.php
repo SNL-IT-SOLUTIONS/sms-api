@@ -135,10 +135,14 @@ class IrregularSubjectController extends Controller
                 continue;
             }
 
-            // Check if student already took the subject in any school year
+            // Check if student already took the subject in any school year **and is not dropped**
             $taken = DB::table('student_subjects')
                 ->where('student_id', $student->id)
                 ->where('subject_id', $subjectId)
+                ->where(function ($query) {
+                    $query->whereNull('remarks') // not dropped
+                        ->orWhere('remarks', '<>', 'Dropped'); // or any other remarks
+                })
                 ->exists();
 
             if ($taken) {
@@ -149,6 +153,7 @@ class IrregularSubjectController extends Controller
             // Check if already added as irregular
             $irregular = IrregularSubject::where('student_id', $student->id)
                 ->where('subject_id', $subjectId)
+                ->whereNull('remarks') // ignore previously dropped irregulars
                 ->exists();
 
             if ($irregular) {
@@ -175,6 +180,8 @@ class IrregularSubjectController extends Controller
             'errors' => $errors,
         ], 201);
     }
+
+
 
 
     public function dropSubject($id)
@@ -229,9 +236,6 @@ class IrregularSubjectController extends Controller
     }
 
 
-
-
-
     //REGISTRAR SIDE
 
     public function getPendings(Request $request)
@@ -282,14 +286,12 @@ class IrregularSubjectController extends Controller
         }
 
         // Find the irregular subject
-        $irregularSubject = IrregularSubject::where('id', $id)
-            ->where('student_id', $student->id)
-            ->first();
+        $irregularSubject = IrregularSubject::where('id', $id)->first();
 
         if (!$irregularSubject) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Irregular subject not found or does not belong to you.'
+                'message' => 'Irregular subject not found.'
             ], 404);
         }
 
@@ -301,26 +303,66 @@ class IrregularSubjectController extends Controller
             ], 400);
         }
 
-        // Update the irregular subject status to approved
+        $studentId = $irregularSubject->student_id;
+        $subjectId = $irregularSubject->subject_id;
+
+        // ❗ Check if subject already exists in student_subjects
+        $existing = student_subjects::where('student_id', $studentId)
+            ->where('subject_id', $subjectId)
+            ->first();
+
+        // CASE 1: Student already passed/graded → DO NOT ALLOW
+        if ($existing && $existing->final_rating !== null) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Student has already completed this subject.'
+            ], 400);
+        }
+
+        // CASE 2: Student dropped before → revive instead of creating new duplicate
+        if ($existing && $existing->remarks === 'Dropped') {
+
+            $existing->remarks = null;
+            $existing->final_rating = null;
+            $existing->school_year_id = $irregularSubject->school_year_id;
+            $existing->save();
+
+            // Mark irregular subject approved
+            $irregularSubject->status = 'approved';
+            $irregularSubject->remarks = null;
+            $irregularSubject->save();
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Subject approved and restored successfully.',
+                'data' => $existing
+            ], 200);
+        }
+
+        // CASE 3: No record exists → create new one
+        if (!$existing) {
+            $studentSubject = student_subjects::create([
+                'student_id' => $studentId,
+                'subject_id' => $subjectId,
+                'school_year_id' => $irregularSubject->school_year_id,
+                'final_rating' => null,
+                'remarks' => null,
+            ]);
+        }
+
+        // Mark irregular subject approved
         $irregularSubject->status = 'approved';
         $irregularSubject->remarks = null;
         $irregularSubject->save();
 
-        // Insert into student_subjects table
-        $studentSubject = student_subjects::create([
-            'student_id' => $student->id,
-            'subject_id' => $irregularSubject->subject_id,
-            'school_year_id' => $irregularSubject->school_year_id,
-            'final_rating' => null,
-            'remarks' => null,
-        ]);
-
         return response()->json([
             'isSuccess' => true,
             'message' => 'Subject approved and added successfully.',
-            'data' => $studentSubject
+            'data' => $studentSubject ?? $existing
         ], 200);
     }
+
+
 
 
     public function rejectSubject(Request $request, $id)

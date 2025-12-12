@@ -55,6 +55,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/irregularsubjects/curriculum-subjects', [IrregularSubjectController::class, 'getCurriculumSubjects']);
     Route::post('/irregularsubjects/add-subject', [IrregularSubjectController::class, 'addSubject']);
     Route::post('/subjects/drop-subject/{id}', [IrregularSubjectController::class, 'dropSubject']);
+    Route::post('/irregularsubjects/approve-subject/{id}', [IrregularSubjectController::class, 'approveSubject']);
+    Route::post('/irregularsubjects/reject-subject/{id}', [IrregularSubjectController::class, 'rejectSubject']);
 });
 
 

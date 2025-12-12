@@ -848,7 +848,7 @@ class StudentsController extends Controller
                 ], 401);
             }
 
-            // ✅ Build query with join on pivot + school_years
+            //  Build query with join on pivot + school_years
             $query = DB::table('student_subjects as ss')
                 ->join('subjects as s', 'ss.subject_id', '=', 's.id')
                 ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
