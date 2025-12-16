@@ -53,7 +53,7 @@ class IrregularSubjectController extends Controller
                 ->join('subjects', 'curriculum_subject.subject_id', '=', 'subjects.id')
                 ->join('school_years', 'subjects.school_year_id', '=', 'school_years.id')
                 ->where('curriculum_subject.curriculum_id', $student->curriculum_id)
-                ->whereNotIn('subjects.id', $takenSubjectIds) // <-- exclude taken
+                ->whereNotIn('subjects.id', $takenSubjectIds)
                 ->select(
                     'subjects.id',
                     'subjects.subject_code',
@@ -381,9 +381,7 @@ class IrregularSubjectController extends Controller
 
 
 
-
     //REGISTRAR SIDE
-
     public function getPendings(Request $request)
     {
         $user = auth()->user();
@@ -545,8 +543,6 @@ class IrregularSubjectController extends Controller
             'data' => $enrollment ?? null
         ], 200);
     }
-
-
 
 
 
