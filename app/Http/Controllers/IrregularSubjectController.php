@@ -92,7 +92,6 @@ class IrregularSubjectController extends Controller
 
 
 
-
     public function addSubject(Request $request)
     {
         $user = auth()->user();
@@ -206,6 +205,63 @@ class IrregularSubjectController extends Controller
 
 
 
+    //DROP SUBJECT  
+    public function getPendingGrades(Request $request)
+    {
+        try {
+            $student = auth()->user();
+
+            if (!$student) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'Unauthorized.'
+                ], 401);
+            }
+
+            // Build query to get only subjects with NULL final_rating
+            $query = DB::table('student_subjects as ss')
+                ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+                ->join('school_years as sy', 'ss.school_year_id', '=', 'sy.id')
+                ->where('ss.student_id', $student->id)
+                ->whereNull('ss.final_rating')
+                ->select(
+                    'ss.id as id',
+                    's.subject_code',
+                    's.subject_name',
+                    's.units',
+                    'ss.final_rating',
+                    'ss.remarks',
+                    'ss.school_year_id',
+                    DB::raw("CONCAT(sy.school_year, ' - ', sy.semester) as school_year_name")
+                );
+
+            if ($request->has('school_year_id')) {
+                $query->where('ss.school_year_id', $request->school_year_id);
+            }
+
+            $pendingGrades = $query->get();
+
+            if ($pendingGrades->isEmpty()) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message'   => 'No pending grades found for this student.'
+                ]);
+            }
+
+            return response()->json([
+                'isSuccess' => true,
+                'message'   => 'Pending grades retrieved successfully.',
+                'grades'    => $pendingGrades
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'isSuccess' => false,
+                'message'   => 'Failed to retrieve pending grades.',
+                'error'     => $e->getMessage()
+            ], 500);
+        }
+    }
+
 
     public function dropSubject($id)
     {
@@ -227,7 +283,6 @@ class IrregularSubjectController extends Controller
             ], 403);
         }
 
-        // Find the subject in student_subjects
         $subject = student_subjects::where('id', $id)
             ->where('student_id', $student->id)
             ->first();
@@ -239,7 +294,6 @@ class IrregularSubjectController extends Controller
             ], 404);
         }
 
-        // Check if it has a final rating
         if (!is_null($subject->final_rating)) {
             return response()->json([
                 'isSuccess' => false,
@@ -247,16 +301,70 @@ class IrregularSubjectController extends Controller
             ], 400);
         }
 
+        //  Check if a pending request already exists
+        $existingRequest = DB::table('subject_drop_requests')
+            ->where('student_subject_id', $subject->id)
+            ->where('status', 'pending')
+            ->first();
 
-        // Mark as dropped in remarks
-        $subject->remarks = 'Dropped';
-        $subject->save();
+        if ($existingRequest) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'You already have a pending drop request for this subject.'
+            ], 400);
+        }
+
+        //  Create pending drop request
+        DB::table('subject_drop_requests')->insert([
+            'student_subject_id' => $subject->id,
+            'student_id'         => $student->id,
+            'status'             => 'pending',
+            'requested_by'       => $student->id,
+            'created_at'         => now(),
+            'updated_at'         => now(),
+        ]);
 
         return response()->json([
             'isSuccess' => true,
-            'message' => 'Subject marked as dropped successfully.'
+            'message' => 'Drop request submitted successfully. Waiting for approval.'
         ], 200);
     }
+
+    public function approveDrop($requestId)
+    {
+        $request = DB::table('subject_drop_requests')->where('id', $requestId)->first();
+        if (!$request) return response()->json(['message' => 'Request not found'], 404);
+
+        DB::transaction(function () use ($request) {
+            student_subjects::where('id', $request->student_subject_id)
+                ->update(['remarks' => 'Dropped']);
+
+            DB::table('subject_drop_requests')
+                ->where('id', $request->id)
+                ->update(['status' => 'approved']);
+        });
+
+        return response()->json(['message' => 'Drop request approved']);
+    }
+
+    public function rejectDrop($requestId)
+    {
+        $request = DB::table('subject_drop_requests')->where('id', $requestId)->first();
+        if (!$request) {
+            return response()->json(['message' => 'Request not found'], 404);
+        }
+
+        DB::transaction(function () use ($request) {
+            // Update the drop request status to 'rejected'
+            DB::table('subject_drop_requests')
+                ->where('id', $request->id)
+                ->update(['status' => 'rejected']);
+        });
+
+        return response()->json(['message' => 'Drop request rejected']);
+    }
+
+
 
 
     //REGISTRAR SIDE
