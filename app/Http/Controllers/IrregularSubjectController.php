@@ -14,7 +14,7 @@ use App\Models\IrregularSubjectFee;
 
 class IrregularSubjectController extends Controller
 {
-
+    //Student Side
     public function getCurriculumSubjects(Request $request)
     {
         try {
@@ -345,39 +345,7 @@ class IrregularSubjectController extends Controller
 
 
 
-    public function approveDrop($requestId)
-    {
-        $request = DB::table('subject_drop_requests')->where('id', $requestId)->first();
-        if (!$request) return response()->json(['message' => 'Request not found'], 404);
 
-        DB::transaction(function () use ($request) {
-            student_subjects::where('id', $request->student_subject_id)
-                ->update(['remarks' => 'Dropped']);
-
-            DB::table('subject_drop_requests')
-                ->where('id', $request->id)
-                ->update(['status' => 'approved']);
-        });
-
-        return response()->json(['message' => 'Drop request approved']);
-    }
-
-    public function rejectDrop($requestId)
-    {
-        $request = DB::table('subject_drop_requests')->where('id', $requestId)->first();
-        if (!$request) {
-            return response()->json(['message' => 'Request not found'], 404);
-        }
-
-        DB::transaction(function () use ($request) {
-            // Update the drop request status to 'rejected'
-            DB::table('subject_drop_requests')
-                ->where('id', $request->id)
-                ->update(['status' => 'rejected']);
-        });
-
-        return response()->json(['message' => 'Drop request rejected']);
-    }
 
 
 
@@ -412,6 +380,56 @@ class IrregularSubjectController extends Controller
         return response()->json([
             'isSuccess' => true,
             'pendings' => $pendings
+        ], 200);
+    }
+
+    public function getaddsubjectRequests()
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Unauthorized.'
+            ], 401);
+        }
+        $requests = IrregularSubject::with('student', 'subject')
+            ->where('status', 'pending')
+            ->get();
+
+        return response()->json([
+            'isSuccess' => true,
+            'requests' => $requests
+        ], 200);
+    }
+
+    public function getdropRequests()
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Unauthorized.'
+            ], 401);
+        }
+        $requests = DB::table('subject_drop_requests as sdr')
+            ->join('student_subjects as ss', 'sdr.student_subject_id', '=', 'ss.id')
+            ->join('subjects as s', 'ss.subject_id', '=', 's.id')
+            ->join('students as st', 'sdr.student_id', '=', 'st.id')
+            ->select(
+                'sdr.*',
+                's.subject_code',
+                's.subject_name',
+                'st.first_name',
+                'st.last_name'
+            )
+            ->where('sdr.status', 'pending')
+            ->get();
+
+        return response()->json([
+            'isSuccess' => true,
+            'requests' => $requests
         ], 200);
     }
 
@@ -582,5 +600,40 @@ class IrregularSubjectController extends Controller
             'message' => 'Irregular subject request rejected successfully.',
             'data' => $irregularSubject
         ], 200);
+    }
+
+
+    public function approveDrop($requestId)
+    {
+        $request = DB::table('subject_drop_requests')->where('id', $requestId)->first();
+        if (!$request) return response()->json(['message' => 'Request not found'], 404);
+
+        DB::transaction(function () use ($request) {
+            student_subjects::where('id', $request->student_subject_id)
+                ->update(['remarks' => 'Dropped']);
+
+            DB::table('subject_drop_requests')
+                ->where('id', $request->id)
+                ->update(['status' => 'approved']);
+        });
+
+        return response()->json(['message' => 'Drop request approved']);
+    }
+
+    public function rejectDrop($requestId)
+    {
+        $request = DB::table('subject_drop_requests')->where('id', $requestId)->first();
+        if (!$request) {
+            return response()->json(['message' => 'Request not found'], 404);
+        }
+
+        DB::transaction(function () use ($request) {
+            // Update the drop request status to 'rejected'
+            DB::table('subject_drop_requests')
+                ->where('id', $request->id)
+                ->update(['status' => 'rejected']);
+        });
+
+        return response()->json(['message' => 'Drop request rejected']);
     }
 }

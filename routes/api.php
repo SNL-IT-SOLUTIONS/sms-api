@@ -60,6 +60,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/irregularsubjects/approve-dropsubject/{id}', [IrregularSubjectController::class, 'approveDrop']);
     Route::post('/irregularsubjects/approve-subject/{id}', [IrregularSubjectController::class, 'approveSubject']);
     Route::post('/irregularsubjects/reject-subject/{id}', [IrregularSubjectController::class, 'rejectSubject']);
+
+
+    //REGISTRAR
+    Route::get('/irregularsubjects/addsubjectrequests', [IrregularSubjectController::class, 'getaddsubjectRequests']);
+    Route::get('/irregularsubjects/droprequests', [IrregularSubjectController::class, 'getDropRequests']);
 });
 
 
@@ -187,7 +192,7 @@ Route::get('getpayments', [PaymentsController::class, 'getAllPayments']);
 // Route::get('getallpayments', [PaymentsController::class, 'getPayments']);
 Route::post('getprintpayments', [PaymentsController::class, 'printProcessPayments']);
 
-    
+
 //STUDENT PROFILE
 Route::get('studentdashboard', [StudentsController::class, 'studentDashboard'])->middleware('auth:sanctum');
 Route::get('getassessmentbill', [StudentsController::class, 'getAssessmentBilling'])->middleware('auth:sanctum');
