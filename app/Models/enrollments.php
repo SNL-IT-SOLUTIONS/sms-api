@@ -88,10 +88,10 @@ class enrollments extends Model
     public function subjects()
     {
         return $this->belongsToMany(
-            subjects::class,   // related model
-            'student_subjects', // pivot table
-            'student_id',       // FK on pivot for student
-            'subject_id'        // FK on pivot for subject
+            subjects::class,
+            'student_subjects',
+            'student_id',
+            'subject_id'
         )
             ->withPivot(['school_year_id',  'final_rating', 'remarks'])
             ->withTimestamps();
