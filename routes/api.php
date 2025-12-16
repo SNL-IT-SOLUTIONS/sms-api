@@ -187,7 +187,7 @@ Route::get('getpayments', [PaymentsController::class, 'getAllPayments']);
 // Route::get('getallpayments', [PaymentsController::class, 'getPayments']);
 Route::post('getprintpayments', [PaymentsController::class, 'printProcessPayments']);
 
-
+    
 //STUDENT PROFILE
 Route::get('studentdashboard', [StudentsController::class, 'studentDashboard'])->middleware('auth:sanctum');
 Route::get('getassessmentbill', [StudentsController::class, 'getAssessmentBilling'])->middleware('auth:sanctum');
