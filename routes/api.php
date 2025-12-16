@@ -56,15 +56,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/irregularsubjects/add-subject', [IrregularSubjectController::class, 'addSubject']);
     Route::get('/irregularsubjects/getgrades', [IrregularSubjectController::class, 'getPendingGrades']);
     Route::post('/subjects/drop-subject/{id}', [IrregularSubjectController::class, 'dropSubject']);
-    Route::post('/irregularsubjects/reject-dropsubject/{id}', [IrregularSubjectController::class, 'rejectDrop']);
-    Route::post('/irregularsubjects/approve-dropsubject/{id}', [IrregularSubjectController::class, 'approveDrop']);
-    Route::post('/irregularsubjects/approve-subject/{id}', [IrregularSubjectController::class, 'approveSubject']);
-    Route::post('/irregularsubjects/reject-subject/{id}', [IrregularSubjectController::class, 'rejectSubject']);
+
 
 
     //REGISTRAR
     Route::get('/irregularsubjects/addsubjectrequests', [IrregularSubjectController::class, 'getaddsubjectRequests']);
     Route::get('/irregularsubjects/droprequests', [IrregularSubjectController::class, 'getDropRequests']);
+    Route::post('/irregularsubjects/reject-dropsubject/{id}', [IrregularSubjectController::class, 'rejectDrop']);
+    Route::post('/irregularsubjects/approve-dropsubject/{id}', [IrregularSubjectController::class, 'approveDrop']);
+    Route::post('/irregularsubjects/approve-subject/{id}', [IrregularSubjectController::class, 'approveSubject']);
+    Route::post('/irregularsubjects/reject-subject/{id}', [IrregularSubjectController::class, 'rejectSubject']);
 });
 
 
