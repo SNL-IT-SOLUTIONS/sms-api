@@ -18,7 +18,6 @@ class IrregularSubjectController extends Controller
     public function getCurriculumSubjects(Request $request)
     {
         try {
-            //  Auth user
             $user = Auth::user();
 
             if (!$user) {
@@ -28,7 +27,6 @@ class IrregularSubjectController extends Controller
                 ], 401);
             }
 
-            // Find the student linked to this auth user
             $student = students::where('admission_id', $user->admission_id)->first();
 
             if (!$student) {
@@ -45,11 +43,17 @@ class IrregularSubjectController extends Controller
                 ], 404);
             }
 
-            // Fetch curriculum subjects with school_year info
+            // Get IDs of subjects the student already has in student_subjects
+            $takenSubjectIds = student_subjects::where('student_id', $student->id)
+                ->pluck('subject_id')
+                ->toArray();
+
+            // Fetch curriculum subjects excluding already taken subjects
             $subjects = DB::table('curriculum_subject')
                 ->join('subjects', 'curriculum_subject.subject_id', '=', 'subjects.id')
                 ->join('school_years', 'subjects.school_year_id', '=', 'school_years.id')
                 ->where('curriculum_subject.curriculum_id', $student->curriculum_id)
+                ->whereNotIn('subjects.id', $takenSubjectIds) // <-- exclude taken
                 ->select(
                     'subjects.id',
                     'subjects.subject_code',
@@ -62,14 +66,13 @@ class IrregularSubjectController extends Controller
                 )
                 ->get();
 
-            // Group by school_year_id
             $grouped = $subjects->groupBy('school_year_id')->map(function ($subjects, $schoolYearId) {
                 $first = $subjects->first();
                 return [
                     'school_year_id' => $schoolYearId,
                     'school_year' => $first->school_year,
                     'semester' => $first->semester,
-                    'subjects' => $subjects->values(), // reset keys
+                    'subjects' => $subjects->values(),
                 ];
             })->values();
 
@@ -86,6 +89,7 @@ class IrregularSubjectController extends Controller
             ], 500);
         }
     }
+
 
 
 
