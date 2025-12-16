@@ -123,6 +123,7 @@ class IrregularSubjectController extends Controller
         $validated = $request->validate([
             'subject_ids' => 'required|array|min:1',
             'subject_ids.*' => 'exists:subjects,id',
+            'remarks' => 'nullable|string|max:255'
         ]);
 
         $addedSubjects = [];
@@ -172,6 +173,7 @@ class IrregularSubjectController extends Controller
                 'student_id' => $student->id,
                 'subject_id' => $subjectId,
                 'status' => 'pending',
+                'remarks' => $validated['remarks'] ?? null,
                 'school_year_id' => $student->academic_year_id,
                 'final_rating' => null,
                 'remarks' => null,
