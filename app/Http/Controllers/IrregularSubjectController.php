@@ -304,7 +304,7 @@ class IrregularSubjectController extends Controller
         }
 
         $request->validate([
-            'remarks' => 'required|string|max:255', // ✅ Validate reason
+            'remarks' => 'required|string|max:255',
         ]);
 
         // Check if a pending request already exists
@@ -326,7 +326,7 @@ class IrregularSubjectController extends Controller
                 'student_subject_id' => $subject->id,
                 'student_id'         => $student->id,
                 'status'             => 'pending',
-                'remarks'            => $request->remarks, // Save reason here
+                'remarks'            => $request->remarks,
                 'requested_by'       => $student->id,
                 'created_at'         => now(),
                 'updated_at'         => now(),
