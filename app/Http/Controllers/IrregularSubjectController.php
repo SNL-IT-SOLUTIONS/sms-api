@@ -265,7 +265,7 @@ class IrregularSubjectController extends Controller
     }
 
 
-    public function dropSubject($id)
+    public function dropSubject(Request $request, $id)
     {
         $user = auth()->user();
 
@@ -303,7 +303,11 @@ class IrregularSubjectController extends Controller
             ], 400);
         }
 
-        //  Check if a pending request already exists
+        $request->validate([
+            'remarks' => 'required|string|max:255', // ✅ Validate reason
+        ]);
+
+        // Check if a pending request already exists
         $existingRequest = DB::table('subject_drop_requests')
             ->where('student_subject_id', $subject->id)
             ->where('status', 'pending')
@@ -316,21 +320,30 @@ class IrregularSubjectController extends Controller
             ], 400);
         }
 
-        //  Create pending drop request
-        DB::table('subject_drop_requests')->insert([
-            'student_subject_id' => $subject->id,
-            'student_id'         => $student->id,
-            'status'             => 'pending',
-            'requested_by'       => $student->id,
-            'created_at'         => now(),
-            'updated_at'         => now(),
-        ]);
+        DB::transaction(function () use ($subject, $student, $request) {
+            // Create pending drop request with reason
+            DB::table('subject_drop_requests')->insert([
+                'student_subject_id' => $subject->id,
+                'student_id'         => $student->id,
+                'status'             => 'pending',
+                'remarks'            => $request->remarks, // ✅ Save reason here
+                'requested_by'       => $student->id,
+                'created_at'         => now(),
+                'updated_at'         => now(),
+            ]);
+
+            // Update remarks in student_subjects
+            $subject->remarks = 'Pending Drop';
+            $subject->save();
+        });
 
         return response()->json([
             'isSuccess' => true,
-            'message' => 'Drop request submitted successfully. Waiting for approval.'
+            'message' => 'Drop request submitted successfully. Subject marked as "Pending Drop".'
         ], 200);
     }
+
+
 
     public function approveDrop($requestId)
     {
