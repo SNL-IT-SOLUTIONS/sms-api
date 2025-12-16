@@ -14,6 +14,7 @@ class enrollments extends Model
 
     protected $fillable = [
         'transaction',
+        'irregular_subject_id',
         'original_tuition_fee',
         'reference_number',
         'admission_id',

@@ -57,6 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/subjects/drop-subject/{id}', [IrregularSubjectController::class, 'dropSubject']);
     Route::post('/irregularsubjects/approve-subject/{id}', [IrregularSubjectController::class, 'approveSubject']);
     Route::post('/irregularsubjects/reject-subject/{id}', [IrregularSubjectController::class, 'rejectSubject']);
+    Route::post('/irregularsubjects/pay/{feeId}', [IrregularSubjectController::class, 'payIrregularSubject']);
 });
 
 

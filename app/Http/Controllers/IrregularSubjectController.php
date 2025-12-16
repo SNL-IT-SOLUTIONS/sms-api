@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\IrregularSubject;
 use App\Models\student_subjects;
 use App\Models\students;
+use App\Models\enrollments;
+use App\Models\payments;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\IrregularSubjectFee;
@@ -303,7 +305,7 @@ class IrregularSubjectController extends Controller
         }
 
         // Find the irregular subject
-        $irregularSubject = IrregularSubject::where('id', $id)->first();
+        $irregularSubject = IrregularSubject::find($id);
 
         if (!$irregularSubject) {
             return response()->json([
@@ -338,21 +340,39 @@ class IrregularSubjectController extends Controller
 
         // CASE 2: Student dropped before → revive instead of creating new duplicate
         if ($existing && $existing->remarks === 'Dropped') {
-
             $existing->remarks = null;
             $existing->final_rating = null;
             $existing->school_year_id = $irregularSubject->school_year_id;
             $existing->save();
 
-            // Mark irregular subject approved
             $irregularSubject->status = 'approved';
             $irregularSubject->remarks = null;
             $irregularSubject->save();
 
+            do {
+                $referenceNumber = mt_rand(1000000, 9999999);
+            } while (enrollments::where('reference_number', $referenceNumber)->exists());
+
+            // 🔹 Add to enrollments directly
+            $enrollment = enrollments::create([
+                'transaction'       => 'Irregular Subject',
+                'reference_number'  => $referenceNumber,
+                'student_id'        => $studentId,
+                'school_year_id'    => $irregularSubject->school_year_id,
+                'grade_level_id'    => null, // optional
+                'tuition_fee'       => DB::table('subjects')->where('id', $subjectId)->value('units') * 200,
+                'misc_fee'          => 0,
+                'original_tuition_fee' => DB::table('subjects')->where('id', $subjectId)->value('units') * 200,
+                'total_tuition_fee' => DB::table('subjects')->where('id', $subjectId)->value('units') * 200,
+                'payment_status'    => 'Unpaid',
+                'created_by'        => $user->id,
+                'updated_by'        => $user->id,
+            ]);
+
             return response()->json([
                 'isSuccess' => true,
-                'message' => 'Subject approved and restored successfully.',
-                'data' => $existing
+                'message' => 'Subject approved and added to enrollments successfully.',
+                'data' => $enrollment
             ], 200);
         }
 
@@ -365,35 +385,40 @@ class IrregularSubjectController extends Controller
                 'final_rating' => null,
                 'remarks' => null,
             ]);
+
+            $irregularSubject->status = 'approved';
+            $irregularSubject->remarks = null;
+            $irregularSubject->save();
+
+            do {
+                $referenceNumber = mt_rand(1000000, 9999999);
+            } while (enrollments::where('reference_number', $referenceNumber)->exists());
+
+
+            // 🔹 Add to enrollments directly
+            $enrollment = enrollments::create([
+                'transaction'       => 'Irregular Subject',
+                'reference_number'  => $referenceNumber,
+                'student_id'        => $studentId,
+                'school_year_id'    => $irregularSubject->school_year_id,
+                'grade_level_id'    => null, // optional
+                'tuition_fee'       => DB::table('subjects')->where('id', $subjectId)->value('units') * 200,
+                'misc_fee'          => 0,
+                'original_tuition_fee' => DB::table('subjects')->where('id', $subjectId)->value('units') * 200,
+                'total_tuition_fee' => DB::table('subjects')->where('id', $subjectId)->value('units') * 200,
+                'payment_status'    => 'Unpaid',
+                'created_by'        => $user->id,
+                'updated_by'        => $user->id,
+            ]);
         }
-
-        // Mark irregular subject approved
-        $irregularSubject->status = 'approved';
-        $irregularSubject->remarks = null;
-        $irregularSubject->save();
-        $units = DB::table('subjects')->where('id', $subjectId)->value('units');
-
-        $fee = IrregularSubjectFee::updateOrCreate(
-            [
-                'student_id' => $studentId,
-                'subject_id' => $subjectId,
-            ],
-            [
-                'units' => $units,
-                'fee' => $units * 200,
-                'school_year_id' => $irregularSubject->school_year_id,
-                'status' => 'pending',
-                'created_by' => $user->id,
-            ]
-        );
-
 
         return response()->json([
             'isSuccess' => true,
-            'message' => 'Subject approved and added successfully.',
-            'data' => $studentSubject ?? $existing
+            'message' => 'Subject approved and added to enrollments successfully.',
+            'data' => $enrollment ?? null
         ], 200);
     }
+
 
 
 
@@ -439,25 +464,86 @@ class IrregularSubjectController extends Controller
 
     public function payIrregularSubject(Request $request, $feeId)
     {
-        $user = auth()->user(); // cashier
+        DB::beginTransaction();
 
-        $fee = IrregularSubjectFee::findOrFail($feeId);
+        try {
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:1',
+            ]);
 
-        if ($fee->status === 'paid') {
+            $cashier = auth()->user();
+
+            $fee = IrregularSubjectFee::lockForUpdate()->findOrFail($feeId);
+
+            if ($fee->status === 'paid') {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Irregular subject fee already paid.'
+                ], 400);
+            }
+
+            $paidAmount = $validated['amount'];
+            $remaining = $fee->fee - $paidAmount;
+
+            if ($remaining < 0) {
+                return response()->json([
+                    'isSuccess' => false,
+                    'message' => 'Payment exceeds fee amount.'
+                ], 400);
+            }
+
+            // 🔹 Fetch enrollment via reference_number
+            $enrollment = enrollments::where('reference_number', $fee->reference_number)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // 🔹 Create payment record
+            payments::create([
+                'student_id'        => $fee->student_id,
+                'amount'            => $fee->fee,
+                'paid_amount'       => $paidAmount,
+                'school_year_id'    => $fee->school_year_id,
+                'payment_method'    => 'cash',
+                'status'            => ($remaining == 0 ? 'paid' : 'partial'),
+                'receipt_no'        => 'IRREG-' . now()->timestamp,
+                'reference_no'      => $fee->reference_number,
+                'remarks'           => 'Irregular Subject Payment',
+                'paid_at'           => now(),
+                'received_by'       => $cashier->id,
+                'remaining_balance' => $remaining,
+            ]);
+
+            // 🔹 Update irregular fee
+            $fee->fee = $remaining;
+            $fee->status = ($remaining == 0 ? 'paid' : 'partial');
+            $fee->approved_by = $cashier->id;
+            $fee->save();
+
+            // 🔹 Update enrollment ledger
+            $enrollment->total_tuition_fee -= $paidAmount;
+            $enrollment->total_tuition_fee = max(0, $enrollment->total_tuition_fee);
+
+            if ($enrollment->total_tuition_fee == 0) {
+                $enrollment->payment_status = 'paid';
+            }
+
+            $enrollment->save();
+
+            DB::commit();
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Irregular subject payment successful.',
+                'remaining_irregular_fee' => $remaining,
+                'remaining_enrollment_balance' => $enrollment->total_tuition_fee,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'This irregular subject fee is already paid.'
-            ], 400);
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        $fee->status = 'paid';
-        $fee->approved_by = $user->id;
-        $fee->save();
-
-        return response()->json([
-            'isSuccess' => true,
-            'message' => 'Irregular subject fee payment confirmed.',
-            'data' => $fee
-        ]);
     }
 }

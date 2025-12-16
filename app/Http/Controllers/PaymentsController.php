@@ -20,6 +20,7 @@ class PaymentsController extends Controller
      */
     public function confirmPayment(Request $request, $studentId)
     {
+        DB::beginTransaction();
         try {
             // ✅ Validate input
             $validated = $request->validate([
@@ -36,7 +37,7 @@ class PaymentsController extends Controller
             $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus', 'subjects'])
                 ->findOrFail($studentId);
 
-            // ✅ Fetch the latest enrollment (or you can specify a logic to pick which one)
+            // ✅ Fetch the latest enrollment
             $enrollment = enrollments::where('student_id', $student->id)
                 ->where('payment_status', '!=', 'paid')
                 ->orderBy('created_at', 'desc')
@@ -50,39 +51,14 @@ class PaymentsController extends Controller
                 ], 400);
             }
 
-            // ✅ Get misc fees
-            $miscFees = DB::table('fees')
-                ->where('school_year_id', $student->academic_year_id)
-                ->where('is_active', 1)
-                ->where('is_archived', 0)
-                ->sum('default_amount');
-
-            if ($miscFees <= 0) {
-                return response()->json([
-                    'isSuccess' => false,
-                    'message'   => 'No applicable enrollment fees found for this student\'s school year.'
-                ], 400);
-            }
-
-            // ✅ Compute units fee
-            $totalUnits = $student->subjects()->sum('units') ?? 0;
-            $perUnitRate = config('school.per_unit_rate', 200);
-            $unitsFee = $totalUnits * $perUnitRate;
-
-            // ✅ Payment calculation (per enrollment)
-            $totalDue = $enrollment->tuition_fee + $miscFees;
-
-            $totalPaidForEnrollment = $student->payments()
-                ->where('reference_no', $enrollment->reference_number)
-                ->sum('paid_amount');
-
+            // ✅ Payment amount
             $paidAmount = $validated['amount'];
-            $newOutstanding = $totalDue - ($totalPaidForEnrollment + $paidAmount);
-            $newOutstanding = max(0, $newOutstanding); // prevent negative
 
+            // ✅ Remaining balance based on enrollment's current total_tuition_fee
+            $newOutstanding = max(0, $enrollment->total_tuition_fee - $paidAmount);
             $paymentStatus = ($newOutstanding == 0) ? 'paid' : 'partial';
 
-            // ✅ Generate unique OR number
+            // ✅ Generate unique receipt number
             $receiptNo = $validated['receipt_no'] ?? 'RCPT-' . str_pad(
                 $student->payments()->lockForUpdate()->count() + 1,
                 6,
@@ -90,7 +66,7 @@ class PaymentsController extends Controller
                 STR_PAD_LEFT
             );
 
-            // ✅ Group Reference Numbers
+            // Group Reference Numbers
             $groupReference = !empty($validated['references'])
                 ? implode(',', $validated['references'])
                 : $enrollment->reference_number;
@@ -98,7 +74,7 @@ class PaymentsController extends Controller
             // ✅ Create payment record
             $payment = payments::create([
                 'student_id'        => $student->id,
-                'amount'            => $totalDue,
+                'amount'            => $enrollment->total_tuition_fee, // use enrollment's current balance
                 'paid_amount'       => $paidAmount,
                 'school_year_id'    => $student->academic_year_id,
                 'payment_method'    => $validated['payment_method'] ?? 'cash',
@@ -113,7 +89,7 @@ class PaymentsController extends Controller
                 'remaining_balance' => $newOutstanding,
             ]);
 
-            // ✅ Update student payment status
+            // ✅ Update student status
             $student->payment_status = $paymentStatus;
             $student->is_enrolled = 1;
             $student->is_assess = 0;
@@ -136,17 +112,15 @@ class PaymentsController extends Controller
                 'firstName'        => $student->examSchedule?->applicant?->first_name ?? '',
                 'lastName'         => $student->examSchedule?->applicant?->last_name ?? '',
                 'subjects'         => $student->subjects()->get(['subject_code', 'subject_name', 'units']),
-                'totalUnits'       => $totalUnits,
+                'totalUnits'       => $student->subjects()->sum('units') ?? 0,
                 'receiptNo'        => $receiptNo,
                 'paidAt'           => $payment->paid_at,
                 'transaction'      => $payment->transaction,
                 'groupReference'   => $groupReference,
-                'tuitionFee'       => number_format((float) $enrollment->tuition_fee, 2),
-                'miscFee'          => number_format((float) $miscFees, 2),
-                'unitsFee'         => number_format((float) $unitsFee, 2),
-                'paidAmount'       => number_format($student->payments()
-                    ->where('reference_no', $enrollment->reference_number)
-                    ->sum('paid_amount'), 2),
+                'tuitionFee'       => number_format((float) $enrollment->total_tuition_fee + $paidAmount, 2),
+                'miscFee'          => 0,
+                'unitsFee'         => 0,
+                'paidAmount'       => number_format($paidAmount, 2),
                 'remainingBalance' => number_format($newOutstanding, 2),
             ]);
             $pdf->save($pdfPath);
@@ -165,7 +139,8 @@ class PaymentsController extends Controller
                 });
             }
 
-            // ✅ Response
+            DB::commit();
+
             return response()->json([
                 'isSuccess'         => true,
                 'message'           => 'Payment confirmed. Receipt generated and emailed.',
@@ -174,17 +149,12 @@ class PaymentsController extends Controller
                 'receipt'           => $receiptNo,
                 'references'        => $groupReference,
                 'remaining_balance' => $newOutstanding,
-                'total_amount'      => $totalDue,
+                'total_amount'      => $enrollment->total_tuition_fee + $paidAmount,
                 'updated_balance'   => $enrollment->total_tuition_fee,
                 'pdf_url'           => url("storage/receipts/receipt_{$student->student_number}.pdf")
             ], 200);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'isSuccess' => false,
-                'message'   => 'Validation failed',
-                'errors'    => $e->errors(),
-            ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'isSuccess' => false,
                 'message'   => 'Error: ' . $e->getMessage(),
