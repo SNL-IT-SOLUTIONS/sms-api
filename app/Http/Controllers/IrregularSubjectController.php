@@ -363,7 +363,7 @@ class IrregularSubjectController extends Controller
 
         $pendings = IrregularSubject::with('subject')
             ->where('status', 'pending')
-            ->whereNull('remarks') // approved/rejected = has remarks
+            ->whereNull('remarks')
             ->get();
 
         return response()->json([
@@ -394,7 +394,7 @@ class IrregularSubjectController extends Controller
                 's.subject_name'
             )
             ->where('sdr.status', 'pending')
-            ->whereNull('sdr.remarks') // approved = has remarks → hidden
+            ->whereNull('sdr.remarks')
             ->get();
 
         return response()->json([
