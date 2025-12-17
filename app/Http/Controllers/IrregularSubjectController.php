@@ -363,12 +363,6 @@ class IrregularSubjectController extends Controller
 
         $student = students::where('admission_id', $user->admission_id)->first();
 
-        if (!$student) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Authenticated user is not a student.'
-            ], 403);
-        }
 
         // Fetch pending irregular subjects
         $pendings = IrregularSubject::with('subject')
@@ -397,12 +391,6 @@ class IrregularSubjectController extends Controller
 
         $student = Students::where('admission_id', $user->admission_id)->first();
 
-        if (!$student) {
-            return response()->json([
-                'isSuccess' => false,
-                'message' => 'Authenticated user is not a student.'
-            ], 403);
-        }
 
         $requests = DB::table('subject_drop_requests as sdr')
             ->join('student_subjects as ss', 'sdr.student_subject_id', '=', 'ss.id')

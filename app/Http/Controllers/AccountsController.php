@@ -22,7 +22,7 @@ class AccountsController extends Controller
         try {
             $query = accounts::with('userType'); // Eager load userType
 
-            // 🔍 Search across multiple fields
+            //  Search across multiple fields
             if ($search = $request->input('search')) {
                 $query->where(function ($q) use ($search) {
                     $q->where('given_name', 'like', "%{$search}%")
@@ -33,7 +33,7 @@ class AccountsController extends Controller
                 });
             }
 
-            // 🎯 Filters
+            //  Filters
             if ($request->filled('user_type')) {
                 $query->where('user_type', $request->user_type);
             }
@@ -50,7 +50,7 @@ class AccountsController extends Controller
                 ]);
             }
 
-            // 📄 Pagination + hide fields
+            //  Pagination + hide fields
             $users = $query->paginate(5)->through(function ($user) {
                 return $user->makeHidden(['is_verified']);
             });
@@ -132,13 +132,13 @@ class AccountsController extends Controller
 
             $validatedData = $validator->validated();
 
-            // 🔑 Generate password
+            // Generate password
             $plainPassword = Str::random(8);
 
             $validatedData['password'] = Hash::make($plainPassword);
             $validatedData['is_admitted'] = 0;
 
-            // 📌 Auto-generate username: snl.{surname}
+            // Auto-generate username: snl.{surname}
             if (!empty($validatedData['surname'])) {
                 $usernameBase = 'snl.' . Str::lower(Str::slug($validatedData['surname'], ''));
 
@@ -153,10 +153,10 @@ class AccountsController extends Controller
                 $validatedData['username'] = $username;
             }
 
-            // 📝 Save account
+            // Save account
             $account = accounts::create($validatedData);
 
-            // 📧 Send welcome mail
+            // Send welcome mail
             if (!empty($account->email)) {
                 Mail::raw("Welcome! Your username is: {$account->username}\nYour password is: $plainPassword", function ($message) use ($account) {
                     $message->to($account->email)
@@ -191,7 +191,7 @@ class AccountsController extends Controller
         try {
             $user = auth()->user();
 
-            // ✅ Only allow Super Admin
+            // Only allow Super Admin
             if (!$user || $user->usertype !== 'super_admin') {
                 return response()->json([
                     'isSuccess' => false,
@@ -443,7 +443,7 @@ class AccountsController extends Controller
 
             $validated = $validator->validated();
 
-            // ✅ Handle file upload
+            //  Handle file upload
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
                 $filename = uniqid() . '.' . $file->getClientOriginalExtension();

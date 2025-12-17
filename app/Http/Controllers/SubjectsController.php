@@ -14,10 +14,10 @@ class SubjectsController extends Controller
     public function getSubjects(Request $request)
     {
         try {
-            $query = subjects::with(['gradeLevel', 'prerequisites', 'schoolYear']) // ✅ added schoolYear
+            $query = subjects::with(['gradeLevel', 'prerequisites', 'schoolYear']) // added schoolYear
                 ->where('is_archived', 0);
 
-            // 🔍 Search filter
+            // Search filter
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -26,22 +26,22 @@ class SubjectsController extends Controller
                 });
             }
 
-            // 🎯 Grade Level filter
+            // Grade Level filter
             if ($request->has('grade_level_id') && !empty($request->grade_level_id)) {
                 $query->where('grade_level_id', $request->grade_level_id);
             }
 
-            // 🎯 School Year filter
+            // School Year filter
             if ($request->has('school_year_id') && !empty($request->school_year_id)) {
                 $query->where('school_year_id', $request->school_year_id);
             }
 
-            // 🎯 Subject Type filter
+            // Subject Type filter
             if ($request->has('subject_type') && !empty($request->subject_type)) {
                 $query->where('subject_type', $request->subject_type);
             }
 
-            // 🎯 Units filter (exact match)
+            // Units filter (exact match)
             if ($request->has('units') && !empty($request->units)) {
                 $query->where('units', $request->units);
             }
@@ -57,7 +57,7 @@ class SubjectsController extends Controller
                     'grade_level_id'    => $subject->grade_level_id,
                     'grade_level_name'  => $subject->gradeLevel ? $subject->gradeLevel->grade_level : null,
                     'school_year_id'    => $subject->school_year_id,
-                    'school_year_name'  => $subject->schoolYear ? $subject->schoolYear->school_year : null, // ✅ return label
+                    'school_year_name'  => $subject->schoolYear ? $subject->schoolYear->school_year : null, // return label
                     'school_year_semester'  => $subject->schoolYear ? $subject->schoolYear->semester : null,
                     'subject_type'      => $subject->subject_type,
                     'prerequisites'     => $subject->prerequisites->map(function ($pre) {
@@ -101,7 +101,7 @@ class SubjectsController extends Controller
                 'subject_name'     => 'required|string|max:255',
                 'units'            => 'required|numeric|min:0',
                 'grade_level_id'   => 'required|exists:grade_levels,id',
-                'school_year_id'   => 'required|exists:school_years,id', // ✅ added validation
+                'school_year_id'   => 'required|exists:school_years,id', // added validation
                 'subject_type'     => 'required|string',
                 'prerequisites'    => 'array',   // optional
                 'prerequisites.*'  => 'exists:subjects,id',
@@ -112,7 +112,7 @@ class SubjectsController extends Controller
                 'subject_name'    => $request->subject_name,
                 'units'           => $request->units,
                 'grade_level_id'  => $request->grade_level_id,
-                'school_year_id'  => $request->school_year_id, // ✅ included in create
+                'school_year_id'  => $request->school_year_id, // included in create
                 'subject_type'    => $request->subject_type,
             ]);
 
@@ -142,7 +142,7 @@ class SubjectsController extends Controller
                 'subject_name'    => 'sometimes|string|max:255',
                 'units'           => 'sometimes|numeric|min:0',
                 'grade_level_id'  => 'sometimes|exists:grade_levels,id',
-                'school_year_id'  => 'sometimes|exists:school_years,id', // ✅ added validation
+                'school_year_id'  => 'sometimes|exists:school_years,id', // added validation
                 'subject_type'    => 'sometimes',
                 'prerequisites'   => 'array',
                 'prerequisites.*' => 'exists:subjects,id',
@@ -162,7 +162,7 @@ class SubjectsController extends Controller
                 'subject_name',
                 'units',
                 'grade_level_id',
-                'school_year_id', // ✅ allow updating
+                'school_year_id', // allow updating
                 'subject_type',
             ]);
 
@@ -282,7 +282,7 @@ class SubjectsController extends Controller
                     'subjects.subject_name',
                     'subjects.subject_type',
                     'subjects.school_year_id',
-                    'sy.school_year as school_year_name', // ✅ adjust to your actual column name
+                    'sy.school_year as school_year_name', // adjust to your actual column name
                     'sy.semester',
                 ])
                 ->map(function ($subject) {

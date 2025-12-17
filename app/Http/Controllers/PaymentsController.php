@@ -22,7 +22,7 @@ class PaymentsController extends Controller
     {
         DB::beginTransaction();
         try {
-            // ✅ Validate input
+            // Validate input
             $validated = $request->validate([
                 'receipt_no'      => 'nullable|numeric',
                 'transaction'     => 'nullable|string|max:100',
@@ -33,17 +33,17 @@ class PaymentsController extends Controller
                 'remarks'         => 'nullable|string|max:255',
             ]);
 
-            // ✅ Fetch student
+            // Fetch student
             $student = students::with(['examSchedule.applicant.course', 'examSchedule.applicant.campus', 'subjects'])
                 ->findOrFail($studentId);
 
-            // ✅ Fetch the latest enrollment
+            // Fetch the latest enrollment
             $enrollment = enrollments::where('student_id', $student->id)
                 ->where('payment_status', '!=', 'paid')
                 ->orderBy('created_at', 'desc')
                 ->firstOrFail();
 
-            // ✅ Validate school year
+            // Validate school year
             if (empty($student->academic_year_id)) {
                 return response()->json([
                     'isSuccess' => false,
@@ -51,14 +51,14 @@ class PaymentsController extends Controller
                 ], 400);
             }
 
-            // ✅ Payment amount
+            // Payment amount
             $paidAmount = $validated['amount'];
 
-            // ✅ Remaining balance based on enrollment's current total_tuition_fee
+            // Remaining balance based on enrollment's current total_tuition_fee
             $newOutstanding = max(0, $enrollment->total_tuition_fee - $paidAmount);
             $paymentStatus = ($newOutstanding == 0) ? 'paid' : 'partial';
 
-            // ✅ Generate unique receipt number
+            // Generate unique receipt number
             $receiptNo = $validated['receipt_no'] ?? 'RCPT-' . str_pad(
                 $student->payments()->lockForUpdate()->count() + 1,
                 6,
@@ -71,7 +71,7 @@ class PaymentsController extends Controller
                 ? implode(',', $validated['references'])
                 : $enrollment->reference_number;
 
-            // ✅ Create payment record
+            // Create payment record
             $payment = payments::create([
                 'student_id'        => $student->id,
                 'amount'            => $enrollment->total_tuition_fee, // use enrollment's current balance
@@ -89,18 +89,18 @@ class PaymentsController extends Controller
                 'remaining_balance' => $newOutstanding,
             ]);
 
-            // ✅ Update student status
+            // Update student status
             $student->payment_status = $paymentStatus;
             $student->is_enrolled = 1;
             $student->is_assess = 0;
             $student->save();
 
-            // ✅ Update enrollment balance and status
+            // Update enrollment balance and status
             $enrollment->total_tuition_fee = $newOutstanding;
             $enrollment->payment_status = $paymentStatus;
             $enrollment->save();
 
-            // ✅ Generate Receipt PDF
+            // Generate Receipt PDF
             $receiptDir = storage_path('app/receipts');
             if (!file_exists($receiptDir)) mkdir($receiptDir, 0777, true);
 
@@ -125,7 +125,7 @@ class PaymentsController extends Controller
             ]);
             $pdf->save($pdfPath);
 
-            // ✅ Send Email
+            // Send Email
             $email = $student->examSchedule?->applicant?->email;
             if ($email) {
                 Mail::send([], [], function ($message) use ($email, $student, $pdfPath) {
@@ -252,7 +252,7 @@ class PaymentsController extends Controller
     public function getEnrollmentReferences(Request $request, $id)
     {
         try {
-            // ✅ Fetch enrollments for this student
+            // Fetch enrollments for this student
             $references = enrollments::select(
                 'id',
                 'reference_number',
@@ -288,9 +288,9 @@ class PaymentsController extends Controller
     public function printProcessPayments(Request $request)
     {
         try {
-            $studentId = $request->get('student_id'); // ✅ optional param
+            $studentId = $request->get('student_id'); // optional param
 
-            // 🔎 Fetch students with relationships
+            // Fetch students with relationships
             $query = students::with([
                 'examSchedule.applicant.gradeLevel',
                 'examSchedule.applicant.course',
@@ -301,7 +301,7 @@ class PaymentsController extends Controller
                 ->where('is_enrolled', 1)
                 ->orderBy('academic_year_id', 'asc');
 
-            // 🎯 If a specific student ID is provided → filter
+            // If a specific student ID is provided → filter
             if ($studentId) {
                 $query->where('id', $studentId);
             }
@@ -317,8 +317,8 @@ class PaymentsController extends Controller
                 ], 404);
             }
 
-            // 📂 Group by academic year
-            // 📂 Group by school_year_id (year + semester combined)
+            // Group by academic year
+            // Group by school_year_id (year + semester combined)
             $groupedByYearSemester = $students->groupBy('academic_year_id');
 
             $results = [];
@@ -326,7 +326,7 @@ class PaymentsController extends Controller
             foreach ($groupedByYearSemester as $academicYearId => $studentsGroup) {
                 $studentsData = [];
 
-                // 🔎 Fetch school year + semester info
+                // Fetch school year + semester info
                 $academicYear = DB::table('school_years')
                     ->where('id', $academicYearId)
                     ->select('id', 'school_year', 'semester', 'is_active', 'is_archived')
@@ -336,7 +336,7 @@ class PaymentsController extends Controller
                     $examSchedule = $student->examSchedule;
                     $admission    = $examSchedule?->applicant;
 
-                    // 💰 Payment info per semester
+                    // Payment info per semester
                     $totalPaid = $student->payments()
                         ->where('school_year_id', $academicYearId) // <-- filter per semester
                         ->sum('paid_amount');
@@ -390,7 +390,7 @@ class PaymentsController extends Controller
             }
 
 
-            // 🎯 Response for frontend (ready to print)
+            // Response for frontend (ready to print)
             return response()->json([
                 'isSuccess' => true,
                 'printpayments'      => $results,
@@ -417,7 +417,7 @@ class PaymentsController extends Controller
     //             ], 422);
     //         }
 
-    //         // Cap payment to remaining balance (from total_amount now 👇)
+    //         // Cap payment to remaining balance (from total_amount now)
     //         $totalDue = $student->total_amount;
     //         $paidAmount = min($paidAmount, $totalDue);
     //         $remainingBalance = $totalDue - $paidAmount;
@@ -514,7 +514,7 @@ class PaymentsController extends Controller
     //         ]);
 
     //         // Update student record
-    //         $student->total_amount   = $remainingBalance;  // 👈 update balance
+    //         $student->total_amount   = $remainingBalance;  // update balance
     //         $student->payment_status = $paymentStatus;
     //         $student->save();
 
