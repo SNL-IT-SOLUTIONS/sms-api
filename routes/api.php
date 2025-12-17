@@ -60,7 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     //REGISTRAR
-    Route::get('/irregularsubjects/addsubjectrequests', [IrregularSubjectController::class, 'getaddsubjectRequests']);
+    Route::get('/irregularsubjects/getpendings', [IrregularSubjectController::class, 'getPendings']);
     Route::get('/irregularsubjects/droprequests', [IrregularSubjectController::class, 'getDropRequests']);
     Route::post('/irregularsubjects/reject-dropsubject/{id}', [IrregularSubjectController::class, 'rejectDrop']);
     Route::post('/irregularsubjects/approve-dropsubject/{id}', [IrregularSubjectController::class, 'approveDrop']);

@@ -383,7 +383,8 @@ class IrregularSubjectController extends Controller
         ], 200);
     }
 
-    public function getaddsubjectRequests()
+
+    public function getDropRequests()
     {
         $user = auth()->user();
 
@@ -393,37 +394,25 @@ class IrregularSubjectController extends Controller
                 'message' => 'Unauthorized.'
             ], 401);
         }
-        $requests = IrregularSubject::with('student', 'subject')
-            ->where('status', 'pending')
-            ->get();
 
-        return response()->json([
-            'isSuccess' => true,
-            'requests' => $requests
-        ], 200);
-    }
+        $student = Students::where('admission_id', $user->admission_id)->first();
 
-    public function getdropRequests()
-    {
-        $user = auth()->user();
-
-        if (!$user) {
+        if (!$student) {
             return response()->json([
                 'isSuccess' => false,
-                'message' => 'Unauthorized.'
-            ], 401);
+                'message' => 'Authenticated user is not a student.'
+            ], 403);
         }
+
         $requests = DB::table('subject_drop_requests as sdr')
             ->join('student_subjects as ss', 'sdr.student_subject_id', '=', 'ss.id')
             ->join('subjects as s', 'ss.subject_id', '=', 's.id')
-            ->join('students as st', 'sdr.student_id', '=', 'st.id')
             ->select(
                 'sdr.*',
                 's.subject_code',
-                's.subject_name',
-                'st.first_name',
-                'st.last_name'
+                's.subject_name'
             )
+            ->where('sdr.student_id', $student->id)
             ->where('sdr.status', 'pending')
             ->get();
 
@@ -432,6 +421,7 @@ class IrregularSubjectController extends Controller
             'requests' => $requests
         ], 200);
     }
+
 
 
 
