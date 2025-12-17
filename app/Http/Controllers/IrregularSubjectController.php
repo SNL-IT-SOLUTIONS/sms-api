@@ -366,7 +366,6 @@ class IrregularSubjectController extends Controller
 
         // Fetch pending irregular subjects
         $pendings = IrregularSubject::with('subject')
-            ->where('student_id', $student->id)
             ->where('status', 'pending')
             ->whereNull('remarks')
             ->get();
@@ -400,7 +399,6 @@ class IrregularSubjectController extends Controller
                 's.subject_code',
                 's.subject_name'
             )
-            ->where('sdr.student_id', $student->id)
             ->where('sdr.status', 'pending')
             ->get();
 
