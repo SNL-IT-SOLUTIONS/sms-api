@@ -361,13 +361,9 @@ class IrregularSubjectController extends Controller
             ], 401);
         }
 
-        $student = students::where('admission_id', $user->admission_id)->first();
-
-
-        // Fetch pending irregular subjects
         $pendings = IrregularSubject::with('subject')
             ->where('status', 'pending')
-            ->whereNull('remarks')
+            ->whereNull('remarks') // approved/rejected = has remarks
             ->get();
 
         return response()->json([
@@ -375,6 +371,7 @@ class IrregularSubjectController extends Controller
             'pendings' => $pendings
         ], 200);
     }
+
 
 
     public function getDropRequests()
@@ -388,9 +385,6 @@ class IrregularSubjectController extends Controller
             ], 401);
         }
 
-        $student = Students::where('admission_id', $user->admission_id)->first();
-
-
         $requests = DB::table('subject_drop_requests as sdr')
             ->join('student_subjects as ss', 'sdr.student_subject_id', '=', 'ss.id')
             ->join('subjects as s', 'ss.subject_id', '=', 's.id')
@@ -400,6 +394,7 @@ class IrregularSubjectController extends Controller
                 's.subject_name'
             )
             ->where('sdr.status', 'pending')
+            ->whereNull('sdr.remarks') // approved = has remarks → hidden
             ->get();
 
         return response()->json([
@@ -407,6 +402,7 @@ class IrregularSubjectController extends Controller
             'requests' => $requests
         ], 200);
     }
+
 
 
 
