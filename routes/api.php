@@ -27,7 +27,10 @@ use App\Http\Controllers\SchoolInfoController;
 use App\Http\Controllers\StudentsController;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FacultySchedulesController;
 use App\Http\Controllers\IrregularSubjectController;
+use App\Http\Controllers\GradeListController;
+
 
 
 /*
@@ -236,6 +239,11 @@ Route::get('getmystudents', [FacultyController::class, 'getStudents'])->middlewa
 Route::get('getmyclassgrades', [ScheduleController::class, 'getMyClassGrades'])->middleware('auth:sanctum');
 Route::post('submitgrades', [FacultyController::class, 'submitGrade'])->middleware('auth:sanctum');
 Route::post('updategrades', [ScheduleController::class, 'updateGrades'])->middleware('auth:sanctum');
+Route::get('teacherlist', [FacultySchedulesController::class, 'getTeachers'])->middleware('auth:sanctum');
+Route::get('teacherlist/{id}', [FacultySchedulesController::class, 'getTeacherById'])->middleware('auth:sanctum');
+Route::get('teacherlist/{id}/schedules', [FacultySchedulesController::class, 'getSchedulesByTeacherId'])->middleware('auth:sanctum');
+Route::get('teacher/students/grades/{id}', [GradeListController::class, 'getTeacherStudentsWithGrades'])->middleware('auth:sanctum');
+
 
 
 // // Account Registration and Verification

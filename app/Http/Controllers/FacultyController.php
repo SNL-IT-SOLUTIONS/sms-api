@@ -145,7 +145,7 @@ class FacultyController extends Controller
                 )
                 ->where('sss.teacher_id', $facultyId);
 
-            // ✅ Apply filters dynamically
+            //  Apply filters dynamically
             if ($request->filled('section_id')) {
                 $query->where('sec.id', $request->section_id);
             }

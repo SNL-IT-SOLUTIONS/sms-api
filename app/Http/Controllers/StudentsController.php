@@ -692,7 +692,7 @@ class StudentsController extends Controller
 
             $schoolYearId = $request->input('school_year_id');
 
-            // ✅ Query schedules with school year filtering + include school year
+            //  Query schedules with school year filtering + include school year
             $schedules = DB::table('student_subjects as ss')
                 ->join('section_subject_schedule as sched', 'sched.subject_id', '=', 'ss.subject_id')
                 ->leftJoin('subjects as subj', 'subj.id', '=', 'sched.subject_id')

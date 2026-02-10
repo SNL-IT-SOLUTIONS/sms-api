@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Auth;
 
 class accounts extends Authenticatable
 {
-      use HasApiTokens, Notifiable;
+    use HasApiTokens, Notifiable;
 
-      protected $appends = ['profile_picture_url'];
+    protected $appends = ['profile_picture_url'];
 
     public function getProfilePictureUrlAttribute()
     {
@@ -21,53 +21,70 @@ class accounts extends Authenticatable
     }
 
 
-      protected $table = 'accounts';
-     protected $fillable = [
-    'email',
-    'username',
-    'password',
-    'profile_picture',
-    'surname',
-    'given_name',
-    'middle_name',
-    'middle_initial',
-    'suffix',
-    'verification_code',
-    'date_of_birth',
-    'place_of_birth',
-    'gender',
-    'civil_status',
-    'street_address',
-    'province',
-    'city',
-    'barangay',
-    'nationality',
-    'religion',
-    'ethnic_affiliation',
-    'telephone_number',
-    'mobile_number',
-    'is_4ps_member',
-    'is_insurance_member',
-    'is_vaccinated',
-    'is_indigenous',
-    'status',
-    'is_verified',
-    'is_archived',
-    'user_type_id',
-    'department_id'
-];
+    protected $table = 'accounts';
+    protected $fillable = [
+        'email',
+        'username',
+        'password',
+        'profile_picture',
+        'surname',
+        'given_name',
+        'middle_name',
+        'middle_initial',
+        'suffix',
+        'verification_code',
+        'date_of_birth',
+        'place_of_birth',
+        'gender',
+        'civil_status',
+        'street_address',
+        'province',
+        'city',
+        'barangay',
+        'nationality',
+        'religion',
+        'ethnic_affiliation',
+        'telephone_number',
+        'mobile_number',
+        'is_4ps_member',
+        'is_insurance_member',
+        'is_vaccinated',
+        'is_indigenous',
+        'status',
+        'is_verified',
+        'is_archived',
+        'user_type_id',
+        'department_id'
+    ];
 
 
 
-public function userType()
-{
-    return $this->belongsTo(user_types::class, 'user_type_id');
-}
+    public function userType()
+    {
+        return $this->belongsTo(user_types::class, 'user_type_id');
+    }
 
-public function student()
-{
-    return $this->hasOne(students::class, 'admission_id', 'id');
-}
+    public function student()
+    {
+        return $this->hasOne(students::class, 'admission_id', 'id');
+    }
+    public function schedules()
+    {
+        return $this->hasMany(SectionSubjectSchedule::class, 'teacher_id', 'id');
+    }
 
+    public function section()
+    {
+        return $this->belongsTo(sections::class, 'section_id');
+    }
 
+    public function subject()
+    {
+        return $this->belongsTo(subjects::class, 'subject_id');
+    }
+
+    public function room()
+    {
+        return $this->belongsTo(building_rooms::class, 'room_id');
+    }
 }
