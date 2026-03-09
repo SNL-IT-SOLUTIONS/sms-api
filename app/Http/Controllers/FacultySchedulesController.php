@@ -80,7 +80,7 @@ class FacultySchedulesController extends Controller
         ]);
     }
 
-    public function getSchedulesByTeacherId($teacherId)
+    public function getSchedulesByTeacherId(Request $request, $teacherId)
     {
         $teacher = accounts::where('user_type_id', 10)
             ->where('is_archived', 0)
@@ -93,9 +93,21 @@ class FacultySchedulesController extends Controller
             ], 404);
         }
 
+        $sectionId = $request->input('section_id');
+        $roomId = $request->input('room_id');
+
         $schedules = $teacher->schedules()
             ->with(['section', 'subject', 'room'])
             ->where('is_archived', 0)
+
+            ->when($sectionId, function ($query) use ($sectionId) {
+                $query->where('section_id', $sectionId);
+            })
+
+            ->when($roomId, function ($query) use ($roomId) {
+                $query->where('room_id', $roomId);
+            })
+
             ->orderBy('day')
             ->orderBy('start_time')
             ->get()
