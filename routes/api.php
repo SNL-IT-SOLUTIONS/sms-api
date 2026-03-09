@@ -350,6 +350,7 @@ Route::prefix('dropdown')->group(function () {
     Route::get('schoolyears', [AdmissionsController::class, 'getUniqueSchoolYearsDropdown']);
     Route::get('courses', [SectionsController::class, 'getCoursesDropdown']);
     Route::get('sections', [SectionsController::class, 'getSectionsDropdown']);
+    Route::get('rooms', [FacultySchedulesController::class, 'getRoomDropdown']);
     Route::get('subjects', [SubjectsController::class, 'getSubjectsDropdown']);
     Route::get('campuses', [AdmissionsController::class, 'getCampusDropdown']);
     Route::get('rooms/{buildingid}', [AdmissionsController::class, 'getByBuilding']);

@@ -6,8 +6,10 @@ use Illuminate\Http\Request;
 
 use App\Http\Controllers\Controller;
 use App\Models\accounts;
+use App\Models\building_rooms;
 use App\Models\SectionSubjectSchedule;
 use Illuminate\Support\Facades\DB;
+
 
 class FacultySchedulesController extends Controller
 {
@@ -138,5 +140,31 @@ class FacultySchedulesController extends Controller
             ],
             'schedules' => $schedules
         ]);
+    }
+
+    //DROPDOWN
+
+    public function getRoomDropdown()
+    {
+        try {
+
+            $rooms = building_rooms::where('is_archived', 0)
+                ->select('id', 'room_name')
+                ->orderBy('room_name', 'asc')
+                ->get();
+
+            return response()->json([
+                'isSuccess' => true,
+                'message' => 'Rooms retrieved successfully.',
+                'data' => $rooms
+            ], 200);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'isSuccess' => false,
+                'message' => 'Failed to retrieve rooms.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
